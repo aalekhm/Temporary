@@ -1,0 +1,26 @@
+<Solution>
+  <PropertyGroup Name="CocosProject" Version="3.10.0.0" Type="CocosStudio" />
+  <SolutionFolder>
+    <Group ctype="ResourceGroup">
+      <RootFolder Name=".">
+        <Folder Name="Common">
+          <Image Name="ActivityIcon_Activity.png" />
+          <Image Name="ActivityIcon_DC.png" />
+          <Image Name="BG_Battle.png" />
+          <Image Name="BG_Battle_2.png" />
+          <Image Name="BG_Retro_2.png" />
+          <Image Name="BG_SinglePlayer.png" />
+          <Image Name="BG_SinglePlayer_2.png" />
+          <Image Name="BG_Tournament.png" />
+          <Image Name="BG_Tournament_2.png" />
+          <Image Name="Button_Blue_Small.png" />
+          <Image Name="Button_GreySmall.png" />
+        </Folder>
+        <Project Name="CSBSceneBG.csd" Type="Scene" />
+        <Project Name="CSBSceneMainMenu.csd" Type="Scene" />
+        <Project Name="CSBSceneMainMenuNext.csd" Type="Scene" />
+        <TTF Name="TradeGothicNextLTPro-Rg.ttf" />
+      </RootFolder>
+    </Group>
+  </SolutionFolder>
+</Solution>

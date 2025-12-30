@@ -1,0 +1,599 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &lt;windows.h&gt;                    <span class=comment>// Header File For Windows
+</span><span class=pp>#include</span> &lt;math.h&gt;                        <span class=comment>// Header File For Windows Math Library        ( ADD )
+</span><span class=pp>#include</span> &lt;stdio.h&gt;                        <span class=comment>// Header File For Standard Input/Output    ( ADD )
+</span><span class=pp>#include</span> &lt;gl\gl.h&gt;                        <span class=comment>// Header File For The OpenGL32 Library
+</span><span class=pp>#include</span> &lt;gl\glu.h&gt;                        <span class=comment>// Header File For The GLu32 Library
+</span>
+HDC            mHDC        = NULL;            <span class=comment>// Private GDI Device Context
+</span>HGLRC        mHRC        = NULL;            <span class=comment>// Permanent Rendering Context
+</span>HWND        mHWnd    = NULL;                <span class=comment>// Holds Our Window Handle
+</span>HINSTANCE    mHInstance;                    <span class=comment>// Holds The Instance Of The Application
+</span>
+<span class=keyword>bool</span>        mKeys[256];                    <span class=comment>// Array Used For The Keyboard Routine
+</span><span class=keyword>bool</span>        mActive = <span class=keyword>false</span>;            <span class=comment>// Window Active Flag
+</span><span class=keyword>bool</span>        mFULLSCREEN = <span class=keyword>true</span>;            <span class=comment>// Fullscreen Flag Set To TRUE By Default
+</span>
+GLuint        base;                        <span class=comment>// Base Display List For The Font
+</span>GLuint        texture[2];                    <span class=comment>// Storage For Our Font Texture
+</span>GLuint        loop;                        <span class=comment>// Generic Loop Variable
+</span>
+GL<span class=keyword>float</span>        counter1;                    <span class=comment>// 1st Counter Used To Move Text &amp; For Coloring
+</span>GL<span class=keyword>float</span>        counter2;                    <span class=comment>// 2nd Counter Used To Move Text &amp; For Coloring
+</span>
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+GL<span class=keyword>void</span>    resizeGLScene(GLsizei width, GLsizei height);
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>);
+<span class=keyword>int</span> drawGLScene(GL<span class=keyword>void</span>);
+GL<span class=keyword>void</span> killGLWindow(GL<span class=keyword>void</span>);
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen);
+
+<span class=keyword>bool</span> NeHeLoadBitmap(LPTSTR szFileName, GLuint &amp;texid)                    <span class=comment>// Creates Texture From A Bitmap File
+</span>{
+    HBITMAP hBMP;                                                        <span class=comment>// Handle Of The Bitmap
+</span>    BITMAP    BMP;                                                        <span class=comment>// Bitmap Structure
+</span>
+    hBMP=(HBITMAP)LoadImage(GetModuleHandle(NULL), szFileName, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION | LR_LOADFROMFILE | LR_LOADTRANSPARENT );
+
+    <span class=keyword>if</span> (!hBMP)                                                            <span class=comment>// Does The Bitmap Exist?
+</span>        <span class=keyword>return</span> FALSE;                                                    <span class=comment>// If Not Return False
+</span>
+    GetObject(hBMP, <span class=keyword>sizeof</span>(BMP), &amp;BMP);                                    <span class=comment>// Get The Object
+</span>                                                                        <span class=comment>// hBMP:        Handle To Graphics Object
+</span>                                                                        <span class=comment>// sizeof(BMP): Size Of Buffer For Object Information
+</span>                                                                        <span class=comment>// &amp;BMP:        Buffer For Object Information
+</span>
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);                                <span class=comment>// Pixel Storage Mode (Word Alignment / 4 Bytes)
+</span>
+    <span class=comment>// Typical Texture Generation Using Data From The Bitmap
+</span>    glBindTexture(GL_TEXTURE_2D, texid);                                <span class=comment>// Bind To The Texture ID
+</span>    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);    <span class=comment>// Linear Min Filter
+</span>    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);    <span class=comment>// Linear Mag Filter
+</span>    glTexImage2D(GL_TEXTURE_2D, 0, 3, BMP.bmWidth, BMP.bmHeight, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, BMP.bmBits);
+
+    DeleteObject(hBMP);                                                    <span class=comment>// Delete The Object
+</span>
+    <span class=keyword>return</span> TRUE;                                                        <span class=comment>// Loading Was Successful
+</span>}
+
+GL<span class=keyword>void</span> buildFont(GL<span class=keyword>void</span>) {
+    <span class=keyword>float</span>    cx;                                            <span class=comment>// Holds Our X Character Coord
+</span>    <span class=keyword>float</span>    cy;                                            <span class=comment>// Holds Our Y Character Coord
+</span>    
+    base=glGenLists(256);                                <span class=comment>// Creating 256 Display Lists
+</span>
+    glBindTexture(GL_TEXTURE_2D, texture[1]);            <span class=comment>// Select Our Font Texture
+</span>    <span class=keyword>for</span> (loop=0; loop&lt;256; loop++)                        <span class=comment>// Loop Through All 256 Lists
+</span>    {
+        cx=<span class=keyword>float</span>(loop%16)/16.0f;                        <span class=comment>// X Position Of Current Character
+</span>        cy=<span class=keyword>float</span>(loop/16)/16.0f;                        <span class=comment>// Y Position Of Current Character
+</span>
+        glNewList(base+loop,GL_COMPILE);                <span class=comment>// Start Building A List
+</span>            <span class=comment>//NeHe
+</span>            <span class=comment>//The way we set up our Ortho screen, (0,0) will be at the bottom left of our screen. 
+</span>            <span class=comment>//(640,480) will be the top right of the screen. 0 is the left side of the screen on 
+</span>            <span class=comment>//the x axis, 639 is the right side of the screen on the x axis. 0 is the bottom of 
+</span>            <span class=comment>//the screen on the y axis and 479 is the top of the screen on the y axis. Basically 
+</span>            <span class=comment>//we've gotten rid of negative coordinates. This is also handy for people that don't 
+</span>            <span class=comment>//care about perspective and prefer to work with pixels rather than units :) 
+</span>            <span class=comment>//Aalekh
+</span>            <span class=comment>//For drawing a texture on a 2D scene,
+</span>            <span class=comment>//the width &amp; height of the texture are considered to be as '0' to '1' units
+</span>            <span class=comment>//the texture has a (0,0) @ bottom left and (1, 1) @ top right
+</span>            <span class=comment>//the 4 texture coordinates are matched with the QUAD coordinates
+</span>            <span class=comment>//accordingly, remember the QUAD coordinates are in pixels(the amount of width &amp; height you want the image to be).
+</span>            <span class=comment>//Here since its a font image of 256x256, each character takes up 16x16 pixels of space.
+</span>            <span class=comment>//Hence a character is 0.0625 x 0.0625 of units.
+</span>
+            glBegin(GL_QUADS);                            <span class=comment>// Use A Quad For Each Character
+</span>
+                glTexCoord2f(cx,1-cy-0.0625f);            <span class=comment>// Texture Coord (Bottom Left)
+</span>                glVertex2i(0,0);                        <span class=comment>// Vertex Coord (Bottom Left)
+</span>                glTexCoord2f(cx+0.0625f,1-cy-0.0625f);    <span class=comment>// Texture Coord (Bottom Right)
+</span>                glVertex2i(32,0);                        <span class=comment>// Vertex Coord (Bottom Right)
+</span>                glTexCoord2f(cx+0.0625f,1-cy);            <span class=comment>// Texture Coord (Top Right)
+</span>                glVertex2i(32,32);                        <span class=comment>// Vertex Coord (Top Right)
+</span>                glTexCoord2f(cx,1-cy);                    <span class=comment>// Texture Coord (Top Left)
+</span>                glVertex2i(0,32);                        <span class=comment>// Vertex Coord (Top Left)
+</span>
+            glEnd();                                    <span class=comment>// Done Building Our Quad (Character)
+</span>            glTranslated(32,0,0);                        <span class=comment>// Move To The Right Of The Character
+</span>        glEndList();                                    <span class=comment>// Done Building The Display List
+</span>    }                                                    <span class=comment>// Loop Until All 256 Are Built
+</span>}
+
+GL<span class=keyword>void</span> buildFont_(GL<span class=keyword>void</span>) {<span class=comment>//READ...
+</span>    base = glGenLists(1);
+
+    glBindTexture(GL_TEXTURE_2D, texture[1]);
+
+    glNewList(base, GL_COMPILE);
+        glBegin(GL_QUADS);
+            <span class=comment>//NeHe
+</span>            <span class=comment>//The way we set up our Ortho screen, (0,0) will be at the bottom left of our screen. 
+</span>            <span class=comment>//(640,480) will be the top right of the screen. 0 is the left side of the screen on 
+</span>            <span class=comment>//the x axis, 639 is the right side of the screen on the x axis. 0 is the bottom of 
+</span>            <span class=comment>//the screen on the y axis and 479 is the top of the screen on the y axis. Basically 
+</span>            <span class=comment>//we've gotten rid of negative coordinates. This is also handy for people that don't 
+</span>            <span class=comment>//care about perspective and prefer to work with pixels rather than units :) 
+</span>            <span class=comment>//Aalekh
+</span>            <span class=comment>//For drawing a texture on a 2D scene,
+</span>            <span class=comment>//the width &amp; height of the texture are considered to be as '0' to '1' units
+</span>            <span class=comment>//the texture has a (0,0) @ bottom left and (1, 1) @ top right
+</span>            <span class=comment>//the 4 texture coordinates are matched with the QUAD coordinates
+</span>            <span class=comment>//accordingly, remember the QUAD coordinates are in pixels(the amount of width &amp; height you want the image to be).
+</span>            <span class=comment>//Here since its a font image of 256x256, each character takes up 16x16 pixels of space.
+</span>            <span class=comment>//Hence a character is 0.0625 x 0.0625 of units.
+</span>            
+            glTexCoord2d(0.0, 1.0-0.0625f);
+            glVertex2i(0, 0);
+
+            glTexCoord2d(0.0625f, 1.0-0.0625f);
+            glVertex2i(16, 0);
+
+            glTexCoord2d(0.0625f, 1.0f);
+            glVertex2i(16, 16);
+    
+            glTexCoord2d(0.0f, 1.0f);
+            glVertex2i(0, 16);
+        glEnd();
+    glEndList();
+}
+
+GL<span class=keyword>void</span> killFont(GL<span class=keyword>void</span>) {                                <span class=comment>// Delete The Font From Memory
+</span>    glDeleteLists(base, 256);                            <span class=comment>// Delete All 256 Display Lists
+</span>}
+
+GL<span class=keyword>void</span> glPrint(GL<span class=keyword>int</span> x, GL<span class=keyword>int</span> y, <span class=keyword>char</span>* string, <span class=keyword>int</span> set) {    <span class=comment>// Where The Printing Happens
+</span>    <span class=keyword>if</span>(set &gt; 1) {                                            <span class=comment>// Is set Greater Than One?
+</span>        set = 1;                                            <span class=comment>// If So, Make Set Equal One
+</span>    }
+
+    glBindTexture(GL_TEXTURE_2D, texture[1]);                <span class=comment>// Select Our Font Texture
+</span>
+    glDisable(GL_DEPTH_TEST);                                <span class=comment>// Disables Depth Testing
+</span>    
+    glMatrixMode(GL_PROJECTION);                            <span class=comment>// Select The Projection Matrix
+</span>    glPushMatrix();                                            <span class=comment>// Store The Projection Matrix
+</span>    
+    glLoadIdentity();                                        <span class=comment>// Reset The Projection Matrix
+</span>    glOrtho(0, 640, 0, 480, -1, 1);                            <span class=comment>// Set Up An Ortho Screen
+</span>
+    glMatrixMode(GL_MODELVIEW);                                <span class=comment>// Select The Modelview Matrix
+</span>    glPushMatrix();                                            <span class=comment>// Store The Modelview Matrix
+</span>    glLoadIdentity();                                        <span class=comment>// Reset The Modelview Matrix
+</span>    
+    glTranslated(x, y, 0);                                    <span class=comment>// Position The Text (0,0 - Bottom Left)
+</span>    
+    glListBase(base - 32 + (128*set));                        <span class=comment>// Choose The Font Set (0 or 1)
+</span>    glCallLists(strlen(string), GL_UNSIGNED_BYTE, string);    <span class=comment>// Write The Text To The Screen
+</span>
+    glMatrixMode(GL_PROJECTION);                            <span class=comment>// Select The Projection Matrix
+</span>    glPopMatrix();                                            <span class=comment>// Restore The Old Projection Matrix
+</span>    
+    glMatrixMode(GL_MODELVIEW);                                <span class=comment>// Select The Modelview Matrix
+</span>    glPopMatrix();                                            <span class=comment>// Restore The Old Modelview Matrix
+</span>
+    glEnable(GL_DEPTH_TEST);                                <span class=comment>// Enables Depth Testing
+</span>}
+
+GL<span class=keyword>void</span> glPrint_(GL<span class=keyword>int</span> x, GL<span class=keyword>int</span> y, <span class=keyword>char</span>* string, <span class=keyword>int</span> set) {    <span class=comment>// Where The Printing Happens
+</span>    glDisable(GL_DEPTH_TEST);                                <span class=comment>// Disables Depth Testing
+</span>    
+    glMatrixMode(GL_PROJECTION);                            <span class=comment>// Select The Projection Matrix
+</span>    glPushMatrix();                                            <span class=comment>// Store The Projection Matrix
+</span>    
+    glLoadIdentity();                                        <span class=comment>// Reset The Projection Matrix
+</span>    glOrtho(0, 640, 0, 480, -1, 1);                            <span class=comment>// Set Up An Ortho Screen
+</span>
+    glMatrixMode(GL_MODELVIEW);                                <span class=comment>// Select The Modelview Matrix
+</span>    glPushMatrix();                                            <span class=comment>// Store The Modelview Matrix
+</span>    glLoadIdentity();                                        <span class=comment>// Reset The Modelview Matrix
+</span>    
+    glTranslated(x, y, 0);                                    <span class=comment>// Position The Text (0,0 - Bottom Left)
+</span>    
+    <span class=comment>//glListBase(base - 32 + (128*set));                        // Choose The Font Set (0 or 1)
+</span>    <span class=comment>//glCallLists(strlen(string), GL_UNSIGNED_BYTE, string);    // Write The Text To The Screen
+</span>
+    glCallList(base);
+
+    glMatrixMode(GL_PROJECTION);                            <span class=comment>// Select The Projection Matrix
+</span>    glPopMatrix();                                            <span class=comment>// Restore The Old Projection Matrix
+</span>    
+    glMatrixMode(GL_MODELVIEW);                                <span class=comment>// Select The Modelview Matrix
+</span>    glPopMatrix();                                            <span class=comment>// Restore The Old Modelview Matrix
+</span>
+    glEnable(GL_DEPTH_TEST);                                <span class=comment>// Enables Depth Testing
+</span>}
+
+<span class=keyword>int</span> WINAPI WinMain(    HINSTANCE    hInstance, 
+                    HINSTANCE    hPrevInstance,
+                    LPSTR        lpCmdLine,
+                    <span class=keyword>int</span>            nCmdShow
+) {
+    MSG        msg;
+    <span class=keyword>bool</span>    done = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(MessageBox(NULL, &quot;Would you like to run in FULLSCREEN mode?&quot;, &quot;Start FullScreen&quot;, MB_YESNO) == IDNO)
+        mFULLSCREEN = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(!createGLWindow(&quot;openGL Window...Press F1 to toogle between windowed &amp; Fullscreen Mode.&quot;, 640, 480, 16, mFULLSCREEN))
+        <span class=keyword>return</span> 0;
+
+    <span class=keyword>while</span>(!done) {
+        <span class=keyword>if</span>(PeekMessage(&amp;msg, NULL, 0, 0, PM_REMOVE)) {
+            <span class=keyword>if</span>(msg.message == WM_QUIT)
+                done = <span class=keyword>true</span>;
+            <span class=keyword>else</span>  {
+                TranslateMessage(&amp;msg);
+                DispatchMessage(&amp;msg);
+            }
+        }
+        <span class=keyword>else</span> {
+            <span class=keyword>if</span>(mActive) {
+                <span class=keyword>if</span>(mKeys[VK_ESCAPE])
+                    done = <span class=keyword>true</span>;
+                <span class=keyword>else</span> {
+                    drawGLScene();
+                    SwapBuffers(mHDC);
+                }
+            }
+
+            <span class=keyword>if</span>(mKeys[VK_F1]) {
+                mKeys[VK_F1] = <span class=keyword>false</span>;
+                killGLWindow();
+                mFULLSCREEN = !mFULLSCREEN;
+                <span class=keyword>if</span>(!createGLWindow(&quot;openGL window&quot;, 640, 480, 16, mFULLSCREEN)) {
+                    <span class=keyword>return</span> 0;
+                }
+            }
+        }
+    }
+
+    killGLWindow();
+    <span class=keyword>return</span> msg.wParam;
+}
+
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen) {
+    <span class=keyword>int</span>            iPixelFormat;
+    WNDCLASS    wc;
+    DWORD        dwExStyle;
+    DWORD        dwStyle;
+    RECT        windowRect;
+
+    windowRect.left        = (<span class=keyword>long</span>)0;
+    windowRect.right    = (<span class=keyword>long</span>)width;
+    windowRect.top        = (<span class=keyword>long</span>)0;
+    windowRect.bottom    = (<span class=keyword>long</span>)height;
+
+    mFULLSCREEN = isFullScreen;
+
+    mHInstance            = GetModuleHandle(NULL);
+    
+    wc.cbClsExtra        = 0;
+    wc.cbWndExtra        = 0;
+    wc.hbrBackground    = NULL;
+    wc.hCursor            = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon            = LoadIcon(NULL, IDI_WINLOGO);
+    wc.hInstance        = mHInstance;
+    wc.lpfnWndProc        = (WNDPROC) WndProc;
+    wc.lpszClassName    = &quot;OpenGL&quot;;
+    wc.lpszMenuName        = NULL;
+    wc.style            = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    
+    <span class=keyword>if</span>(!RegisterClass(&amp;wc)) {
+        MessageBox(NULL, &quot;Failed to Register the Window Class.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        DEVMODE    dmScreenSettings;
+        memset(&amp;dmScreenSettings, 0, <span class=keyword>sizeof</span>(dmScreenSettings));
+        dmScreenSettings.dmSize            = <span class=keyword>sizeof</span>(dmScreenSettings);
+        dmScreenSettings.dmPelsWidth    = width;
+        dmScreenSettings.dmPelsHeight    = height;
+        dmScreenSettings.dmBitsPerPel    = bits;
+        dmScreenSettings.dmFields        = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+
+        <span class=keyword>if</span>(ChangeDisplaySettings(&amp;dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            <span class=keyword>if</span>(MessageBox(NULL, &quot;The requested FullScreen Mode is not supported\n by your Video Card. Use Windowed Mode instead?&quot;, &quot;Error&quot;, MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+                mFULLSCREEN = <span class=keyword>false</span>;
+            <span class=keyword>else</span> {
+                MessageBox(NULL, &quot;Program will now close.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONSTOP);
+                <span class=keyword>return</span> <span class=keyword>false</span>;
+            }
+        }
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        dwExStyle    = WS_EX_APPWINDOW;
+        dwStyle        = WS_POPUP;
+        ShowCursor(<span class=keyword>false</span>);
+    }
+    <span class=keyword>else</span> {
+        dwExStyle    = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+        dwStyle        = WS_OVERLAPPEDWINDOW;
+    }
+
+    AdjustWindowRectEx(&amp;windowRect, dwStyle, <span class=keyword>false</span>, dwExStyle);
+
+    <span class=keyword>if</span>(!(mHWnd = CreateWindowEx(    dwExStyle,
+                                &quot;OpenGL&quot;,
+                                title,
+                                dwStyle | 
+                                WS_CLIPSIBLINGS |
+                                WS_CLIPCHILDREN,
+                                0, 0,
+                                windowRect.right - windowRect.left,
+                                windowRect.bottom - windowRect.top,
+                                NULL,
+                                NULL,
+                                mHInstance,
+                                NULL))
+    ) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHDC = GetDC(mHWnd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to get Device Context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>static</span> PIXELFORMATDESCRIPTOR pfd = 
+    {
+        <span class=keyword>sizeof</span>(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW |
+        PFD_SUPPORT_OPENGL |
+        PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        bits,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        16,
+        0,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    <span class=keyword>if</span>(!(iPixelFormat = ChoosePixelFormat(mHDC, &amp;pfd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to choose Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!SetPixelFormat(mHDC, iPixelFormat, &amp;pfd)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to set Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHRC = wglCreateContext(mHDC))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to create wgl context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!wglMakeCurrent(mHDC, mHRC)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to make wgl context&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+                                
+    ShowWindow(mHWnd, <span class=keyword>true</span>);
+    SetForegroundWindow(mHWnd);
+    SetFocus(mHWnd);
+
+    resizeGLScene(width, height);
+
+    <span class=keyword>if</span>(!initGL()) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> resizeGLScene(GLsizei width, GLsizei height) {
+    <span class=keyword>if</span>(height == 0)
+        height = 1;
+
+    glViewport(0, 0, width, height);
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(45.0f, (GL<span class=keyword>float</span>)width/(GL<span class=keyword>float</span>)height, 0.1f, 100.0f);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>) {
+    <span class=comment>// Start Of User Initialization
+</span>    glGenTextures(2, &amp;texture[0]);                                        <span class=comment>// Create The Texture
+</span>
+    <span class=keyword>if</span> (!NeHeLoadBitmap(&quot;Data/Bumps.bmp&quot;, texture[0]))            <span class=comment>// Load The Bitmap
+</span>        <span class=keyword>return</span> FALSE;                                            <span class=comment>// Return False If Loading Failed
+</span>    <span class=keyword>if</span> (!NeHeLoadBitmap(&quot;Data/Font.bmp&quot;, texture[1]))            <span class=comment>// Load The Bitmap
+</span>        <span class=keyword>return</span> FALSE;                                            <span class=comment>// Return False If Loading Failed
+</span>    
+    glEnable(GL_TEXTURE_2D);                                    <span class=comment>// Enable Texture Mapping ( NEW )
+</span>
+    buildFont();                                                <span class=comment>// Build The Font
+</span>
+    glShadeModel(GL_SMOOTH);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClearDepth(1.0f);
+    glEnable(GL_DEPTH_TEST);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    glDepthFunc(GL_LEQUAL);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> killGLWindow() {
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        ChangeDisplaySettings(NULL, 0);
+        ShowCursor(<span class=keyword>true</span>);
+    }
+
+    <span class=keyword>if</span>(mHRC) {
+        <span class=keyword>if</span>(!wglMakeCurrent(NULL, NULL))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        <span class=keyword>if</span>(!wglDeleteContext(mHRC))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        mHRC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHDC &amp;&amp; !ReleaseDC(mHWnd, mHDC)) {
+        MessageBox(NULL, &quot;Release of Device Context failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHDC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHWnd &amp;&amp; !DestroyWindow(mHWnd)) {
+        MessageBox(NULL, &quot;Release of mHWnd failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHWnd = NULL;
+    }
+
+    <span class=keyword>if</span>(!UnregisterClass(&quot;OpenGL&quot;, mHInstance)) {
+        MessageBox(NULL, &quot;UnRegisterClass failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHInstance = NULL;
+    }
+
+    killFont();                                <span class=comment>// Destroy The Font
+</span>}
+
+<span class=keyword>int</span> drawGLScene() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+    
+    glBindTexture(GL_TEXTURE_2D, texture[0]);
+    glTranslatef(0.0f, 0.0f, -5.0f);
+    glRotatef(45.0f, 0.0f, 0.0f, 1.0f);
+
+    glRotatef(counter1*30.0f, 1.0f, 1.0f, 0.0f);
+
+    glDisable(GL_BLEND);                            <span class=comment>// Disable Blending Before We Draw In 3D
+</span>    glColor3f(1.0f,1.0f,1.0f);                        <span class=comment>// Bright White
+</span>    glBegin(GL_QUADS);                            <span class=comment>// Draw Our First Texture Mapped Quad
+</span>        glTexCoord2d(0.0f,0.0f);                    <span class=comment>// First Texture Coord
+</span>        glVertex2f(-1.0f,-1.0f);                    <span class=comment>// First Vertex
+</span>        glTexCoord2d(0.0f,1.0f);                    <span class=comment>// Second Texture Coord
+</span>        glVertex2f(-1.0f, 1.0f);                    <span class=comment>// Second Vertex
+</span>        glTexCoord2d(1.0f,1.0f);                    <span class=comment>// Third Texture Coord
+</span>        glVertex2f( 1.0f, 1.0f);                    <span class=comment>// Third Vertex
+</span>        glTexCoord2d(1.0f,0.0f);                    <span class=comment>// Fourth Texture Coord
+</span>        glVertex2f( 1.0f,-1.0f);                    <span class=comment>// Fourth Vertex
+</span>    glEnd();                                <span class=comment>// Done Drawing The First Quad
+</span>
+    glRotatef(90.0f,1.0f,1.0f,0.0f);            <span class=comment>// Rotate On The X &amp; Y Axis By 90 Degrees (Left To Right)
+</span>    glBegin(GL_QUADS);                            <span class=comment>// Draw Our First Texture Mapped Quad
+</span>        glTexCoord2d(0.0f,0.0f);                    <span class=comment>// First Texture Coord
+</span>        glVertex2f(-1.0f,-1.0f);                    <span class=comment>// First Vertex
+</span>        glTexCoord2d(0.0f,1.0f);                    <span class=comment>// Second Texture Coord
+</span>        glVertex2f(-1.0f, 1.0f);                    <span class=comment>// Second Vertex
+</span>        glTexCoord2d(1.0f,1.0f);                    <span class=comment>// Third Texture Coord
+</span>        glVertex2f( 1.0f, 1.0f);                    <span class=comment>// Third Vertex
+</span>        glTexCoord2d(1.0f,0.0f);                    <span class=comment>// Fourth Texture Coord
+</span>        glVertex2f( 1.0f,-1.0f);                    <span class=comment>// Fourth Vertex
+</span>    glEnd();                                <span class=comment>// Done Drawing Our Second Quad
+</span>
+    
+    glEnable(GL_BLEND);                            <span class=comment>// Enable Blending
+</span>    
+    glLoadIdentity();                            <span class=comment>// Reset The View
+</span>    
+    <span class=comment>// Pulsing Colors Based On Text Position
+</span>    glColor3f(1.0f*<span class=keyword>float</span>(cos(counter1)),1.0f*<span class=keyword>float</span>(sin(counter2)),1.0f-0.5f*<span class=keyword>float</span>(cos(counter1+counter2)));
+    
+    glPrint(<span class=keyword>int</span>((280+250*cos(counter1))),<span class=keyword>int</span>(235+200*sin(counter2)),&quot;1Aa&quot;,0);    <span class=comment>// Print GL Text To The Screen
+</span>
+    glColor3f(1.0f*<span class=keyword>float</span>(sin(counter2)),1.0f-0.5f*<span class=keyword>float</span>(cos(counter1+counter2)),1.0f*<span class=keyword>float</span>(cos(counter1)));
+    glPrint(<span class=keyword>int</span>((280+230*cos(counter2))),<span class=keyword>int</span>(235+200*sin(counter1)),&quot;1Aa&quot;,1);    <span class=comment>// Print GL Text To The Screen
+</span>    
+    glColor3f(0.0f,0.0f,1.0f);                        <span class=comment>// Set Color To Blue
+</span>    glPrint(<span class=keyword>int</span>(240+200*cos((counter2+counter1)/5)),2,&quot;Giuseppe D'Agata&quot;,0);    <span class=comment>// Draw Text To The Screen
+</span>
+    glColor3f(1.0f,1.0f,1.0f);                        <span class=comment>// Set Color To White
+</span>    glPrint(<span class=keyword>int</span>(242+200*cos((counter2+counter1)/5)),2,&quot;Giuseppe D'Agata&quot;,0);    <span class=comment>// Draw Offset Text To The Screen
+</span>    
+    counter1 += 0.01f;                                <span class=comment>// Increase The First Counter
+</span>    counter2 += 0.0081f;                            <span class=comment>// Increase The Second Counter
+</span>    
+    <span class=comment>/*
+    //Aalekh
+    glPrint(400.0f, 100.0f, &quot;asdasd&quot;, 0);
+    */</span>
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    <span class=keyword>switch</span>(uMsg) {
+        <span class=keyword>case</span> WM_ACTIVATE:
+        {
+            <span class=keyword>if</span>(!HIWORD(wParam))
+                mActive = <span class=keyword>true</span>;
+            <span class=keyword>else</span>
+                mActive = <span class=keyword>false</span>;
+
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SYSCOMMAND:
+        {
+            <span class=keyword>switch</span>(wParam) {
+                <span class=keyword>case</span> SC_SCREENSAVE:
+                <span class=keyword>case</span> SC_MONITORPOWER:
+                    <span class=keyword>return</span> 0;
+            }
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYDOWN:
+        {
+            mKeys[wParam] = <span class=keyword>true</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYUP:
+        {
+            mKeys[wParam] = <span class=keyword>false</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SIZE:
+        {
+            resizeGLScene(LOWORD(lParam), HIWORD(lParam));
+            <span class=keyword>return</span> 0;
+        }
+    }
+
+    <span class=keyword>return</span> DefWindowProc(hWnd, uMsg, wParam, lParam);
+}</pre></body>
+</html>

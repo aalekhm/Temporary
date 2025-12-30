@@ -1,0 +1,45 @@
+#pragma once
+
+#include "Vector.h"
+
+struct CollisionInfo
+{
+	CollisionInfo();
+
+	// overlaps
+	bool	m_overlapped;
+	float	m_mtdLengthSquared;
+	Vector	m_mtd;
+
+	// swept
+	bool	m_collided; 
+	Vector	m_Nenter;
+	Vector	m_Nleave;
+	float	m_tenter;
+	float	m_tleave;
+};
+
+// basic polygon structure
+struct Poly
+{
+public:
+	Poly();
+	Poly(int count, float radius);
+
+	void			transform(const Vector& position, float rotation);
+	CollisionInfo	collide	 (const Poly& poly, const Vector& delta) const;
+	void			render	 (bool solid=true) const;
+
+public:
+	enum { MAX_VERTICES = 32 };
+	Vector	m_vertices[MAX_VERTICES];
+	int		m_count;
+
+	// collision functions
+private:
+	void calculateInterval(const Vector& axis, float& min, float& max) const;
+	bool separatedByAxis		(const Vector& axis, const Poly& poly, const Vector& delta, CollisionInfo& info) const;
+	bool separatedByAxis_swept	(const Vector& axis, float d0, float d1, float v, CollisionInfo& info) const;
+	bool separatedByAxis_overlap(const Vector& axis, float d0, float d1, CollisionInfo& info) const;
+};
+

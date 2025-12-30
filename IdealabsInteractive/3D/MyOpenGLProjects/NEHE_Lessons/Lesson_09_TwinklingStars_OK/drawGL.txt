@@ -1,0 +1,10 @@
+1>------ Build started: Project: OpenGLWindow, Configuration: Release Win32 ------
+1>Compiling...
+1>main.cpp
+1>Linking...
+1>Generating code
+1>Finished generating code
+1>Embedding manifest...
+1>Build log was saved at "file://c:\_Projects\MyOpenGLProjects\Lesson_09_TwinklingStars----------------\OpenGLWindow\Release\BuildLog.htm"
+1>OpenGLWindow - 0 error(s), 0 warning(s)
+========== Build: 1 succeeded, 0 failed, 0 up-to-date, 0 skipped ==========

@@ -1,0 +1,111 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=pp>#include</span> &quot;camera.h&quot;
+<span class=pp>#include</span> &quot;math.h&quot;
+<span class=pp>#include</span> &lt;iostream&gt;
+<span class=pp>#include</span> &quot;windows.h&quot;
+SF3dVector F3dVector ( GL<span class=keyword>float</span> x, GL<span class=keyword>float</span> y, GL<span class=keyword>float</span> z )
+{
+    SF3dVector tmp;
+    tmp.x = x;
+    tmp.y = y;
+    tmp.z = z;
+    <span class=keyword>return</span> tmp;
+}
+SF3dVector AddF3dVectors (SF3dVector* u, SF3dVector* v)
+{
+    SF3dVector result;
+    result.x = u-&gt;x + v-&gt;x;
+    result.y = u-&gt;y + v-&gt;y;
+    result.z = u-&gt;z + v-&gt;z;
+    <span class=keyword>return</span> result;
+}
+<span class=keyword>void</span> AddF3dVectorToVector ( SF3dVector * Dst, SF3dVector * V2)
+{
+    Dst-&gt;x += V2-&gt;x;
+    Dst-&gt;y += V2-&gt;y;
+    Dst-&gt;z += V2-&gt;z;
+}
+
+
+<span class=comment>/***************************************************************************************/</span>
+
+CCamera::CCamera()
+{
+    <span class=comment>//Init with standard OGL values:
+</span>    Position = F3dVector (    0.0, 
+                            0.0,
+                            0.0);
+    ViewDir = F3dVector(    0.0,
+                            0.0,
+                            -1.0);
+    ViewDirChanged = <span class=keyword>false</span>;
+    <span class=comment>//Only to be sure:
+</span>    RotatedX = RotatedY = RotatedZ = 0.0;
+}
+
+<span class=keyword>void</span> CCamera::GetViewDir( <span class=keyword>void</span> )
+{
+    SF3dVector Step1, Step2;
+    <span class=comment>//Rotate around Y-axis:
+</span>    Step1.x = cos( (RotatedY + 90.0) * PIdiv180);
+    Step1.z = -sin( (RotatedY + 90.0) * PIdiv180);
+    <span class=comment>//Rotate around X-axis:
+</span>    <span class=keyword>double</span> cosX = cos (RotatedX * PIdiv180);
+    Step2.x = Step1.x * cosX;
+    Step2.z = Step1.z * cosX;
+    Step2.y = sin(RotatedX * PIdiv180);
+    <span class=comment>//Rotation around Z-axis not yet implemented, so:
+</span>    ViewDir = Step2;
+}
+<span class=keyword>void</span> CCamera::Move (SF3dVector Direction)
+{
+    AddF3dVectorToVector(&amp;Position, &amp;Direction );
+}
+
+<span class=keyword>void</span> CCamera::RotateY (GL<span class=keyword>float</span> Angle)
+{
+    RotatedY += Angle;
+    ViewDirChanged = <span class=keyword>true</span>;
+}
+
+<span class=keyword>void</span> CCamera::RotateX (GL<span class=keyword>float</span> Angle)
+{
+    RotatedX += Angle;
+    ViewDirChanged = <span class=keyword>true</span>;
+}
+
+<span class=keyword>void</span> CCamera::Render( <span class=keyword>void</span> )
+{
+    glRotatef(-RotatedX , 1.0, 0.0, 0.0);
+    glRotatef(-RotatedY , 0.0, 1.0, 0.0);
+    glRotatef(-RotatedZ , 0.0, 0.0, 1.0);
+    glTranslatef( -Position.x, -Position.y, -Position.z );
+}
+
+<span class=keyword>void</span> CCamera::MoveForwards( GL<span class=keyword>float</span> Distance )
+{
+    <span class=keyword>if</span> (ViewDirChanged) GetViewDir();
+    SF3dVector MoveVector;
+    MoveVector.x = ViewDir.x * -Distance;
+    MoveVector.y = ViewDir.y * -Distance;
+    MoveVector.z = ViewDir.z * -Distance;
+    AddF3dVectorToVector(&amp;Position, &amp;MoveVector );
+}
+
+<span class=keyword>void</span> CCamera::StrafeRight ( GL<span class=keyword>float</span> Distance )
+{
+    <span class=keyword>if</span> (ViewDirChanged) GetViewDir();
+    SF3dVector MoveVector;
+    MoveVector.z = -ViewDir.x * -Distance;
+    MoveVector.y = 0.0;
+    MoveVector.x = ViewDir.z * -Distance;
+    AddF3dVectorToVector(&amp;Position, &amp;MoveVector );
+}</pre></body>
+</html>

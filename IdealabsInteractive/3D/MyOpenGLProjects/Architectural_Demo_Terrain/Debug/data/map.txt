@@ -1,0 +1,50 @@
+MAX_TEXTURES 		16
+TEX_ID_FONT		1	data/FontBlack.bmp
+TEX_ID_TERRAIN		2	data/Terrain.bmp
+TEX_ID_DETAIL		3	data/Detail.bmp	
+TEX_ID_SKYBOX_BACK	4	data/SkyBox_Back.bmp
+TEX_ID_SKYBOX_FRONT	5	data/SkyBox_Front.bmp
+TEX_ID_SKYBOX_BOTTOM	6	data/SkyBox_Bottom.bmp
+TEX_ID_SKYBOX_TOP	7	data/SkyBox_Top.bmp
+TEX_ID_SKYBOX_LEFT	8	data/SkyBox_Left.bmp
+TEX_ID_SKYBOX_RIGHT	9	data/SkyBox_Right.bmp
+TEX_ID_BLDG_0_0		10	data/10_wallb.bmp
+TEX_ID_BLDG_0_1		11	data/10_wall.bmp
+TEX_ID_BLDG_0_2		12	data/10_roof.bmp
+TEX_ID_BLDG_0_3		13	data/10_wallbase.bmp
+TEX_ID_COLOUR_GREEN	14	data/greenColour.bmp
+TEX_ID_MARBLE		15	data/marbleTexture.bmp
+TEX_ID_SOFA_TEXTURE	16	data/Sofa_Texture.bmp
+
+CAMERA_POSITION		750	25	810	0.0	0.0	0.0
+
+MODELS_TO_LOAD		7
+MODEL_ID_TREE_0		0	TEX_ID_MARBLE		2	data/Tree.3dS			5	//3D-trees-plants-set2.rar
+MODEL_ID_TREE_1		1	TEX_ID_MARBLE		2	data/tree02.3ds			5	//3D-trees-plants-set2.rar
+MODEL_ID_TREE_2		2	TEX_ID_MARBLE		2	data/Fern.3DS			20	//3D-trees-plants-set1.rar
+MODEL_ID_TREE_3		3	TEX_ID_MARBLE		2	data/palm_tree_nice.3ds		0.25	//3D-trees-plants-set1.rar
+MODEL_ID_CATHEDRAL	4	TEX_ID_MARBLE		15	data/CathedralModel.3DS		1
+MODEL_ID_MOSQUE		5	TEX_ID_SOFA_TEXTURE	16	data/Mosque-ciro.3DS		7
+MODEL_ID_BLDG_0		6	TEX_ID_BLDG_0_1		11	data/Bld_10.3ds			5	//3d-10.rar
+
+//MODEL_ID_BLDG_1		1	TEX_ID_MARBLE		10	data/Bld_03.3ds			5	//3d_03.zip
+//MODEL_ID_BLDG_2		4	TEX_ID_MARBLE		10	data/Bld_12.3ds			5	//3d-12.rar
+//MODEL_ID_BLDG_3		5	TEX_ID_MARBLE		10	data/Bld_11.3ds			5	//3d-11.rar
+
+MAX_MODELS_IN_SCENE	7
+MODEL_ID_TREE_0		0	760	10	614	0.0		0.0		0.0		//BUSH
+MODEL_ID_TREE_0		0	790	10	454	0.0		0.0		0.0		//BUSH
+MODEL_ID_TREE_0		0	608	21	209	0.0		0.0		0.0		//BUSH
+MODEL_ID_TREE_1		1	790	10	654	0.0		0.0		0.0		//
+MODEL_ID_CATHEDRAL	4	600	47	368	0.0		0.0		0.0
+MODEL_ID_MOSQUE		5	207	7	398	0.0		0.0		0.0
+MODEL_ID_BLDG_0		6	476	8	285	0.0		0.0		0.0
+
+
+//MODEL_ID_TREE_2		2	790	40	570	0.0		0.0		0.0		//fern
+//MODEL_ID_TREE_3		3	790	40	620	-45.0		0.0		0.0
+
+//MODEL_ID_BLDG_1		1	710	10	654	0.0		0.0		0.0
+//MODEL_ID_BLDG_2		4	790	10	614	0.0		0.0		0.0
+//MODEL_ID_BLDG_3		5	790	10	694	0.0		0.0		0.0
+//MODEL_ID_CATHEDRAL	0	TEX_ID_MARBLE		10	data/CathedralModel.3DS		5

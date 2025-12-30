@@ -1,0 +1,108 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _MAIN_H_
+<span class=pp>#define</span> _MAIN_H_
+
+<span class=pp>#include</span> &lt;windows.h&gt;
+<span class=pp>#include</span> &lt;stdio.h&gt;
+<span class=pp>#include</span> &lt;stdlib.h&gt;
+<span class=pp>#include</span> &lt;math.h&gt;
+<span class=pp>#include</span> &lt;string&gt;
+<span class=pp>#include</span> &lt;fstream&gt;
+<span class=pp>#include</span> &lt;vector&gt;
+<span class=pp>#include</span> &lt;gl\gl.h&gt;                                        <span class=comment>// Header File For The OpenGL32 Library
+</span><span class=pp>#include</span> &lt;gl\glu.h&gt;                                        <span class=comment>// Header File For The GLu32 Library
+</span><span class=pp>#include</span> &lt;gl\glaux.h&gt;
+<span class=pp>#include</span> &lt;crtdbg.h&gt;
+<span class=pp>#include</span> &lt;stdarg.h&gt;                        <span class=comment>// Header File For Variable Argument Routines    ( ADD )
+</span>
+<span class=keyword>using</span> <span class=keyword>namespace</span> std;
+<span class=keyword>typedef</span> <span class=keyword>unsigned</span> <span class=keyword>char</span> byte;
+
+<span class=pp>#define</span> SCREEN_WIDTH    640
+<span class=pp>#define</span> SCREEN_HEIGHT    480
+<span class=pp>#define</span> SCREEN_BPP        16
+
+<span class=pp>#define</span> MAX_TEXTURES    100
+
+
+<span class=comment>//This is a 3 point class, used to store the vertices of our Model.
+</span><span class=keyword>class</span> CVector3 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y, z;
+};
+
+<span class=comment>//This is a 2 point class, used to store the UV texture coordinates.
+</span><span class=keyword>class</span> CVector2 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y;
+};
+
+<span class=comment>// This is our face structure.  This is is used for indexing into the vertex 
+</span><span class=comment>// and texture coordinate arrays.  From this information we know which vertices
+</span><span class=comment>// from our vertex array go to which face, along with the correct texture coordinates.
+</span><span class=keyword>struct</span> tFace {
+    <span class=keyword>int</span> vertexIndex[3];        <span class=comment>//This stores the vertex indexes that make up this triangle face.
+</span>    <span class=keyword>int</span> texCoordIndex[3];    <span class=comment>//This stores the texture coordinate index to be applied to this face.
+</span>};
+
+<span class=comment>//This holds the material information. It may be a texture map or a colour.
+</span><span class=comment>// Some of these are not used, but I left them because you will want to eventually
+</span><span class=comment>// read in the UV tile ratio and the UV tile offset for some models.
+</span><span class=keyword>struct</span> tMaterial {
+    <span class=keyword>char</span> materialName[255];            <span class=comment>//The Material Name
+</span>    <span class=keyword>char</span> textureFileName[255];        <span class=comment>//The texture file name, if this is a texture map
+</span>    BYTE colour[3];                    <span class=comment>//The colour of the object (R, G, B)
+</span>    <span class=keyword>int</span> textureID;                    <span class=comment>//The texture ID
+</span>    <span class=keyword>float</span> uTile;                    <span class=comment>//U tiling of the texture
+</span>    <span class=keyword>float</span> vTile;                    <span class=comment>//V tiling of the texture
+</span>    <span class=keyword>float</span> uOffset;                    <span class=comment>//U tiling offset of the texture
+</span>    <span class=keyword>float</span> vOffset;                    <span class=comment>//V tiling offset of the texture
+</span>};
+
+<span class=comment>//This holds the information for a single OBJECT in our MODEL/SCENE.
+</span><span class=comment>//You should eventually turn into a robust class that 
+</span><span class=comment>//has loading/drawing/querying functions like:
+</span><span class=comment>//LoadModel(...); DrawObject(...); DrawModel(...); DestroyModel(...);
+</span><span class=keyword>struct</span> t3DObject {
+    <span class=keyword>char</span> objectName[255];            <span class=comment>//The name of the Object
+</span>        
+    <span class=keyword>int</span> numOfVertices;                <span class=comment>//The number of vertices in the MODEL
+</span>    <span class=keyword>int</span> numOfFaces;                    <span class=comment>//The number of faces in the MODEL
+</span>    <span class=keyword>int</span> numOfTextureVertex;            <span class=comment>//The number of texture Coordinates
+</span>            
+    <span class=keyword>bool</span> bHasTexture;                <span class=comment>//Does this object has a texture?
+</span>    <span class=keyword>int</span> materialID;                    <span class=comment>//If yes, this is the texture ID to use, which is the index to out texture array
+</span>    
+    tFace        *pFaces;            <span class=comment>//The objects faces
+</span>    CVector3    *pVertices;            <span class=comment>//The objects vertices
+</span>    CVector3    *pNormals;            <span class=comment>//The objects normals
+</span>    CVector2    *pTexVertices;        <span class=comment>//The objects texture`s UV coordinates
+</span>};
+
+<span class=comment>///This holds our MODEL/SCENE information.
+</span><span class=comment>//This should also turn into a robust class.
+</span><span class=comment>// We use STL's (Standard Template Library) vector class to ease our link list burdens. :)
+</span><span class=keyword>struct</span> t3DModel {
+    <span class=keyword>int</span> numOfObjects;                        <span class=comment>//The number of Objects in our MODEL/SCENE
+</span>    <span class=keyword>int</span> numOfMaterials;                        <span class=comment>//The number of materials used by the Objects in our MODEL/SCENE
+</span>
+    vector&lt;t3DObject&gt;        pObjects;        <span class=comment>//List of the Objects
+</span>    vector&lt;tMaterial&gt;        pMaterials;        <span class=comment>//List of the Materials (textures &amp; colours).    
+</span>    
+    <span class=comment>/*MD3 Specific*/</span>
+    <span class=keyword>int</span>                        numOfTags;        <span class=comment>//
+</span>    t3DModel                **pLinks;
+    <span class=keyword>struct</span> tMD3Tag            *pTags;
+};
+
+
+<span class=pp>#endif</span></pre></body>
+</html>

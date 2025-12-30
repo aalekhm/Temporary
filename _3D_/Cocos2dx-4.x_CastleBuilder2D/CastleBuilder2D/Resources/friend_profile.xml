@@ -1,0 +1,32 @@
+<profiles>
+	<profile>
+		<id>1</id>
+		<name>hacky</name>
+		<image>profile.png</image>
+		<level>5</level>
+	</profile>
+	<profile>
+		<id>2</id>
+		<name>chiru</name>
+		<image>profile.png</image>
+		<level>10</level>
+	</profile>
+	<profile>
+		<id>3</id>
+		<name>bala</name>
+		<image>profile.png</image>
+		<level>11</level>
+	</profile>
+	<profile>
+		<id>4</id>
+		<name>prabhas</name>
+		<image>profile.png</image>
+		<level>15</level>
+	</profile>
+	<profile>
+		<id>3</id>
+		<name>yash</name>
+		<image>profile.png</image>
+		<level>12</level>
+	</profile>
+</profiles>

@@ -1,0 +1,1311 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=comment>//***********************************************************************//
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        - &quot;Talk to me like I'm a 3 year old!&quot; Programming Lessons -         //
+</span><span class=comment>//                                                                       //
+</span><span class=comment>//        $Author:        DigiBen        digiben@gametutorials.com             //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        $Program:        3DS Animation                                     //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        $Description:    Shows you how to animate .3DS key frame models   //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        $Date:            10/22/01                                         //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//***********************************************************************//
+</span>
+<span class=pp>#include</span> &quot;3ds.h&quot;
+
+<span class=comment>// Global
+</span><span class=keyword>int</span> gBuffer[50000] = {0};                    <span class=comment>// This is a global buffer used to read past unwanted data
+</span>
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+<span class=comment>// This file handles all the coded need to load the .3DS file.
+</span><span class=comment>// If you haven't seen our .3DS tutorial then we suggest you go
+</span><span class=comment>// look at it before tackling the animation tutorial.  You can
+</span><span class=comment>// find it at www.GameTutorials.com.  It has more in depth explanations
+</span><span class=comment>// of the .3ds loading process.  In this tutorial we added some simple
+</span><span class=comment>// animation code.  It loads the key frame information and we just
+</span><span class=comment>// interpolate between the translation, scale and rotations to perform
+</span><span class=comment>// our animation.  This is VERY simple animation and should eventually
+</span><span class=comment>// be turned into skeletal animation with bones.  That is the next
+</span><span class=comment>// tutorial.  Remember, this is only object animation, not bone animation.
+</span><span class=comment>// If you try and load a model in that has bone animation it won't work.
+</span>
+
+<span class=comment>///////////////////////////////// ROUND FLOAT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This rounds a float down to zero if it's smaller than 0.001 or -0.001
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// ROUND FLOAT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>float</span> RoundFloat(<span class=keyword>float</span> number)
+{
+    <span class=comment>// For some strange reason when really small numbers were being
+</span>    <span class=comment>// read in, it stored them with scientific notation which didn't
+</span>    <span class=comment>// pass in correctly to some OpenGL calls.  So we just round them to 0.
+</span>    <span class=comment>// This might not be necessary though, it just seemed to work better.
+</span>
+    <span class=comment>// If the float passed in is a really small number, set it to zero
+</span>    <span class=keyword>if</span>(number &gt; 0 &amp;&amp; number &lt;  0.001f) number = 0;
+    <span class=keyword>if</span>(number &lt; 0 &amp;&amp; number &gt; -0.001f) number = 0;
+
+    <span class=comment>// Return the float changed or unchanged
+</span>    <span class=keyword>return</span> number;
+}
+
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+
+<span class=comment>///////////////////////////////// CLOAD3DS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This constructor initializes the tChunk data
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// CLOAD3DS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+CLoad3DS::CLoad3DS()
+{
+    m_CurrentChunk = <span class=keyword>new</span> tChunk;                <span class=comment>// Initialize and allocate our current chunk
+</span>    m_TempChunk = <span class=keyword>new</span> tChunk;                    <span class=comment>// Initialize and allocate a temporary chunk
+</span>}
+
+<span class=comment>///////////////////////////////// IMPORT 3DS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This is called by the client to open the .3ds file, read it, then clean up
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// IMPORT 3DS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>bool</span> CLoad3DS::Import3DS(t3DModel *pModel, <span class=keyword>char</span> *strFileName)
+{
+    <span class=keyword>char</span> strMessage[255] = {0};
+
+    <span class=comment>// Open the 3DS file
+</span>    m_FilePointer = fopen(strFileName, &quot;rb&quot;);
+    mFileConsoleLog = fopen(&quot;console.log&quot;, &quot;wb&quot;);
+
+    <span class=comment>// Make sure we have a valid file pointer (we found the file)
+</span>    <span class=keyword>if</span>(!m_FilePointer) 
+    {
+        sprintf(strMessage, &quot;Unable to find the file: %s!&quot;, strFileName);
+        MessageBox(NULL, strMessage, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Read the first chuck of the file to see if it's a 3DS file
+</span>    ReadChunk(m_CurrentChunk);
+
+    <span class=comment>// Make sure this is a 3DS file
+</span>    <span class=keyword>if</span> (m_CurrentChunk-&gt;ID != PRIMARY)
+    {
+        sprintf(strMessage, &quot;Unable to load PRIMARY chuck from file: %s!&quot;, strFileName);
+        MessageBox(NULL, strMessage, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Now we actually start reading in the data.  ProcessNextChunk() is recursive
+</span>
+    <span class=comment>// Begin loading objects, by calling this recursive function
+</span>    ProcessNextChunk(pModel, m_CurrentChunk);
+
+    <span class=comment>// After we have read the whole 3DS file, we want to calculate our own vertex normals.
+</span>    ComputeNormals(pModel);
+
+    <span class=comment>// Clean up after everything
+</span>    CleanUp();
+
+    <span class=keyword>return</span> 0;
+}
+
+<span class=comment>///////////////////////////////// CLEAN UP \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function cleans up our allocated memory and closes the file
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// CLEAN UP \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::CleanUp()
+{
+
+    fclose(m_FilePointer);                        <span class=comment>// Close the current file pointer
+</span>    <span class=keyword>delete</span> m_CurrentChunk;                        <span class=comment>// Free the current chunk
+</span>    <span class=keyword>delete</span> m_TempChunk;                            <span class=comment>// Free our temporary chunk
+</span>}
+
+
+<span class=comment>///////////////////////////////// PROCESS NEXT CHUNK\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads the main sections of the .3DS file, then dives deeper with recursion
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// PROCESS NEXT CHUNK\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ProcessNextChunk(t3DModel *pModel, tChunk *pPreviousChunk)
+{
+    t3DObject newObject;                        <span class=comment>// This is used to add to our object list
+</span>    tMaterialInfo newTexture = {0};                <span class=comment>// This is used to add to our material list
+</span>    <span class=keyword>int</span> version = 0;                            <span class=comment>// This will hold the file version
+</span>
+    m_CurrentChunk = <span class=keyword>new</span> tChunk;                <span class=comment>// Allocate a new chunk                
+</span>
+    <span class=comment>// Continue to read the sub chunks until we have reached the length.
+</span>    <span class=keyword>while</span> (pPreviousChunk-&gt;bytesRead &lt; pPreviousChunk-&gt;length)
+    {
+        <span class=comment>// Read next Chunk
+</span>        ReadChunk(m_CurrentChunk);
+
+        <span class=comment>// Check the chunk ID
+</span>        <span class=keyword>switch</span> (m_CurrentChunk-&gt;ID)
+        {
+        <span class=keyword>case</span> VERSION:                            <span class=comment>// This holds the version of the file
+</span>            
+            <span class=comment>// Read the file version and add the bytes read to our bytesRead variable
+</span>            m_CurrentChunk-&gt;bytesRead += fread(&amp;version, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+
+            <span class=comment>// If the file version is over 3, give a warning that there could be a problem
+</span>            <span class=keyword>if</span> (version &gt; 0x03)
+                MessageBox(NULL, &quot;This 3DS file is over version 3 so it may load incorrectly&quot;, &quot;Warning&quot;, MB_OK);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> OBJECTINFO:                        <span class=comment>// This holds the version of the mesh
+</span>            
+            <span class=comment>// Read the next chunk
+</span>            ReadChunk(m_TempChunk);
+
+            <span class=comment>// Get the version of the mesh
+</span>            m_TempChunk-&gt;bytesRead += fread(&amp;version, 1, m_TempChunk-&gt;length - m_TempChunk-&gt;bytesRead, m_FilePointer);
+
+            <span class=comment>// Increase the bytesRead by the bytes read from the last chunk
+</span>            m_CurrentChunk-&gt;bytesRead += m_TempChunk-&gt;bytesRead;
+
+            <span class=comment>// Go to the next chunk, which is the object has a texture, it should be MATERIAL, then OBJECT.
+</span>            ProcessNextChunk(pModel, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> MATERIAL:                            <span class=comment>// This holds the material information
+</span>
+            <span class=comment>// Increase the number of materials
+</span>            pModel-&gt;numOfMaterials++;
+
+            <span class=comment>// Add a empty texture structure to our texture list.
+</span>            pModel-&gt;pMaterials.push_back(newTexture);
+
+            <span class=comment>// Proceed to the material loading function
+</span>            ProcessNextMaterialChunk(pModel, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> OBJECT:                            <span class=comment>// This holds the name of the object being read
+</span>                
+            <span class=comment>// Increase the object count
+</span>            pModel-&gt;numOfObjects++;
+        
+            <span class=comment>// Add a new tObject node to our list of objects (like a link list)
+</span>            pModel-&gt;pObject.push_back(newObject);
+            
+            <span class=comment>// Initialize the object and all it's data members
+</span>            memset(&amp;(pModel-&gt;pObject[pModel-&gt;numOfObjects - 1]), 0, <span class=keyword>sizeof</span>(t3DObject));
+
+            <span class=comment>// Get the name of the object and store it, then add the read bytes to our byte counter.
+</span>            m_CurrentChunk-&gt;bytesRead += GetString(pModel-&gt;pObject[pModel-&gt;numOfObjects - 1].strName);
+            
+            <span class=comment>// Now proceed to read in the rest of the object information
+</span>            ProcessNextObjectChunk(pModel, &amp;(pModel-&gt;pObject[pModel-&gt;numOfObjects - 1]), m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> KEYFRAME:
+
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>            
+            <span class=comment>// This is where we starting to read in all the key frame information.
+</span>            <span class=comment>// This is read in at the END of the file.  It stores all the animation data.
+</span>
+            <span class=comment>// Recurse further to read in all the animation data
+</span>            ProcessNextKeyFrameChunk(pModel, m_CurrentChunk);
+
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+            <span class=comment>// Read past this chunk and add the bytes read to the byte counter
+</span>            m_CurrentChunk-&gt;bytesRead += fread(gBuffer, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>default</span>: 
+            
+            <span class=comment>// If we didn't care about a chunk, then we get here.  We still need
+</span>            <span class=comment>// to read past the unknown or ignored chunk and add the bytes read to the byte counter.
+</span>            m_CurrentChunk-&gt;bytesRead += fread(gBuffer, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+            <span class=keyword>break</span>;
+        }
+
+        <span class=comment>// Add the bytes read from the last chunk to the previous chunk passed in.
+</span>        pPreviousChunk-&gt;bytesRead += m_CurrentChunk-&gt;bytesRead;
+    }
+
+    <span class=comment>// Free the current chunk and set it back to the previous chunk (since it started that way)
+</span>    <span class=keyword>delete</span> m_CurrentChunk;
+    m_CurrentChunk = pPreviousChunk;
+}
+
+
+<span class=comment>///////////////////////////////// PROCESS NEXT OBJECT CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function handles all the information about the objects in the file
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// PROCESS NEXT OBJECT CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ProcessNextObjectChunk(t3DModel *pModel, t3DObject *pObject, tChunk *pPreviousChunk)
+{
+    <span class=comment>// Allocate a new chunk to work with
+</span>    m_CurrentChunk = <span class=keyword>new</span> tChunk;
+
+    <span class=comment>// Continue to read these chunks until we read the end of this sub chunk
+</span>    <span class=keyword>while</span> (pPreviousChunk-&gt;bytesRead &lt; pPreviousChunk-&gt;length)
+    {
+        <span class=comment>// Read the next chunk
+</span>        ReadChunk(m_CurrentChunk);
+
+        <span class=comment>// Check which chunk we just read
+</span>        <span class=keyword>switch</span> (m_CurrentChunk-&gt;ID)
+        {
+        <span class=keyword>case</span> OBJECT_MESH:                    <span class=comment>// This lets us know that we are reading a new object
+</span>        
+            <span class=comment>// We found a new object, so let's read in it's info using recursion
+</span>            ProcessNextObjectChunk(pModel, pObject, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> OBJECT_VERTICES:                <span class=comment>// This is the objects vertices
+</span>            ReadVertices(pObject, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> OBJECT_FACES:                    <span class=comment>// This is the objects face information
+</span>            ReadVertexIndices(pObject, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> OBJECT_MATERIAL:                <span class=comment>// This holds the material name that the object has
+</span>            
+            <span class=comment>// We now will read the name of the material assigned to this object
+</span>            ReadObjectMaterial(pModel, pObject, m_CurrentChunk);            
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> OBJECT_UV:                        <span class=comment>// This holds the UV texture coordinates for the object
+</span>
+            <span class=comment>// This chunk holds all of the UV coordinates for our object.  Let's read them in.
+</span>            ReadUVCoordinates(pObject, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>default</span>:  
+
+            <span class=comment>// Read past the ignored or unknown chunks
+</span>            m_CurrentChunk-&gt;bytesRead += fread(gBuffer, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+            <span class=keyword>break</span>;
+        }
+
+        <span class=comment>// Add the bytes read from the last chunk to the previous chunk passed in.
+</span>        pPreviousChunk-&gt;bytesRead += m_CurrentChunk-&gt;bytesRead;
+    }
+
+    <span class=comment>// Free the current chunk and set it back to the previous chunk (since it started that way)
+</span>    <span class=keyword>delete</span> m_CurrentChunk;
+    m_CurrentChunk = pPreviousChunk;
+}
+
+
+<span class=comment>///////////////////////////////// PROCESS NEXT MATERIAL CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function handles all the information about the material (Texture)
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// PROCESS NEXT MATERIAL CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ProcessNextMaterialChunk(t3DModel *pModel, tChunk *pPreviousChunk)
+{
+    <span class=comment>// Allocate a new chunk to work with
+</span>    m_CurrentChunk = <span class=keyword>new</span> tChunk;
+
+    <span class=comment>// Continue to read these chunks until we read the end of this sub chunk
+</span>    <span class=keyword>while</span> (pPreviousChunk-&gt;bytesRead &lt; pPreviousChunk-&gt;length)
+    {
+        <span class=comment>// Read the next chunk
+</span>        ReadChunk(m_CurrentChunk);
+
+        <span class=comment>// Check which chunk we just read in
+</span>        <span class=keyword>switch</span> (pModel, m_CurrentChunk-&gt;ID)
+        {
+        <span class=keyword>case</span> MATNAME:                            <span class=comment>// This chunk holds the name of the material
+</span>            
+            <span class=comment>// Here we read in the material name
+</span>            m_CurrentChunk-&gt;bytesRead += fread(pModel-&gt;pMaterials[pModel-&gt;numOfMaterials - 1].strName, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> MATDIFFUSE:                        <span class=comment>// This holds the R G B color of our object
+</span>            ReadColorChunk(&amp;(pModel-&gt;pMaterials[pModel-&gt;numOfMaterials - 1]), m_CurrentChunk);
+            <span class=keyword>break</span>;
+        
+        <span class=keyword>case</span> MATMAP:                            <span class=comment>// This is the header for the texture info
+</span>            
+            <span class=comment>// Proceed to read in the material information
+</span>            ProcessNextMaterialChunk(pModel, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> MATMAPFILE:                        <span class=comment>// This stores the file name of the material
+</span>
+            <span class=comment>// Here we read in the material's file name
+</span>            m_CurrentChunk-&gt;bytesRead += fread(pModel-&gt;pMaterials[pModel-&gt;numOfMaterials - 1].strFile, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+            <span class=keyword>break</span>;
+        
+        <span class=keyword>default</span>:  
+
+            <span class=comment>// Read past the ignored or unknown chunks
+</span>            m_CurrentChunk-&gt;bytesRead += fread(gBuffer, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+            <span class=keyword>break</span>;
+        }
+
+        <span class=comment>// Add the bytes read from the last chunk to the previous chunk passed in.
+</span>        pPreviousChunk-&gt;bytesRead += m_CurrentChunk-&gt;bytesRead;
+    }
+
+    <span class=comment>// Free the current chunk and set it back to the previous chunk (since it started that way)
+</span>    <span class=keyword>delete</span> m_CurrentChunk;
+    m_CurrentChunk = pPreviousChunk;
+}
+
+
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+<span class=comment>// Now this is where the main loop is for reading in the animation data.
+</span><span class=comment>// Basically, we get the name of the object it's describing, the amount
+</span><span class=comment>// of frames the animation is, the pivot point, the scale, rotation and
+</span><span class=comment>// translation key frames.  We then take this data and interpolate
+</span><span class=comment>// between each key frame.
+</span>
+<span class=comment>///////////////////////////////// PROCESS NEXT KEYFRAME CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function handles all the information about the keyframes (animation data)
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// PROCESS NEXT KEYFRAME CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ProcessNextKeyFrameChunk(t3DModel *pModel, tChunk *pPreviousChunk)
+{
+    <span class=keyword>char</span> strKeyFrameObject[50] = {0};            <span class=comment>// This stores the name of the current object being described
+</span>    <span class=keyword>float</span> temp = 0.0f;                            <span class=comment>// This is used to swap the pivot point's y and z.
+</span>
+    <span class=comment>// Allocate a new chunk to work with
+</span>    m_CurrentChunk = <span class=keyword>new</span> tChunk;
+
+    <span class=comment>// Continue to read these chunks until we read the end of this sub chunk
+</span>    <span class=keyword>while</span> (pPreviousChunk-&gt;bytesRead &lt; pPreviousChunk-&gt;length)
+    {
+        <span class=comment>// Read the next chunk
+</span>        ReadChunk(m_CurrentChunk);
+
+        <span class=comment>// Check which chunk we just read
+</span>        <span class=keyword>switch</span> (m_CurrentChunk-&gt;ID)
+        {
+        <span class=keyword>case</span> KEYFRAME_MESH_INFO:                <span class=comment>// This tells us there is a new object being described
+</span>
+            <span class=comment>// This tells us that we have another objects animation data to be read,
+</span>            <span class=comment>// so let's use recursion again so we read the next chunk and not read past this.
+</span>            ProcessNextKeyFrameChunk(pModel, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> KEYFRAME_OBJECT_NAME:                <span class=comment>// This stores the current objects name
+</span>
+            <span class=comment>// Get the name of the object that the animation data being read is about.
+</span>            m_CurrentChunk-&gt;bytesRead += GetString(strKeyFrameObject);
+
+            <span class=comment>// Now that we have the object that is being described, set the m_CurrentObject.
+</span>            <span class=comment>// That way we have a pointer to the object in the model to store the anim data.
+</span>            SetCurrentObject(pModel, strKeyFrameObject);
+            
+            <span class=comment>// Read past 2 flags and heirarchy number (3 shorts - Not used by this loader).
+</span>            <span class=comment>// This will be used when we do a bone animation tutorial.
+</span>            m_CurrentChunk-&gt;bytesRead += fread(gBuffer, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+<span class=comment>//MessageBox(NULL, strKeyFrameObject, &quot;asdasd&quot;, MB_OK);
+</span>sprintf(logText, &quot;OBJECT %s\r\n&quot;, strKeyFrameObject);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> KEYFRAME_START_AND_END:            <span class=comment>// This chunk stores the start and end frame
+</span>            
+            <span class=comment>// Read in the beginning frame and the end frame.  We just write over the
+</span>            <span class=comment>// beginning frame because it is assumed that we will always start at the beginning (0)
+</span>            m_CurrentChunk-&gt;bytesRead += fread(&amp;(pModel-&gt;numberOfFrames), 1, 4, m_FilePointer);
+            m_CurrentChunk-&gt;bytesRead += fread(&amp;(pModel-&gt;numberOfFrames), 1, 4, m_FilePointer);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> PIVOT:                                <span class=comment>// This stores the pivot point of the object
+</span>        
+            <span class=comment>// Here we read in 3 floats which are the (X, Y, Z) for the objects pivot point.
+</span>            <span class=comment>// The pivot point is the local axis in which the object rotates around.  This is
+</span>            <span class=comment>// By default (0, 0, 0), but may be changed manually in 3DS Max.
+</span>            m_CurrentChunk-&gt;bytesRead += 
+            fread(&amp;(m_CurrentObject-&gt;vPivot), 1, <span class=keyword>sizeof</span>(CVector3), m_FilePointer);
+
+            <span class=comment>// Because 3DS Studio Max is Z up and OpenGL is Y up, we need to swap
+</span>            <span class=comment>// the pivot point's y and z value, then negate the z value.
+</span>            temp = m_CurrentObject-&gt;vPivot.y;
+            m_CurrentObject-&gt;vPivot.y = m_CurrentObject-&gt;vPivot.z;
+            m_CurrentObject-&gt;vPivot.z = -temp;
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> POSITION_TRACK_TAG:                <span class=comment>// This stores the translation position each frame
+</span>
+            <span class=comment>// Now we want to read in the positions for each frame of the animation
+</span>            ReadKeyFramePositions(pModel, m_CurrentChunk);
+<span class=comment>//MessageBox(NULL, &quot;POSITION_TRACK_TAG&quot;, &quot;POSITION_TRACK_TAG&quot;, MB_OK);
+</span>            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> ROTATION_TRACK_TAG:                <span class=comment>// This stores the rotation values for each KEY frame
+</span>            
+            <span class=comment>// Now we want to read in the rotations for each KEY frame of the animation.
+</span>            <span class=comment>// This doesn't store rotation values for each frame like scale and translation,
+</span>            <span class=comment>// so we need to interpolate between each frame.
+</span>            ReadKeyFrameRotations(pModel, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>case</span> SCALE_TRACK_TAG:                    <span class=comment>// This stores the scale values for each frame
+</span>
+            <span class=comment>// Now we want to read in the scale value for each frame of the animation
+</span>            ReadKeyFrameScales(pModel, m_CurrentChunk);
+            <span class=keyword>break</span>;
+
+        <span class=keyword>default</span>:  
+
+            <span class=comment>// Read past the ignored or unknown chunks
+</span>            m_CurrentChunk-&gt;bytesRead += fread(gBuffer, 1, m_CurrentChunk-&gt;length - m_CurrentChunk-&gt;bytesRead, m_FilePointer);
+            <span class=keyword>break</span>;
+        }
+
+        <span class=comment>// Add the bytes read from the last chunk to the previous chunk passed in.
+</span>        pPreviousChunk-&gt;bytesRead += m_CurrentChunk-&gt;bytesRead;
+    }
+
+    <span class=comment>// Free the current chunk and set it back to the previous chunk (since it started that way)
+</span>    <span class=keyword>delete</span> m_CurrentChunk;
+    m_CurrentChunk = pPreviousChunk;
+}
+
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+
+
+<span class=comment>///////////////////////////////// READ CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in a chunk ID and it's length in bytes
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ CHUNK \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadChunk(tChunk *pChunk)
+{
+    <span class=comment>// This reads the chunk ID which is 2 bytes.
+</span>    pChunk-&gt;bytesRead = fread(&amp;pChunk-&gt;ID, 1, 2, m_FilePointer);
+
+    <span class=comment>// Then, we read the length of the chunk which is 4 bytes.
+</span>    pChunk-&gt;bytesRead += fread(&amp;pChunk-&gt;length, 1, 4, m_FilePointer);
+}
+
+<span class=comment>///////////////////////////////// GET STRING \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in a string of characters
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// GET STRING \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>int</span> CLoad3DS::GetString(<span class=keyword>char</span> *pBuffer)
+{
+    <span class=keyword>int</span> index = 0;
+
+    <span class=comment>// Read 1 byte of data which is the first letter of the string
+</span>    fread(pBuffer, 1, 1, m_FilePointer);
+
+    <span class=comment>// Loop until we get NULL
+</span>    <span class=keyword>while</span> (*(pBuffer + index++) != 0) {
+
+        <span class=comment>// Read in a character at a time until we hit NULL.
+</span>        fread(pBuffer + index, 1, 1, m_FilePointer);
+    }
+
+    <span class=comment>// Return the string length, which is how many bytes we read in (including the NULL)
+</span>    <span class=keyword>return</span> strlen(pBuffer) + 1;
+}
+
+
+<span class=comment>///////////////////////////////// READ COLOR \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the RGB color data
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ COLOR \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadColorChunk(tMaterialInfo *pMaterial, tChunk *pChunk)
+{
+    <span class=comment>// Read the color chunk info
+</span>    ReadChunk(m_TempChunk);
+
+    <span class=comment>// Read in the R G B color (3 bytes - 0 through 255)
+</span>    m_TempChunk-&gt;bytesRead += fread(pMaterial-&gt;color, 1, m_TempChunk-&gt;length - m_TempChunk-&gt;bytesRead, m_FilePointer);
+
+    <span class=comment>// Add the bytes read to our chunk
+</span>    pChunk-&gt;bytesRead += m_TempChunk-&gt;bytesRead;
+}
+
+
+<span class=comment>///////////////////////////////// READ VERTEX INDECES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the indices for the vertex array
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ VERTEX INDECES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadVertexIndices(t3DObject *pObject, tChunk *pPreviousChunk)
+{
+    <span class=keyword>unsigned</span> <span class=keyword>short</span> index = 0;                    <span class=comment>// This is used to read in the current face index
+</span>
+    <span class=comment>// Read in the number of faces that are in this object (int)
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;pObject-&gt;numOfFaces, 1, 2, m_FilePointer);
+
+    <span class=comment>// Alloc enough memory for the faces and initialize the structure
+</span>    pObject-&gt;pFaces = <span class=keyword>new</span> tFace [pObject-&gt;numOfFaces];
+    memset(pObject-&gt;pFaces, 0, <span class=keyword>sizeof</span>(tFace) * pObject-&gt;numOfFaces);
+
+    <span class=comment>// Go through all of the faces in this object
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pObject-&gt;numOfFaces; i++)
+    {
+        <span class=comment>// Next, we read in the A then B then C index for the face, but ignore the 4th value.
+</span>        <span class=comment>// The fourth value is a visibility flag for 3D Studio Max, we don't care about this.
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; 4; j++)
+        {
+            <span class=comment>// Read the first vertice index for the current face 
+</span>            pPreviousChunk-&gt;bytesRead += fread(&amp;index, 1, <span class=keyword>sizeof</span>(index), m_FilePointer);
+
+            <span class=keyword>if</span>(j &lt; 3)
+            {
+                <span class=comment>// Store the index in our face structure.
+</span>                pObject-&gt;pFaces[i].vertIndex[j] = index;
+            }
+        }
+    }
+}
+
+
+<span class=comment>///////////////////////////////// READ UV COORDINATES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the UV coordinates for the object
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ UV COORDINATES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadUVCoordinates(t3DObject *pObject, tChunk *pPreviousChunk)
+{
+    <span class=comment>// Read in the number of UV coordinates there are (int)
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;pObject-&gt;numTexVertex, 1, 2, m_FilePointer);
+
+    <span class=comment>// Allocate memory to hold the UV coordinates
+</span>    pObject-&gt;pTexVerts = <span class=keyword>new</span> CVector2 [pObject-&gt;numTexVertex];
+
+    <span class=comment>// Read in the texture coodinates (an array 2 float)
+</span>    pPreviousChunk-&gt;bytesRead += fread(pObject-&gt;pTexVerts, 1, pPreviousChunk-&gt;length - pPreviousChunk-&gt;bytesRead, m_FilePointer);
+}
+
+
+<span class=comment>///////////////////////////////// READ VERTICES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the vertices for the object
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ VERTICES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadVertices(t3DObject *pObject, tChunk *pPreviousChunk)
+{
+    <span class=comment>// Read in the number of vertices (int)
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;(pObject-&gt;numOfVerts), 1, 2, m_FilePointer);
+
+    <span class=comment>// Allocate the memory for the verts and initialize the structure
+</span>    pObject-&gt;pVerts = <span class=keyword>new</span> CVector3 [pObject-&gt;numOfVerts];
+    memset(pObject-&gt;pVerts, 0, <span class=keyword>sizeof</span>(CVector3) * pObject-&gt;numOfVerts);
+
+    <span class=comment>// Read in the array of vertices (an array of 3 floats)
+</span>    pPreviousChunk-&gt;bytesRead += fread(pObject-&gt;pVerts, 1, pPreviousChunk-&gt;length - pPreviousChunk-&gt;bytesRead, m_FilePointer);
+
+    <span class=comment>// Go through all of the vertices that we just read and swap the Y and Z values
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pObject-&gt;numOfVerts; i++)
+    {
+        <span class=comment>// Store off the Y value
+</span>        <span class=keyword>float</span> fTempY = pObject-&gt;pVerts[i].y;
+
+        <span class=comment>// Set the Y value to the Z value
+</span>        pObject-&gt;pVerts[i].y = pObject-&gt;pVerts[i].z;
+
+        <span class=comment>// Set the Z value to the Y value, 
+</span>        <span class=comment>// but negative Z because 3D Studio max does the opposite.
+</span>        pObject-&gt;pVerts[i].z = -fTempY;
+    }
+}
+
+
+<span class=comment>///////////////////////////////// READ OBJECT MATERIAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the material name assigned to the object and sets the materialID
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ OBJECT MATERIAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadObjectMaterial(t3DModel *pModel, t3DObject *pObject, tChunk *pPreviousChunk)
+{
+    <span class=keyword>char</span> strMaterial[255] = {0};            <span class=comment>// This is used to hold the objects material name
+</span>
+    <span class=comment>// Here we read the material name that is assigned to the current object.
+</span>    <span class=comment>// strMaterial should now have a string of the material name, like &quot;Material #2&quot; etc..
+</span>    pPreviousChunk-&gt;bytesRead += GetString(strMaterial);
+
+    <span class=comment>// Go through all of the textures
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfMaterials; i++)
+    {
+        <span class=comment>// If the material we just read in matches the current texture name
+</span>        <span class=keyword>if</span>(strcmp(strMaterial, pModel-&gt;pMaterials[i].strName) == 0)
+        {
+            <span class=comment>// Set the material ID to the current index 'i' and stop checking
+</span>            pObject-&gt;materialID = i;
+
+            <span class=comment>// Now that we found the material, check if it's a texture map.
+</span>            <span class=comment>// If the strFile has a string length of 1 and over it's a texture
+</span>            <span class=keyword>if</span>(strlen(pModel-&gt;pMaterials[i].strFile) &gt; 0) {
+
+                <span class=comment>// Set the object's flag to say it has a texture map to bind.
+</span>                pObject-&gt;bHasTexture = <span class=keyword>true</span>;
+            }    
+            <span class=keyword>break</span>;
+        }
+        <span class=keyword>else</span>
+        {
+            <span class=comment>// Set the ID to -1 to show there is no material for this object
+</span>            pObject-&gt;materialID = -1;
+        }
+    }
+
+    <span class=comment>// Read past the rest of the chunk since we don't care about shared vertices
+</span>    <span class=comment>// You will notice we subtract the bytes already read in this chunk from the total length.
+</span>    pPreviousChunk-&gt;bytesRead += fread(gBuffer, 1, pPreviousChunk-&gt;length - pPreviousChunk-&gt;bytesRead, m_FilePointer);
+}            
+
+
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+<span class=comment>// The next 4 functions are new to the loader.  They read and interpolate
+</span><span class=comment>// between each keyframe where needed.
+</span>
+<span class=comment>///////////////////////////////// READ KEYFRAME POSITIONS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the positions of the current object for every frame
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ KEYFRAME POSITIONS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadKeyFramePositions(t3DModel *pModel, tChunk *pPreviousChunk)
+{
+    <span class=keyword>short</span> frameNumber= 0, flags= 0, ignored= 0;
+    <span class=keyword>long</span>  lunknown= 0;
+    <span class=keyword>int</span> i;
+    
+    <span class=comment>// This function will read in each position for every frame that we need to
+</span>    <span class=comment>// translate the object too.  Remember, this position is relative to the object's
+</span>    <span class=comment>// pivot point.  The first 5 short's are ignored because we do not utilize
+</span>    <span class=comment>// them in this tutorial.  they are flags, the node ID, tension, bias, strength
+</span>    <span class=comment>// I believe.  Don't worry about them now, the next tutorial we will further explain it.
+</span>
+    <span class=comment>// Read past the ignored data
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+    <span class=comment>// Here we read in the number of position frames this object has.
+</span>    <span class=comment>// In other words, how many times the object moves to a new location
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;(m_CurrentObject-&gt;positionFrames), 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+    <span class=comment>// Read past one more ignored short
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+    
+    <span class=comment>// Now we need to go through ALL of the frames of animation and set
+</span>    <span class=comment>// the position of the object for every frame.  Even if we only have one
+</span>    <span class=comment>// or 50 position changes out of 100 frames, we will set the remaining to
+</span>    <span class=comment>// the last position it moved too.
+</span>    <span class=keyword>for</span>(i = 0; i &lt;= (pModel-&gt;numberOfFrames + 1); i++)
+    {
+sprintf(logText, &quot;%d pModel-&gt;numberOfFrames %d\r\n&quot;, pModel-&gt;numberOfFrames, i);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+<span class=comment>//MessageBox(NULL, &quot;ss01&quot;, &quot;ss&quot;, MB_OK);
+</span>        <span class=comment>// Here we add a new CVector3 to our list of positions.  This will
+</span>        <span class=comment>// store the current position for the current frame of animation 'i'.
+</span>        <span class=comment>// Using our STL vector, we just pass in a constructor to a CVector3 and
+</span>        <span class=comment>// it passes back a default CVector3 through the copy constructor.
+</span>        <span class=comment>// This is the same thing as creating a new CVector3 and passing it to push_back().
+</span>        m_CurrentObject-&gt;vPosition.push_back(CVector3());
+
+        <span class=comment>// If the current frame of animation hasn't gone over the position frames,
+</span>        <span class=comment>// we want to read in the next position for the current frame.
+</span>        <span class=keyword>if</span>(i &lt; m_CurrentObject-&gt;positionFrames)
+        {
+            <span class=comment>// Read in the current frame number (not used ever, we just use i)
+</span>            pPreviousChunk-&gt;bytesRead += fread(&amp;frameNumber, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+            <span class=comment>// Next we read past an unknown long
+</span>            pPreviousChunk-&gt;bytesRead += fread(&amp;lunknown, 1, <span class=keyword>sizeof</span>(<span class=keyword>long</span>), m_FilePointer);
+            
+            <span class=comment>// Here we read in 3 floats that store the (x, y, z) of the position.
+</span>            <span class=comment>// Remember, CVector3 is 3 floats so it's the same thing as sizeof(float) * 3.
+</span>            pPreviousChunk-&gt;bytesRead += fread(&amp;(m_CurrentObject-&gt;vPosition[i]), 1, <span class=keyword>sizeof</span>(CVector3), m_FilePointer);
+
+            <span class=comment>// Since 3D Studio Max has the Z axis up, We need to convert it to OpenGL's
+</span>            <span class=comment>// Y axis up.  To do that we swap the y and z, then negate the new z value.
+</span>            <span class=keyword>float</span> temp = m_CurrentObject-&gt;vPosition[i].y;
+            m_CurrentObject-&gt;vPosition[i].y = m_CurrentObject-&gt;vPosition[i].z;
+            m_CurrentObject-&gt;vPosition[i].z = -temp;
+        }
+        <span class=comment>// Otherwise we just set the current frames position to the last position read in
+</span>        <span class=keyword>else</span>
+        {
+            <span class=comment>// Set the current frame's position to the last position read in.
+</span>            m_CurrentObject-&gt;vPosition[i] = m_CurrentObject-&gt;vPosition[m_CurrentObject-&gt;positionFrames - 1];
+        }
+    }
+
+    <span class=comment>// Now we need to go through and subtract the pivot point from each vertice.
+</span>    <span class=comment>// 3DS files are saved with their vertices in world space PLUS their pivot point (bad).
+</span>    <span class=comment>// You will notice we also subtract the current frame's position from each point.
+</span>    <span class=comment>// We do this because 3DS files store the position of the pivot point for each frame.
+</span>    <span class=comment>// We want the pivot point to start at zero so when we call glTranslate() it will
+</span>    <span class=comment>// translate to the first position, not double the first position.  This might be
+</span>    <span class=comment>// confusing but if the vertices were at the first frame, and then we translated
+</span>    <span class=comment>// to the first position, it would then translate double of where we needed to be.
+</span>    <span class=comment>// If you are confused, get rid of the m_CurrentObject-&gt;vPosition[0] below and see what happens.
+</span>    <span class=comment>// If we didn't do this, we would need to translate BACK each frame -position.
+</span>    <span class=keyword>for</span>(i = 0; i &lt; m_CurrentObject-&gt;numOfVerts; i++)
+    {
+        <span class=comment>// Subtract the current frames position and pivtor point from each vertice to make it easier.
+</span>        m_CurrentObject-&gt;pVerts[i].x -= m_CurrentObject-&gt;vPosition[0].x + m_CurrentObject-&gt;vPivot.x;
+        m_CurrentObject-&gt;pVerts[i].y -= m_CurrentObject-&gt;vPosition[0].y + m_CurrentObject-&gt;vPivot.y;
+        m_CurrentObject-&gt;pVerts[i].z -= m_CurrentObject-&gt;vPosition[0].z + m_CurrentObject-&gt;vPivot.z;
+    }
+}
+
+
+<span class=comment>///////////////////////////////// READ KEYFRAME ROTATIONS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the rotations of the current object for every key frame
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ KEYFRAME ROTATIONS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadKeyFrameRotations(t3DModel *pModel, tChunk *pPreviousChunk)
+{
+    <span class=keyword>short</span> frameNumber = 0, flags = 0, rotkeys = 0, ignored = 0;
+    <span class=keyword>long</span> lunknown = 0; 
+    <span class=keyword>float</span> rotationDegree = 0;
+    vector&lt;<span class=keyword>int</span>&gt; vFrameNumber;
+    vector&lt;<span class=keyword>float</span>&gt; vRotDegree;
+    vector&lt;CVector3&gt; vRotation;
+    <span class=keyword>int</span> i;
+
+    <span class=comment>// This function will read in each key frames rotation angle and rotation axis.
+</span>    <span class=comment>// Remember, this rotation is relative to the object's pivot point.  The first 5 
+</span>    <span class=comment>// short's are ignored because we do not utilize them in this tutorial.  They are 
+</span>    <span class=comment>// flags, the node ID, tension, bias, and strength I believe.  Don't worry about 
+</span>    <span class=comment>// them now, the next tutorial we will further explain it.
+</span>
+    <span class=comment>// Read past the ignored data
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1,  <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1,  <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1,  <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+    <span class=comment>// Read in the number of rotation key frames for the animation.
+</span>    <span class=comment>// Remember, unlike the scale and translation data, it does not store
+</span>    <span class=comment>// the rotation degree and axis for every frame, only for every key frame.
+</span>    <span class=comment>// That is why we need to interpolate below between each key frame.
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;(m_CurrentObject-&gt;rotationFrames), 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+    <span class=comment>// Read past an ignored short
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;ignored, 1,  <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    
+    <span class=comment>// Now we need to go through ALL of the frames of animation and set
+</span>    <span class=comment>// the rotation of the object for every frame.  We will need to interpolate
+</span>    <span class=comment>// between key frames if there is more than 1 (there is always at least 1).
+</span>    <span class=keyword>for</span>(i = 0; i &lt; m_CurrentObject-&gt;rotationFrames; i++)
+    {
+        <span class=comment>// Here we add a new CVector3 to our list of rotations.  This will
+</span>        <span class=comment>// store the current rotation axis for the current frame of animation 'i'.
+</span>        <span class=comment>// Using our STL vector, we just pass in a constructor to a CVector3 and
+</span>        <span class=comment>// it passes back a default CVector3 through the copy constructor.
+</span>        <span class=comment>// This is the same thing as creating a new CVector3 and passing it to push_back().
+</span>        vRotation.push_back(CVector3());
+
+        <span class=comment>// Next we read in the frame number that the rotation takes place
+</span>        pPreviousChunk-&gt;bytesRead += fread(&amp;frameNumber, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+        <span class=comment>// We add the frame number to our list of frame numbers for later when interpolating
+</span>        vFrameNumber.push_back(frameNumber);
+
+        <span class=comment>// Then we read past some unknown data
+</span>        pPreviousChunk-&gt;bytesRead += fread(&amp;lunknown, 1, <span class=keyword>sizeof</span>(<span class=keyword>long</span>), m_FilePointer);
+
+        <span class=comment>// Read in the current rotation degree for this key frame.  We will
+</span>        <span class=comment>// also inteprolate between this degree down below if needed.
+</span>        pPreviousChunk-&gt;bytesRead += fread(&amp;rotationDegree, 1, <span class=keyword>sizeof</span>(<span class=keyword>float</span>), m_FilePointer);
+
+        <span class=comment>// Because 3DS Max stores the rotation degree in radians, we need to
+</span>        <span class=comment>// convert it to degrees because glRotatef() takes degree not radians.
+</span>
+        <span class=comment>// Convert the radians to degress (Radians * (180 / PI) = degrees)
+</span>        rotationDegree = rotationDegree * (180.0f / 3.14159f);
+
+        <span class=comment>// Add the rotation degree to our rotation list to be interpolated if needed
+</span>        vRotDegree.push_back(rotationDegree);
+
+        <span class=comment>// Here we read in the actual axis that the object will rotate around.
+</span>        <span class=comment>// This will NOT need to be interpolated because the rotation degree is what matters.
+</span>        pPreviousChunk-&gt;bytesRead += fread(&amp;(vRotation[i]), 1, <span class=keyword>sizeof</span>(CVector3), m_FilePointer);
+        
+        <span class=comment>// Because I was having problems before with really small numbers getting
+</span>        <span class=comment>// set to scientific notation and not being passed in correctly to glRotatef(),
+</span>        <span class=comment>// I just decided to round them down to 0 if they were too small.
+</span>        <span class=comment>// This isn't ideal, but it seemed to work for me.
+</span>        vRotation[i].x = RoundFloat(vRotation[i].x);
+        vRotation[i].y = RoundFloat(vRotation[i].y);
+        vRotation[i].z = RoundFloat(vRotation[i].z);
+
+        <span class=comment>// Since 3DS Max is Z up, we need to convert it to Y up.
+</span>        <span class=comment>// We just switch the Y and Z values.  This is a bit different
+</span>        <span class=comment>// through because we don't negate the new z value, but negate
+</span>        <span class=comment>// the new Y value.  Also, below we negate the X value.
+</span>        <span class=comment>// Because rotations are different than just points this is how it's done.
+</span>        <span class=keyword>float</span> temp = vRotation[i].y;
+        vRotation[i].y = -vRotation[i].z;
+        vRotation[i].z = temp;
+
+        <span class=comment>// We negate the X value to set it right from Z up to Y up axis'
+</span>        vRotation[i].x *= -1;
+    }
+
+    <span class=comment>// Now we have all of the rotation data for the animation, but we are
+</span>    <span class=comment>// missing one thing.  Because rotation data is only stored for each key frame,
+</span>    <span class=comment>// we need to interpolate between each keyframe. (I wish 3DS just stored each frame
+</span>    <span class=comment>// like the translation and scale values - who knows why... Maybe easier with matrices)
+</span>
+    <span class=comment>// Add the rotation axis for the first frame to our list.  
+</span>    m_CurrentObject-&gt;vRotation.push_back(vRotation[0]);
+
+    <span class=comment>// Add the rotation degree for the first frame to our list.  If we did NO rotation
+</span>    <span class=comment>// in our animation the rotation degree should be 0.
+</span>    m_CurrentObject-&gt;vRotDegree.push_back(vRotDegree[0]);
+
+    <span class=comment>// Create a counter for the current rotation key we are on (Only used if rotKeys are &gt; 1)
+</span>    <span class=keyword>int</span> currentKey = 1;
+
+    <span class=comment>// Not to be repetitive or anything, but we need to go through all of the
+</span>    <span class=comment>// frames of animation again so we can interpolate between each rotation key frame.
+</span>    <span class=comment>// If there is only one rotation key frame, we just set the rest of the rotation degrees to 0.
+</span>
+    <span class=comment>// Go through all of the frames of animation plus 1 because it's zero based
+</span>    <span class=keyword>for</span>(i = 1; i &lt;= (pModel-&gt;numberOfFrames + 1); i++)
+    {        
+        <span class=comment>// Check if the current key frame is less than or equal to the max key frames
+</span>        <span class=keyword>if</span>(currentKey &lt; m_CurrentObject-&gt;rotationFrames)
+        {
+            <span class=comment>// Get the current and previous key frame number, along with the rotation degree.
+</span>            <span class=comment>// This just makes it easier code to work with, especially since you can't
+</span>            <span class=comment>// debug vectors easily because they are operator overloaded.
+</span>            <span class=keyword>int</span> currentFrame = vFrameNumber[currentKey];
+            <span class=keyword>int</span> previousFrame = vFrameNumber[currentKey - 1];
+            <span class=keyword>float</span> degree = vRotDegree[currentKey];
+
+            <span class=comment>// Interpolate the rotation degrees between the current and last key frame.
+</span>            <span class=comment>// Basically, this sickningly simple algorithm is just getting how many
+</span>            <span class=comment>// frames are between the last and current keyframe (currentFrame - previousFrame),
+</span>            <span class=comment>// Then dividing the current degree by that number.  For instance, say there
+</span>            <span class=comment>// is a key frame at frame 0, and frame 50.  Well, 50 - 0 == 50 so it comes out
+</span>            <span class=comment>// to rotationDegree / 50.  This will give us the rotation needed for each frame.
+</span>            <span class=keyword>float</span> rotDegree = degree / (currentFrame - previousFrame);
+
+            <span class=comment>// Add the current rotation degree and vector for this frame
+</span>            m_CurrentObject-&gt;vRotation.push_back(vRotation[currentKey]);
+            m_CurrentObject-&gt;vRotDegree.push_back(rotDegree);
+
+            <span class=comment>// Check if we need to go to the next key frame 
+</span>            <span class=comment>// (if the current frame i == the current key's frame number)
+</span>            <span class=keyword>if</span>(vFrameNumber[currentKey] &lt;= i) 
+                currentKey++;        
+        }
+        <span class=comment>// Otherwise, we are done with key frames, so no more interpolating
+</span>        <span class=keyword>else</span>
+        {
+            <span class=comment>// Set the rest of the rotations to 0 since we don't need to rotate it anymore
+</span>            <span class=comment>// The rotation axis doesn't matter since the degree is 0.
+</span>            m_CurrentObject-&gt;vRotation.push_back(vRotation[currentKey - 1]);
+            m_CurrentObject-&gt;vRotDegree.push_back(0.0f);
+        }
+    }
+
+    <span class=comment>// One thing I might want to point out is that you can do the rotations 2
+</span>    <span class=comment>// different ways.  To avoid a complicated tutorial I did NOT use matrices.
+</span>    <span class=comment>// I started out doing it that way, but at the end changed it to just use a
+</span>    <span class=comment>// bunch of glRotatef()'s.  You will notice in the AnimateModel() function
+</span>    <span class=comment>// I do a for loop that calls glRotatef() for every frame.  The other way to
+</span>    <span class=comment>// do this is create a matrix class that then matrix multiplies the rotation
+</span>    <span class=comment>// by the current matrix.  Since we don't have a matrix class tutorial up yet
+</span>    <span class=comment>// I decided not try and teach that at the same time.  In the next bone animation
+</span>    <span class=comment>// tutorial we WILL use matrices though.  We should also have a matrix class tutorial too.
+</span>}
+
+
+<span class=comment>///////////////////////////////// READ KEYFRAME SCALE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function reads in the scale value of the current object for every key frame
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// READ KEYFRAME SCALES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ReadKeyFrameScales(t3DModel *pModel, tChunk *pPreviousChunk)
+{    
+    <span class=keyword>short</span> frameNumber = 0, ignore = 0, flags = 0;
+    <span class=keyword>long</span> lunknown = 0;    
+    <span class=keyword>int</span> i = 0;
+
+    <span class=comment>// Like the translation key frame data, the scale ratio is stored for
+</span>    <span class=comment>// every frame in the animation, not just for every key frame.  This makes
+</span>    <span class=comment>// it so we don't have to interpolate between frames. 
+</span>    <span class=comment>// The first 5 short's are ignored because we do not utilize
+</span>    <span class=comment>// them in this tutorial.  they are flags, the node ID, tension, bias, strength
+</span>    <span class=comment>// I believe.  Don't worry about them now, the next tutorial we will further explain it.
+</span>
+    <span class=comment>// Read past the ignored data
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;ignore, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignore, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignore, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignore, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    pPreviousChunk-&gt;bytesRead += fread(&amp;ignore, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+    <span class=comment>// Here we read in the amount of scale frames there are in the animation.
+</span>    <span class=comment>// If there is 100 frames of animation and only 50 frames of scaling, we just
+</span>    <span class=comment>// set the rest of the 50 frames to the last scale frame.
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;(m_CurrentObject-&gt;scaleFrames), 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+    <span class=comment>// Read past ignored data
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;ignore, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+    
+    <span class=comment>// Now we need to go through ALL of the frames of animation and set
+</span>    <span class=comment>// the scale value of the object for every frame.  Even if we only have one
+</span>    <span class=comment>// or 50 scale changes out of 100 frames, we will set the remaining to
+</span>    <span class=comment>// the last position it scaled too.
+</span>    <span class=keyword>for</span>(i = 0; i &lt;= (pModel-&gt;numberOfFrames + 1); i++)
+    {
+        <span class=comment>// Here we add a new CVector3 to our list of scale values. 
+</span>        <span class=comment>// Using our STL vector, we just pass in a constructor to a CVector3 and
+</span>        <span class=comment>// it passes back a default CVector3 through the copy constructor.
+</span>        <span class=comment>// This is the same thing as creating a new CVector3 and passing it to push_back().
+</span>        m_CurrentObject-&gt;vScale.push_back(CVector3());
+
+        <span class=comment>// If the current frame is less than the amount of scale frames, read scale data in
+</span>        <span class=keyword>if</span>(i &lt; m_CurrentObject-&gt;scaleFrames)
+        {
+            <span class=comment>// Read in the current frame number (not used because there is no interpolation)
+</span>            pPreviousChunk-&gt;bytesRead += fread(&amp;frameNumber, 1, <span class=keyword>sizeof</span>(<span class=keyword>short</span>), m_FilePointer);
+
+            <span class=comment>// Read past an unknown long
+</span>            pPreviousChunk-&gt;bytesRead += fread(&amp;lunknown, 1, <span class=keyword>sizeof</span>(<span class=keyword>long</span>), m_FilePointer);
+            
+            <span class=comment>// Read in the (X, Y, Z) scale value for the current frame.  We will pass this
+</span>            <span class=comment>// into glScalef() when animating in AnimateModel()
+</span>            pPreviousChunk-&gt;bytesRead += 
+            fread(&amp;(m_CurrentObject-&gt;vScale[i]), 1, <span class=keyword>sizeof</span>(CVector3), m_FilePointer);
+
+            <span class=comment>// Because 3DS Max has Z up, we need to convert it to Y up like OpenGL has.
+</span>            <span class=comment>// We don't need to negate the z though since it's a scale ratio not a 3D point.
+</span>            <span class=keyword>float</span> temp = m_CurrentObject-&gt;vScale[i].y;
+            m_CurrentObject-&gt;vScale[i].y = m_CurrentObject-&gt;vScale[i].z;
+            m_CurrentObject-&gt;vScale[i].z = temp;
+        }
+        <span class=comment>// Otherwise we are done with the scale frames so set the rest to the last scale value
+</span>        <span class=keyword>else</span>
+        {
+            <span class=comment>// Set the current frame's scale value to the last scale value for the animation
+</span>            m_CurrentObject-&gt;vScale[i] = m_CurrentObject-&gt;vScale[m_CurrentObject-&gt;scaleFrames - 1];
+        }
+    }
+}
+
+
+<span class=comment>///////////////////////////////// SET CURRENT OBJECT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This sets the current model that animation is being read in for by it's name
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// SET CURRENT OBJECT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::SetCurrentObject(t3DModel *pModel, <span class=keyword>char</span> *strObjectName)
+{
+    <span class=comment>// This function takes a model and name of an object inside of the model.
+</span>    <span class=comment>// It then searches the objects in the model and finds that object that
+</span>    <span class=comment>// has the name passed in.  We use this function after we have read in
+</span>    <span class=comment>// all the model's data, except for the KEY FRAME data.  The key frame
+</span>    <span class=comment>// data is last.  The key frame animation data stores the objects name
+</span>    <span class=comment>// that the data is describing, so we need to get that address to
+</span>    <span class=comment>// that object and then set the animation data being read in for it.
+</span>
+    <span class=comment>// Make sure there was a valid object name passed in
+</span>    <span class=keyword>if</span>(!strObjectName) 
+    {
+        <span class=comment>// Set the current object to NULL and return
+</span>        m_CurrentObject = NULL;
+        <span class=keyword>return</span>;
+    }
+
+    <span class=comment>// Go through all of the models objects and match up the name passed in
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++)
+    {
+        <span class=comment>// Check if the current model being looked at has the same name as strObjectName
+</span>        <span class=keyword>if</span>(strcmp(pModel-&gt;pObject[i].strName, strObjectName) == 0)
+        {
+            <span class=comment>// Get a pointer to the object with the name passed in.
+</span>            <span class=comment>// This will be the object that the next animation data is describing
+</span>            m_CurrentObject =&amp;(pModel-&gt;pObject[i]);
+            <span class=keyword>return</span>;
+        }
+    }
+
+    <span class=comment>// Give an error message (better to have an assert()
+</span>    MessageBox(NULL, &quot;ERROR: No object in model with given name! (SetCurrentObject)&quot;, &quot;Error!&quot;, MB_OK);
+
+    <span class=comment>// Set the current object to NULL since we didn't find an object with that name
+</span>    m_CurrentObject = NULL;
+}
+
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+
+<span class=comment>// *Note* 
+</span><span class=comment>//
+</span><span class=comment>// Below are some math functions for calculating vertex normals.  We want vertex normals
+</span><span class=comment>// because it makes the lighting look really smooth and life like.  You probably already
+</span><span class=comment>// have these functions in the rest of your engine, so you can delete these and call
+</span><span class=comment>// your own.  I wanted to add them so I could show how to calculate vertex normals.
+</span>
+<span class=comment>//////////////////////////////    Math Functions  ////////////////////////////////*
+</span>
+<span class=comment>// This computes the magnitude of a normal.   (magnitude = sqrt(x^2 + y^2 + z^2)
+</span><span class=pp>#define</span> Mag(Normal) (sqrt(Normal.x*Normal.x + Normal.y*Normal.y + Normal.z*Normal.z))
+
+<span class=comment>// This calculates a vector between 2 points and returns the result
+</span>CVector3 Vector(CVector3 vPoint1, CVector3 vPoint2)
+{
+    CVector3 vVector;                            <span class=comment>// The variable to hold the resultant vector
+</span>
+    vVector.x = vPoint1.x - vPoint2.x;            <span class=comment>// Subtract point1 and point2 x's
+</span>    vVector.y = vPoint1.y - vPoint2.y;            <span class=comment>// Subtract point1 and point2 y's
+</span>    vVector.z = vPoint1.z - vPoint2.z;            <span class=comment>// Subtract point1 and point2 z's
+</span>
+    <span class=keyword>return</span> vVector;                                <span class=comment>// Return the resultant vector
+</span>}
+
+<span class=comment>// This adds 2 vectors together and returns the result
+</span>CVector3 AddVector(CVector3 vVector1, CVector3 vVector2)
+{
+    CVector3 vResult;                            <span class=comment>// The variable to hold the resultant vector
+</span>    
+    vResult.x = vVector2.x + vVector1.x;        <span class=comment>// Add Vector1 and Vector2 x's
+</span>    vResult.y = vVector2.y + vVector1.y;        <span class=comment>// Add Vector1 and Vector2 y's
+</span>    vResult.z = vVector2.z + vVector1.z;        <span class=comment>// Add Vector1 and Vector2 z's
+</span>
+    <span class=keyword>return</span> vResult;                                <span class=comment>// Return the resultant vector
+</span>}
+
+<span class=comment>// This divides a vector by a single number (scalar) and returns the result
+</span>CVector3 DivideVectorByScaler(CVector3 vVector1, <span class=keyword>float</span> Scaler)
+{
+    CVector3 vResult;                            <span class=comment>// The variable to hold the resultant vector
+</span>    
+    vResult.x = vVector1.x / Scaler;            <span class=comment>// Divide Vector1's x value by the scaler
+</span>    vResult.y = vVector1.y / Scaler;            <span class=comment>// Divide Vector1's y value by the scaler
+</span>    vResult.z = vVector1.z / Scaler;            <span class=comment>// Divide Vector1's z value by the scaler
+</span>
+    <span class=keyword>return</span> vResult;                                <span class=comment>// Return the resultant vector
+</span>}
+
+<span class=comment>// This returns the cross product between 2 vectors
+</span>CVector3 Cross(CVector3 vVector1, CVector3 vVector2)
+{
+    CVector3 vCross;                                <span class=comment>// The vector to hold the cross product
+</span>                                                <span class=comment>// Get the X value
+</span>    vCross.x = ((vVector1.y * vVector2.z) - (vVector1.z * vVector2.y));
+                                                <span class=comment>// Get the Y value
+</span>    vCross.y = ((vVector1.z * vVector2.x) - (vVector1.x * vVector2.z));
+                                                <span class=comment>// Get the Z value
+</span>    vCross.z = ((vVector1.x * vVector2.y) - (vVector1.y * vVector2.x));
+
+    <span class=keyword>return</span> vCross;                                <span class=comment>// Return the cross product
+</span>}
+
+<span class=comment>// This returns the normal of a vector
+</span>CVector3 Normalize(CVector3 vNormal)
+{
+    <span class=keyword>double</span> Magnitude;                            <span class=comment>// This holds the magitude            
+</span>
+    Magnitude = Mag(vNormal);                    <span class=comment>// Get the magnitude
+</span>
+    vNormal.x /= (<span class=keyword>float</span>)Magnitude;                <span class=comment>// Divide the vector's X by the magnitude
+</span>    vNormal.y /= (<span class=keyword>float</span>)Magnitude;                <span class=comment>// Divide the vector's Y by the magnitude
+</span>    vNormal.z /= (<span class=keyword>float</span>)Magnitude;                <span class=comment>// Divide the vector's Z by the magnitude
+</span>
+    <span class=keyword>return</span> vNormal;                                <span class=comment>// Return the normal
+</span>}
+
+<span class=comment>///////////////////////////////// COMPUTER NORMALS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function computes the normals and vertex normals of the objects
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// COMPUTER NORMALS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CLoad3DS::ComputeNormals(t3DModel *pModel)
+{
+    CVector3 vVector1, vVector2, vNormal, vPoly[3];
+
+    <span class=comment>// If there are no objects, we can skip this part
+</span>    <span class=keyword>if</span>(pModel-&gt;numOfObjects &lt;= 0)
+        <span class=keyword>return</span>;
+
+    <span class=comment>// Go through each of the objects to calculate their normals
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> index = 0; index &lt; pModel-&gt;numOfObjects; index++)
+    {
+        <span class=comment>// Get the current object
+</span>        t3DObject *pObject = &amp;(pModel-&gt;pObject[index]);
+
+        <span class=comment>// Here we allocate all the memory we need to calculate the normals
+</span>        CVector3 *pNormals        = <span class=keyword>new</span> CVector3 [pObject-&gt;numOfFaces];
+        CVector3 *pTempNormals    = <span class=keyword>new</span> CVector3 [pObject-&gt;numOfFaces];
+        pObject-&gt;pNormals        = <span class=keyword>new</span> CVector3 [pObject-&gt;numOfVerts];
+
+        <span class=comment>// Go though all of the faces of this object
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> i=0; i &lt; pObject-&gt;numOfFaces; i++)
+        {                                                
+            <span class=comment>// To cut down LARGE code, we extract the 3 points of this face
+</span>            vPoly[0] = pObject-&gt;pVerts[pObject-&gt;pFaces[i].vertIndex[0]];
+            vPoly[1] = pObject-&gt;pVerts[pObject-&gt;pFaces[i].vertIndex[1]];
+            vPoly[2] = pObject-&gt;pVerts[pObject-&gt;pFaces[i].vertIndex[2]];
+
+            <span class=comment>// Now let's calculate the face normals (Get 2 vectors and find the cross product of those 2)
+</span>
+            vVector1 = Vector(vPoly[0], vPoly[2]);        <span class=comment>// Get the vector of the polygon (we just need 2 sides for the normal)
+</span>            vVector2 = Vector(vPoly[2], vPoly[1]);        <span class=comment>// Get a second vector of the polygon
+</span>
+            vNormal  = Cross(vVector1, vVector2);        <span class=comment>// Return the cross product of the 2 vectors (normalize vector, but not a unit vector)
+</span>            pTempNormals[i] = vNormal;                    <span class=comment>// Save the un-normalized normal for the vertex normals
+</span>            vNormal  = Normalize(vNormal);                <span class=comment>// Normalize the cross product to give us the polygons normal
+</span>
+            pNormals[i] = vNormal;                        <span class=comment>// Assign the normal to the list of normals
+</span>        }
+
+        <span class=comment>//////////////// Now Get The Vertex Normals /////////////////
+</span>
+        CVector3 vSum = {0.0, 0.0, 0.0};
+        CVector3 vZero = vSum;
+        <span class=keyword>int</span> shared=0;
+        <span class=keyword>int</span> i = 0;
+        <span class=keyword>for</span> (i = 0; i &lt; pObject-&gt;numOfVerts; i++)            <span class=comment>// Go through all of the vertices
+</span>        {
+            <span class=keyword>for</span> (<span class=keyword>int</span> j = 0; j &lt; pObject-&gt;numOfFaces; j++)    <span class=comment>// Go through all of the triangles
+</span>            {                                                <span class=comment>// Check if the vertex is shared by another face
+</span>                <span class=keyword>if</span> (pObject-&gt;pFaces[j].vertIndex[0] == i || 
+                    pObject-&gt;pFaces[j].vertIndex[1] == i || 
+                    pObject-&gt;pFaces[j].vertIndex[2] == i)
+                {
+                    vSum = AddVector(vSum, pTempNormals[j]);<span class=comment>// Add the un-normalized normal of the shared face
+</span>                    shared++;                                <span class=comment>// Increase the number of shared triangles
+</span>                }
+            }      
+            
+            <span class=comment>// Get the normal by dividing the sum by the shared.  We negate the shared so it has the normals pointing out.
+</span>            pObject-&gt;pNormals[i] = DivideVectorByScaler(vSum, <span class=keyword>float</span>(-shared));
+
+            <span class=comment>// Normalize the normal for the final vertex normal
+</span>            pObject-&gt;pNormals[i] = Normalize(pObject-&gt;pNormals[i]);    
+
+            vSum = vZero;                                    <span class=comment>// Reset the sum
+</span>            shared = 0;                                        <span class=comment>// Reset the shared
+</span>        }
+    
+        <span class=comment>// Free our memory and start over on the next object
+</span>        <span class=keyword>delete</span> [] pTempNormals;
+        <span class=keyword>delete</span> [] pNormals;
+    }
+}
+
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// This file has support for key frame animation, but is still missing bones.
+</span><span class=comment>// Skeletal animation will be in the next tutorial on animation.  This is a HUGE
+</span><span class=comment>// concept so this will most likely be done in about 3 seperate tutorials.
+</span><span class=comment>//
+</span><span class=comment>// * Note *
+</span><span class=comment>// 
+</span><span class=comment>// 3DS max isn't the best program for animation, but It seems to be the most popular
+</span><span class=comment>// in the game industry.  This animation tutorial is not the most robust it could be,
+</span><span class=comment>// but should be taken as a learning tool to creating a better animation system.  This
+</span><span class=comment>// should be a step up to bone animation, which is the BEST way to make cool characters.
+</span><span class=comment>// This animation is just objects rotating, scaling and translating.  It is how they
+</span><span class=comment>// used to do it back in the 80's early 90's.  So don't try and take a cool model
+</span><span class=comment>// and put bones and IK on it, animate it and expect anything to happen :).  
+</span><span class=comment>// One thing to keep in mind, remember that we IGNORE the frame 0 of the animation.
+</span><span class=comment>// If you want to use frame zero for some reason, here is a way that it won't screw up
+</span><span class=comment>// the rotation key frames (it saves the rotation of the object for the first frame (0)).
+</span><span class=comment>// After you model your scene, before you start animating it, select all the objects,
+</span><span class=comment>// go to the heirarchy tab (On the right of the modify tab) and select the button
+</span><span class=comment>// called &quot;Transform&quot; under the &quot;Reset&quot; section.  If you don't and you have rotations in
+</span><span class=comment>// int the first frame (0), it will screw up the animation.  Please refer to the HTML tutorial
+</span><span class=comment>// on how to create this type of animation and the steps to take.  This should always 
+</span><span class=comment>// accompany that HTML tutorial.  So remember, we want to ignore frame 0 of the animation,
+</span><span class=comment>// but if you need to use it, be sure to reset the transforms for every object in your model.
+</span><span class=comment>//
+</span><span class=comment>// Okay, now that I covered my back :)  Let's start talking about how this works!
+</span><span class=comment>// Once again, refer to the .3DS loader tutorial if you are confused on how to do 
+</span><span class=comment>// the basics of loading data from a .3DS file.  It is at www.GameTutorials.com in
+</span><span class=comment>// the OpenGL section.
+</span><span class=comment>//
+</span><span class=comment>// The basic concepts of key frame animation is this:  You store a position, rotation
+</span><span class=comment>// and scale value on certain frames, and it interpolates between that data.  Let's say,
+</span><span class=comment>// if you start at frame 0, with a box centered around (0, 0, 0), then go to frame 60
+</span><span class=comment>// and center the box around (10, 10, 10), THEN play the animation it should move the
+</span><span class=comment>// box from (0, 0, 0) to (10, 10, 10) smoothly.  The same thing works for rotations
+</span><span class=comment>// and scales.  You just set &quot;KEY&quot; frames and it does the rest for you.  The weird thing
+</span><span class=comment>// with 3DS files is that it saves the position and scale EVERY frame between each key frame,
+</span><span class=comment>// buton only saves the rotation values for each key frame.  That means that we still have
+</span><span class=comment>// to do the interpolation for the rotation, where we get the position and scale value for
+</span><span class=comment>// every frame, so they did the interpolation for us.  
+</span><span class=comment>//
+</span><span class=comment>// So that is all we are doing, just reading in the positions/Scale value for ever frame,
+</span><span class=comment>// and if there isn't a new position/scale value for the next frame we just set the rest
+</span><span class=comment>// of the position/scale values to the last one.  The same thing with rotations, but we
+</span><span class=comment>// first get the key frames rotation degree and axis it's rotation along, inteprolate
+</span><span class=comment>// between key frames, then if there is no more rotating we just set the rest of the
+</span><span class=comment>// frames rotation degrees to 0.  This should ideally be done with a matrix, where it
+</span><span class=comment>// matrix multiplies the rotation degree and axis by the current rotation matrix but
+</span><span class=comment>// I didn't want to complicate the tutorial any more.  Any other animation tutorials will
+</span><span class=comment>// use matrices.  Instead, I just loop through all the degrees and call glRotatef() for
+</span><span class=comment>// every frame that has happened.  That way it's doing the same thing, but less efficient.
+</span><span class=comment>// 
+</span><span class=comment>// There is some data that we ignore in the KEYFRAME chunk, but it will be explained later
+</span><span class=comment>// in another tutorial.  This is the jist of it.  Go through the code and read the comments
+</span><span class=comment>// around each function to get a more in depth idea of what is going on.  It's pretty basic
+</span><span class=comment>// stuff, just a pain to get the data in the format you want it.
+</span><span class=comment>//
+</span><span class=comment>// I would like to thank www.wosit.org and Terry Caton (tcaton@umr.edu) for his help on this.
+</span><span class=comment>//
+</span><span class=comment>// Let me know if this helps you out!
+</span><span class=comment>// 
+</span><span class=comment>// 
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>// © 2000-2003 GameTutorials
+</span><span class=comment>//
+</span></pre></body>
+</html>

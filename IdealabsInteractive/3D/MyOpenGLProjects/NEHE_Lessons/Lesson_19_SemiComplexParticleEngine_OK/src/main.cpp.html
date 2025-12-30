@@ -1,0 +1,650 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &lt;windows.h&gt;                    <span class=comment>// Header File For Windows
+</span><span class=pp>#include</span> &lt;gl\gl.h&gt;                        <span class=comment>// Header File For The OpenGL32 Library
+</span><span class=pp>#include</span> &lt;gl\glu.h&gt;                        <span class=comment>// Header File For The GLu32 Library
+</span>
+HDC            mHDC        = NULL;            <span class=comment>// Private GDI Device Context
+</span>HGLRC        mHRC        = NULL;            <span class=comment>// Permanent Rendering Context
+</span>HWND        mHWnd    = NULL;                <span class=comment>// Holds Our Window Handle
+</span>HINSTANCE    mHInstance;                    <span class=comment>// Holds The Instance Of The Application
+</span>
+<span class=keyword>bool</span>        mKeys[256];                    <span class=comment>// Array Used For The Keyboard Routine
+</span><span class=keyword>bool</span>        mActive = <span class=keyword>false</span>;            <span class=comment>// Window Active Flag
+</span><span class=keyword>bool</span>        mFULLSCREEN = <span class=keyword>true</span>;            <span class=comment>// Fullscreen Flag Set To TRUE By Default
+</span>
+<span class=keyword>const</span> GLuint MAX_PARTICLES = 1000;        <span class=comment>// Number Of Particles To Create    ( NEW )
+</span><span class=keyword>bool</span>        rainbow = <span class=keyword>true</span>;                <span class=comment>// Rainbow Mode?                    ( ADD )
+</span><span class=keyword>bool</span>        spacePressed;                <span class=comment>// Spacebar Pressed?                ( ADD )
+</span><span class=keyword>bool</span>        returnPressed;                <span class=comment>// Return Pressed?                    ( ADD )
+</span>
+<span class=keyword>float</span>        slowDown = 2.0f;            <span class=comment>// Slow Down Particles                                    ( ADD )
+</span><span class=keyword>float</span>        xSpeed;                        <span class=comment>// Base X Speed (To Allow Keyboard Direction Of Tail)    ( ADD )
+</span><span class=keyword>float</span>        ySpeed;                        <span class=comment>// Base Y Speed (To Allow Keyboard Direction Of Tail)    ( ADD )
+</span><span class=keyword>float</span>        zoom = -40.0f;                <span class=comment>// Used To Zoom Out                                        ( ADD )
+</span>
+GLuint        loop;                        <span class=comment>// Misc Loop Variable
+</span>GLuint        particleColour;                <span class=comment>// Current Color Selection
+</span>GLuint        delay;                        <span class=comment>// Rainbow Effect Delay
+</span>GLuint        texture[1];                    <span class=comment>// Storage For Our Particle Texture
+</span>
+<span class=keyword>typedef</span> <span class=keyword>struct</span> {                        <span class=comment>// Create A Structure For Particle
+</span>
+    <span class=keyword>bool</span>    active;                        <span class=comment>// Active (Yes/No)
+</span>    <span class=keyword>float</span>    life;                        <span class=comment>// Particle Life
+</span>    <span class=keyword>float</span>    fade;                        <span class=comment>// Fade Speed
+</span>    
+    <span class=keyword>float</span>    r;                            <span class=comment>// Red Value
+</span>    <span class=keyword>float</span>    g;                            <span class=comment>// Green Value
+</span>    <span class=keyword>float</span>    b;                            <span class=comment>// Blue Value
+</span>
+    <span class=keyword>float</span>    x;                            <span class=comment>// X Position
+</span>    <span class=keyword>float</span>    y;                            <span class=comment>// Y Position
+</span>    <span class=keyword>float</span>    z;                            <span class=comment>// Z Position
+</span>
+    <span class=keyword>float</span>    xi;                            <span class=comment>// X Direction
+</span>    <span class=keyword>float</span>    yi;                            <span class=comment>// Y Direction
+</span>    <span class=keyword>float</span>    zi;                            <span class=comment>// Z Direction
+</span>
+    <span class=keyword>float</span>    xg;                            <span class=comment>// X Gravity
+</span>    <span class=keyword>float</span>    yg;                            <span class=comment>// Y Gravity
+</span>    <span class=keyword>float</span>    zg;                            <span class=comment>// Z Gravity
+</span>
+}particles;                                <span class=comment>// Particles Structure
+</span>
+particles    particle[MAX_PARTICLES];    <span class=comment>// Particle Array (Room For Particle Info)
+</span>    
+<span class=keyword>static</span> GL<span class=keyword>float</span> colors[12][3] = {
+                                    {1.0f,0.5f,0.5f},{1.0f,0.75f,0.5f},{1.0f,1.0f,0.5f},{0.75f,1.0f,0.5f},
+                                    {0.5f,1.0f,0.5f},{0.5f,1.0f,0.75f},{0.5f,1.0f,1.0f},{0.5f,0.75f,1.0f},
+                                    {0.5f,0.5f,1.0f},{0.75f,0.5f,1.0f},{1.0f,0.5f,1.0f},{1.0f,0.5f,0.75f}
+                                };
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+GL<span class=keyword>void</span>    resizeGLScene(GLsizei width, GLsizei height);
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>);
+<span class=keyword>int</span> drawGLScene(GL<span class=keyword>void</span>);
+GL<span class=keyword>void</span> killGLWindow(GL<span class=keyword>void</span>);
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen);
+
+<span class=keyword>bool</span> NeheLoadTexture(LPSTR szFileName, GLuint &amp;texId) {            <span class=comment>// Creates Texture From A Bitmap File
+</span>    HBITMAP    hBMP;                                                    <span class=comment>// Handle Of The Bitmap
+</span>    BITMAP    BMP;                                                    <span class=comment>// Bitmap Structure
+</span>
+    hBMP = (HBITMAP)LoadImage(    GetModuleHandle(NULL),                
+                                szFileName, 
+                                IMAGE_BITMAP, 
+                                0, 
+                                0, 
+                                LR_CREATEDIBSECTION | LR_LOADFROMFILE
+                            );
+
+    <span class=keyword>if</span>(!hBMP)                                                        <span class=comment>// Does The Bitmap Exist?
+</span>        <span class=keyword>return</span> <span class=keyword>false</span>;                                                <span class=comment>// If Not Return False
+</span>
+    GetObject(hBMP, <span class=keyword>sizeof</span>(BMP), &amp;BMP);                                <span class=comment>// Get The Object
+</span>
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);                            <span class=comment>// Pixel Storage Mode (Word Alignment / 4 Bytes)
+</span>    
+    <span class=comment>// Typical Texture Generation Using Data From The Bitmap
+</span>    glBindTexture(GL_TEXTURE_2D, texId);                                <span class=comment>// Bind To The Texture ID
+</span>    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);    <span class=comment>// Linear Min Filter
+</span>    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);    <span class=comment>// Linear Mag Filter
+</span>    
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, BMP.bmWidth, BMP.bmHeight, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, BMP.bmBits);
+
+    DeleteObject(hBMP);                                                    <span class=comment>// Delete The Object
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;                                                        <span class=comment>// Loading Was Successful
+</span>}
+
+<span class=keyword>int</span> WINAPI WinMain(    HINSTANCE    hInstance, 
+                    HINSTANCE    hPrevInstance,
+                    LPSTR        lpCmdLine,
+                    <span class=keyword>int</span>            nCmdShow
+) {
+    MSG        msg;
+    <span class=keyword>bool</span>    done = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(MessageBox(NULL, &quot;Would you like to run in FULLSCREEN mode?&quot;, &quot;Start FullScreen&quot;, MB_YESNO) == IDNO)
+        mFULLSCREEN = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(!createGLWindow(&quot;openGL Window...Press F1 to toogle between windowed &amp; Fullscreen Mode.&quot;, 640, 480, 16, mFULLSCREEN))
+        <span class=keyword>return</span> 0;
+
+    <span class=keyword>while</span>(!done) {
+        <span class=keyword>if</span>(PeekMessage(&amp;msg, NULL, 0, 0, PM_REMOVE)) {
+            <span class=keyword>if</span>(msg.message == WM_QUIT)
+                done = <span class=keyword>true</span>;
+            <span class=keyword>else</span>  {
+                TranslateMessage(&amp;msg);
+                DispatchMessage(&amp;msg);
+            }
+        }
+        <span class=keyword>else</span> {
+            <span class=keyword>if</span>(mActive) {
+                <span class=keyword>if</span>(mKeys[VK_ESCAPE])
+                    done = <span class=keyword>true</span>;
+                <span class=keyword>else</span> {
+                    drawGLScene();
+                    SwapBuffers(mHDC);
+
+                    <span class=keyword>if</span> (mKeys[VK_ADD] &amp;&amp; slowDown &gt; 1.0f) 
+                        slowDown -= 0.01f;        <span class=comment>// Speed Up Particles
+</span>
+                    <span class=keyword>if</span> (mKeys[VK_SUBTRACT] &amp;&amp; slowDown &lt; 4.0f)
+                        slowDown += 0.01f;    <span class=comment>// Slow Down Particles
+</span>
+                    <span class=keyword>if</span> (mKeys[VK_PRIOR]) 
+                        zoom += 0.1f;        <span class=comment>// Zoom In
+</span>                    
+                    <span class=keyword>if</span> (mKeys[VK_NEXT]) 
+                        zoom -= 0.1f;        <span class=comment>// Zoom Out
+</span>
+                    <span class=keyword>if</span> (mKeys[VK_RETURN] &amp;&amp; !returnPressed)        <span class=comment>// Return Key Pressed
+</span>                    {
+                        returnPressed = <span class=keyword>true</span>;            <span class=comment>// Set Flag Telling Us It's Pressed
+</span>                        rainbow = !rainbow;        <span class=comment>// Toggle Rainbow Mode On / Off
+</span>                    }
+
+                    <span class=keyword>if</span> (!mKeys[VK_RETURN]) 
+                        returnPressed = <span class=keyword>false</span>;        <span class=comment>// If Return Is Released Clear Flag
+</span>                    
+                    <span class=keyword>if</span> ((mKeys[' '] &amp;&amp; !spacePressed) || (rainbow &amp;&amp; (delay &gt; 25)))    <span class=comment>// Space Or Rainbow Mode
+</span>                    {
+                        <span class=keyword>if</span> (mKeys[' ']) 
+                            rainbow=<span class=keyword>false</span>;    <span class=comment>// If Spacebar Is Pressed Disable Rainbow Mode
+</span>                        spacePressed = <span class=keyword>true</span>;            <span class=comment>// Set Flag Telling Us Space Is Pressed
+</span>                        
+                        delay=0;            <span class=comment>// Reset The Rainbow Color Cycling Delay
+</span>                        particleColour++;                <span class=comment>// Change The Particle Color
+</span>                        <span class=keyword>if</span> (particleColour &gt; 11) 
+                            particleColour = 0;        <span class=comment>// If Color Is To High Reset It
+</span>                    }
+                    
+                    <span class=keyword>if</span> (!mKeys[' '])
+                        spacePressed = <span class=keyword>false</span>;        <span class=comment>// If Spacebar Is Released Clear Flag
+</span>                    
+                    <span class=comment>// If Up Arrow And Y Speed Is Less Than 200 Increase Upward Speed
+</span>                    <span class=keyword>if</span> (mKeys[VK_UP] &amp;&amp; ySpeed &lt; 200) 
+                        ySpeed+=1.0f;
+                    
+                    <span class=comment>// If Down Arrow And Y Speed Is Greater Than -200 Increase Downward Speed
+</span>                    <span class=keyword>if</span> (mKeys[VK_DOWN] &amp;&amp; ySpeed &gt; -200) 
+                        ySpeed -= 1.0f;
+                    
+                    <span class=comment>// If Right Arrow And X Speed Is Less Than 200 Increase Speed To The Right
+</span>                    <span class=keyword>if</span> (mKeys[VK_RIGHT] &amp;&amp; xSpeed &lt; 200) 
+                        xSpeed += 1.0f;
+                    
+                    <span class=comment>// If Left Arrow And X Speed Is Greater Than -200 Increase Speed To The Left
+</span>                    <span class=keyword>if</span> (mKeys[VK_LEFT] &amp;&amp; xSpeed &gt; -200) 
+                        xSpeed -= 1.0f;
+                    
+                    delay++;            <span class=comment>// Increase Rainbow Mode Color Cycling Delay Counter
+</span>                }
+            }
+
+            <span class=keyword>if</span>(mKeys[VK_F1]) {
+                mKeys[VK_F1] = <span class=keyword>false</span>;
+                killGLWindow();
+                mFULLSCREEN = !mFULLSCREEN;
+                <span class=keyword>if</span>(!createGLWindow(&quot;openGL window&quot;, 640, 480, 16, mFULLSCREEN)) {
+                    <span class=keyword>return</span> 0;
+                }
+            }
+        }
+    }
+
+    killGLWindow();
+    <span class=keyword>return</span> msg.wParam;
+}
+
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen) {
+    <span class=keyword>int</span>            iPixelFormat;
+    WNDCLASS    wc;
+    DWORD        dwExStyle;
+    DWORD        dwStyle;
+    RECT        windowRect;
+
+    windowRect.left        = (<span class=keyword>long</span>)0;
+    windowRect.right    = (<span class=keyword>long</span>)width;
+    windowRect.top        = (<span class=keyword>long</span>)0;
+    windowRect.bottom    = (<span class=keyword>long</span>)height;
+
+    mFULLSCREEN = isFullScreen;
+
+    mHInstance            = GetModuleHandle(NULL);
+    
+    wc.cbClsExtra        = 0;
+    wc.cbWndExtra        = 0;
+    wc.hbrBackground    = NULL;
+    wc.hCursor            = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon            = LoadIcon(NULL, IDI_WINLOGO);
+    wc.hInstance        = mHInstance;
+    wc.lpfnWndProc        = (WNDPROC) WndProc;
+    wc.lpszClassName    = &quot;OpenGL&quot;;
+    wc.lpszMenuName        = NULL;
+    wc.style            = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    
+    <span class=keyword>if</span>(!RegisterClass(&amp;wc)) {
+        MessageBox(NULL, &quot;Failed to Register the Window Class.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        DEVMODE    dmScreenSettings;
+        memset(&amp;dmScreenSettings, 0, <span class=keyword>sizeof</span>(dmScreenSettings));
+        dmScreenSettings.dmSize            = <span class=keyword>sizeof</span>(dmScreenSettings);
+        dmScreenSettings.dmPelsWidth    = width;
+        dmScreenSettings.dmPelsHeight    = height;
+        dmScreenSettings.dmBitsPerPel    = bits;
+        dmScreenSettings.dmFields        = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+
+        <span class=keyword>if</span>(ChangeDisplaySettings(&amp;dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            <span class=keyword>if</span>(MessageBox(NULL, &quot;The requested FullScreen Mode is not supported\n by your Video Card. Use Windowed Mode instead?&quot;, &quot;Error&quot;, MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+                mFULLSCREEN = <span class=keyword>false</span>;
+            <span class=keyword>else</span> {
+                MessageBox(NULL, &quot;Program will now close.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONSTOP);
+                <span class=keyword>return</span> <span class=keyword>false</span>;
+            }
+        }
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        dwExStyle    = WS_EX_APPWINDOW;
+        dwStyle        = WS_POPUP;
+        ShowCursor(<span class=keyword>false</span>);
+    }
+    <span class=keyword>else</span> {
+        dwExStyle    = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+        dwStyle        = WS_OVERLAPPEDWINDOW;
+    }
+
+    AdjustWindowRectEx(&amp;windowRect, dwStyle, <span class=keyword>false</span>, dwExStyle);
+
+    <span class=keyword>if</span>(!(mHWnd = CreateWindowEx(    dwExStyle,
+                                &quot;OpenGL&quot;,
+                                title,
+                                dwStyle | 
+                                WS_CLIPSIBLINGS |
+                                WS_CLIPCHILDREN,
+                                0, 0,
+                                windowRect.right - windowRect.left,
+                                windowRect.bottom - windowRect.top,
+                                NULL,
+                                NULL,
+                                mHInstance,
+                                NULL))
+    ) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHDC = GetDC(mHWnd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to get Device Context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>static</span> PIXELFORMATDESCRIPTOR pfd = 
+    {
+        <span class=keyword>sizeof</span>(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW |
+        PFD_SUPPORT_OPENGL |
+        PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        bits,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        16,
+        0,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    <span class=keyword>if</span>(!(iPixelFormat = ChoosePixelFormat(mHDC, &amp;pfd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to choose Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!SetPixelFormat(mHDC, iPixelFormat, &amp;pfd)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to set Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHRC = wglCreateContext(mHDC))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to create wgl context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!wglMakeCurrent(mHDC, mHRC)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to make wgl context&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+                                
+    ShowWindow(mHWnd, <span class=keyword>true</span>);
+    SetForegroundWindow(mHWnd);
+    SetFocus(mHWnd);
+
+    resizeGLScene(width, height);
+
+    <span class=keyword>if</span>(!initGL()) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> resizeGLScene(GLsizei width, GLsizei height) {
+    <span class=keyword>if</span>(height == 0)
+        height = 1;
+
+    glViewport(0, 0, width, height);
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(45.0f, (GL<span class=keyword>float</span>)width/(GL<span class=keyword>float</span>)height, 0.1f, 200.0f);    <span class=comment>//( MODIFIED )
+</span>
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>) {
+    <span class=keyword>if</span>(!NeheLoadTexture(&quot;data/Particle.bmp&quot;, texture[0]))
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    glShadeModel(GL_SMOOTH);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    glClearDepth(1.0f);
+    
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    glEnable(GL_TEXTURE_2D);                            <span class=comment>// Enable Texture Mapping
+</span>    glBindTexture(GL_TEXTURE_2D, texture[0]);            <span class=comment>// Select Our Texture
+</span>    
+    <span class=keyword>for</span>(loop = 0; loop &lt; MAX_PARTICLES; loop++) {                    <span class=comment>// Initialize All The Textures
+</span>        particle[loop].active = <span class=keyword>true</span>;                                <span class=comment>// Make All The Particles Active
+</span>        particle[loop].life = 1.0f;                                    <span class=comment>// Give All The Particles Full Life
+</span>
+        particle[loop].fade = <span class=keyword>float</span>(rand()%100/1000.0f + 0.03f);    <span class=comment>// Random Fade Speed
+</span>        
+        particle[loop].r = colors[ loop * (12/MAX_PARTICLES) ][0];        <span class=comment>// Select Red Rainbow Color
+</span>        particle[loop].g = colors[ loop * (12/MAX_PARTICLES) ][1];        <span class=comment>// Select Green Rainbow Color
+</span>        particle[loop].b = colors[ loop * (12/MAX_PARTICLES) ][2];        <span class=comment>// Select Blue Rainbow Color
+</span>
+        particle[loop].xi = <span class=keyword>float</span>( rand()%50 - 26.0f ) * 10.0f;            <span class=comment>// Random Speed On X Axis
+</span>        particle[loop].yi = <span class=keyword>float</span>( rand()%50 - 25.0f ) * 10.0f;            <span class=comment>// Random Speed On Y Axis
+</span>        particle[loop].zi = <span class=keyword>float</span>( rand()%50 - 25.0f ) * 10.0f;            <span class=comment>// Random Speed On Z Axis
+</span>
+        particle[loop].xg = 0.0f;                                    <span class=comment>// Set Horizontal Pull To Zero
+</span>        particle[loop].yg = -0.8f;                                    <span class=comment>// Set Vertical Pull Downward
+</span>        particle[loop].zg = 0.0f;                                    <span class=comment>// Set Pull On Z Axis To Zero
+</span>    }
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;                                                <span class=comment>// Initialization Went OK
+</span>}
+
+GL<span class=keyword>void</span> killGLWindow() {
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        ChangeDisplaySettings(NULL, 0);
+        ShowCursor(<span class=keyword>true</span>);
+    }
+
+    <span class=keyword>if</span>(mHRC) {
+        <span class=keyword>if</span>(!wglMakeCurrent(NULL, NULL))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        <span class=keyword>if</span>(!wglDeleteContext(mHRC))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        mHRC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHDC &amp;&amp; !ReleaseDC(mHWnd, mHDC)) {
+        MessageBox(NULL, &quot;Release of Device Context failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHDC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHWnd &amp;&amp; !DestroyWindow(mHWnd)) {
+        MessageBox(NULL, &quot;Release of mHWnd failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHWnd = NULL;
+    }
+
+    <span class=keyword>if</span>(!UnregisterClass(&quot;OpenGL&quot;, mHInstance)) {
+        MessageBox(NULL, &quot;UnRegisterClass failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHInstance = NULL;
+    }
+}
+
+<span class=keyword>int</span> drawGLScene_() {                                                    <span class=comment>// Where We Do All The Drawing
+</span>    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);                <span class=comment>// Clear Screen And Depth Buffer
+</span>    glLoadIdentity();                                                <span class=comment>// Reset The ModelView Matrix
+</span>    
+    <span class=keyword>for</span>(loop = 0; loop &lt; MAX_PARTICLES; loop++) {                    <span class=comment>// Loop Through All The Particles
+</span>        <span class=keyword>if</span>(particle[loop].active) {                                    <span class=comment>// If The Particle Is Active
+</span>            
+            <span class=comment>//x, y and z are temporary variables that we'll use to hold the particles x, y and z position.
+</span>            <span class=keyword>float</span> x = particle[loop].x;                                <span class=comment>// Grab Our Particle X Position
+</span>            <span class=keyword>float</span> y = particle[loop].y;                                <span class=comment>// Grab Our Particle Y Position
+</span>            <span class=keyword>float</span> z = particle[loop].z + zoom;                        <span class=comment>// Particle Z Pos + Zoom
+</span>
+            <span class=comment>// Draw The Particle Using Our RGB Values, Fade The Particle Based On It's Life
+</span>            glColor4f(particle[loop].r, particle[loop].g, particle[loop].b, particle[loop].life);
+            
+            <span class=comment>//All that we have to do now is draw our particle.
+</span>            glBegin(GL_TRIANGLE_STRIP);                                        <span class=comment>// Build Quad From A Triangle Strip
+</span>                glTexCoord2d(1, 1);        glVertex3f(x + 0.5f, y + 0.5f, z);    <span class=comment>// Top Right
+</span>                glTexCoord2d(0, 1);        glVertex3f(x - 0.5f, y + 0.5f, z);    <span class=comment>// Top Left
+</span>                glTexCoord2d(1, 0);        glVertex3f(x + 0.5f, y - 0.5f, z);    <span class=comment>// Bottom Right
+</span>                glTexCoord2d(0, 0);        glVertex3f(x - 0.5f, y - 0.5f, z);    <span class=comment>// Bottom Left
+</span>            glEnd();                                                        <span class=comment>// Done Building Triangle Strip
+</span>            
+            <span class=comment>//Now we can move the particle.
+</span>            particle[loop].x += particle[loop].xi/(slowDown*1000);            <span class=comment>// Move On The X Axis By X Speed
+</span>            particle[loop].y += particle[loop].yi/(slowDown*1000);            <span class=comment>// Move On The Y Axis By Y Speed
+</span>            particle[loop].z += particle[loop].zi/(slowDown*1000);            <span class=comment>// Move On The Z Axis By Z Speed
+</span>            
+            <span class=comment>//The resistance is applied to the y and z moving speed the same way it's applied to the x moving speed. 
+</span>            particle[loop].xi += particle[loop].xg;                            <span class=comment>// Take Pull On X Axis Into Account
+</span>            particle[loop].yi += particle[loop].yg;                            <span class=comment>// Take Pull On Y Axis Into Account
+</span>            particle[loop].zi += particle[loop].zg;                            <span class=comment>// Take Pull On Z Axis Into Account
+</span>            
+            <span class=comment>//Takes some life away from the particle.
+</span>            particle[loop].life -= particle[loop].fade;                        <span class=comment>// Reduce Particles Life By 'Fade'
+</span>
+            <span class=comment>//If the particle is dead (burnt out), we'll rejuvenate it. 
+</span>            <span class=comment>//We do this by giving it full life and a new fade speed. 
+</span>            <span class=keyword>if</span>(particle[loop].life &lt; 0.0f) {                                <span class=comment>// If Particle Is Burned Out
+</span>                particle[loop].life = 1.0f;                                    <span class=comment>// Give It New Life
+</span>                particle[loop].fade = <span class=keyword>float</span>(rand()%100/1000.0f) + 0.03f;    <span class=comment>// Random Fade Value
+</span>
+                particle[loop].x = 0;                                        <span class=comment>// Center On X Axis
+</span>                particle[loop].y = 0;                                        <span class=comment>// Center On Y Axis
+</span>                particle[loop].z = 0;                                        <span class=comment>// Center On Z Axis
+</span>    
+                particle[loop].xi = xSpeed + <span class=keyword>float</span>(rand()%60 - 32.0f);        <span class=comment>// X Axis Speed And Direction
+</span>                particle[loop].yi = ySpeed + <span class=keyword>float</span>(rand()%60 - 32.0f);        <span class=comment>// Y Axis Speed And Direction
+</span>                particle[loop].zi = <span class=keyword>float</span>(rand()%60 - 32.0f);                <span class=comment>// Z Axis Speed And Direction
+</span>
+                particle[loop].r = colors[particleColour][0];                <span class=comment>// Select Red From Color Table
+</span>                particle[loop].g = colors[particleColour][1];                <span class=comment>// Select Green From Color Table
+</span>                particle[loop].b = colors[particleColour][2];                <span class=comment>// Select Blue From Color Table
+</span>            }
+
+            <span class=comment>// If Number Pad 8 And Y Gravity Is Less Than 1.5 Increase Pull Upwards
+</span>            <span class=keyword>if</span>(mKeys[VK_NUMPAD8] &amp;&amp; particle[loop].yg &lt; 1.5f)
+                particle[loop].yg += 0.01f;
+
+            <span class=comment>// If Number Pad 2 And Y Gravity Is Greater Than -1.5 Increase Pull Downwards
+</span>            <span class=keyword>if</span>(mKeys[VK_NUMPAD2] &amp;&amp; particle[loop].yg &gt; -1.5f)
+                particle[loop].yg -= 0.01f;
+
+            <span class=comment>// If Number Pad 6 And X Gravity Is Less Than 1.5 Increase Pull Right
+</span>            <span class=keyword>if</span>(mKeys[VK_NUMPAD6] &amp;&amp; particle[loop].xg &lt; 1.5f)
+                particle[loop].xg += 0.01f;
+            
+            <span class=comment>// If Number Pad 4 And X Gravity Is Greater Than -1.5 Increase Pull Left
+</span>            <span class=keyword>if</span> (mKeys[VK_NUMPAD4] &amp;&amp; particle[loop].xg &gt; -1.5f) 
+                particle[loop].xg -= 0.01f;
+
+            <span class=keyword>if</span>(mKeys[VK_TAB]) {                                        <span class=comment>// Tab Key Causes A Burst
+</span>
+                particle[loop].x = 0.0f;                            <span class=comment>// Center On X Axis
+</span>                particle[loop].y = 0.0f;                            <span class=comment>// Center On Y Axis
+</span>                particle[loop].z = 0.0f;                            <span class=comment>// Center On Z Axis
+</span>
+                particle[loop].xi = <span class=keyword>float</span>((rand()%50)-26.0f)*10.0f;    <span class=comment>// Random Speed On X Axis
+</span>                particle[loop].yi = <span class=keyword>float</span>((rand()%50)-26.0f)*10.0f;    <span class=comment>// Random Speed On Y Axis
+</span>                particle[loop].zi = <span class=keyword>float</span>((rand()%50)-26.0f)*10.0f;    <span class=comment>// Random Speed On Z Axis
+</span>            }
+        }
+    }
+
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=keyword>int</span> drawGLScene()                                        <span class=comment>// Here's Where We Do All The Drawing
+</span>{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);        <span class=comment>// Clear Screen And Depth Buffer
+</span>    glLoadIdentity();                                        <span class=comment>// Reset The ModelView Matrix
+</span>
+    <span class=keyword>for</span> (loop=0;loop&lt;MAX_PARTICLES;loop++)                    <span class=comment>// Loop Through All The Particles
+</span>    {
+        <span class=keyword>if</span> (particle[loop].active)                            <span class=comment>// If The Particle Is Active
+</span>        {
+            <span class=keyword>float</span> x=particle[loop].x;                        <span class=comment>// Grab Our Particle X Position
+</span>            <span class=keyword>float</span> y=particle[loop].y;                        <span class=comment>// Grab Our Particle Y Position
+</span>            <span class=keyword>float</span> z=particle[loop].z+zoom;                    <span class=comment>// Particle Z Pos + Zoom
+</span>
+            <span class=comment>// Draw The Particle Using Our RGB Values, Fade The Particle Based On It's Life
+</span>            glColor4f(particle[loop].r,particle[loop].g,particle[loop].b,particle[loop].life);
+
+            glBegin(GL_TRIANGLE_STRIP);                        <span class=comment>// Build Quad From A Triangle Strip
+</span>                glTexCoord2d(1,1); glVertex3f(x+0.5f,y+0.5f,z); <span class=comment>// Top Right
+</span>                glTexCoord2d(0,1); glVertex3f(x-0.5f,y+0.5f,z); <span class=comment>// Top Left
+</span>                glTexCoord2d(1,0); glVertex3f(x+0.5f,y-0.5f,z); <span class=comment>// Bottom Right
+</span>                glTexCoord2d(0,0); glVertex3f(x-0.5f,y-0.5f,z); <span class=comment>// Bottom Left
+</span>            glEnd();                                        <span class=comment>// Done Building Triangle Strip
+</span>
+            particle[loop].x+=particle[loop].xi/(slowDown*1000);<span class=comment>// Move On The X Axis By X Speed
+</span>            particle[loop].y+=particle[loop].yi/(slowDown*1000);<span class=comment>// Move On The Y Axis By Y Speed
+</span>            particle[loop].z+=particle[loop].zi/(slowDown*1000);<span class=comment>// Move On The Z Axis By Z Speed
+</span>
+            particle[loop].xi+=particle[loop].xg;            <span class=comment>// Take Pull On X Axis Into Account
+</span>            particle[loop].yi+=particle[loop].yg;            <span class=comment>// Take Pull On Y Axis Into Account
+</span>            particle[loop].zi+=particle[loop].zg;            <span class=comment>// Take Pull On Z Axis Into Account
+</span>            particle[loop].life-=particle[loop].fade;        <span class=comment>// Reduce Particles Life By 'Fade'
+</span>
+            <span class=keyword>if</span> (particle[loop].life&lt;0.0f)                    <span class=comment>// If Particle Is Burned Out
+</span>            {
+                particle[loop].life=1.0f;                    <span class=comment>// Give It New Life
+</span>                particle[loop].fade=<span class=keyword>float</span>(rand()%100)/1000.0f+0.003f;    <span class=comment>// Random Fade Value
+</span>                particle[loop].x=0.0f;                        <span class=comment>// Center On X Axis
+</span>                particle[loop].y=0.0f;                        <span class=comment>// Center On Y Axis
+</span>                particle[loop].z=0.0f;                        <span class=comment>// Center On Z Axis
+</span>                particle[loop].xi=xSpeed+<span class=keyword>float</span>((rand()%60)-32.0f);    <span class=comment>// X Axis Speed And Direction
+</span>                particle[loop].yi=ySpeed+<span class=keyword>float</span>((rand()%60)-30.0f);    <span class=comment>// Y Axis Speed And Direction
+</span>                particle[loop].zi=<span class=keyword>float</span>((rand()%60)-30.0f);    <span class=comment>// Z Axis Speed And Direction
+</span>                particle[loop].r=colors[particleColour][0];            <span class=comment>// Select Red From Color Table
+</span>                particle[loop].g=colors[particleColour][1];            <span class=comment>// Select Green From Color Table
+</span>                particle[loop].b=colors[particleColour][2];            <span class=comment>// Select Blue From Color Table
+</span>            }
+
+            <span class=comment>// If Number Pad 8 And Y Gravity Is Less Than 1.5 Increase Pull Upwards
+</span>            <span class=keyword>if</span> (mKeys[VK_NUMPAD8] &amp;&amp; (particle[loop].yg&lt;1.5f)) particle[loop].yg+=0.01f;
+
+            <span class=comment>// If Number Pad 2 And Y Gravity Is Greater Than -1.5 Increase Pull Downwards
+</span>            <span class=keyword>if</span> (mKeys[VK_NUMPAD2] &amp;&amp; (particle[loop].yg&gt;-1.5f)) particle[loop].yg-=0.01f;
+
+            <span class=comment>// If Number Pad 6 And X Gravity Is Less Than 1.5 Increase Pull Right
+</span>            <span class=keyword>if</span> (mKeys[VK_NUMPAD6] &amp;&amp; (particle[loop].xg&lt;1.5f)) particle[loop].xg+=0.01f;
+
+            <span class=comment>// If Number Pad 4 And X Gravity Is Greater Than -1.5 Increase Pull Left
+</span>            <span class=keyword>if</span> (mKeys[VK_NUMPAD4] &amp;&amp; (particle[loop].xg&gt;-1.5f)) particle[loop].xg-=0.01f;
+
+            <span class=keyword>if</span> (mKeys[VK_TAB])                                        <span class=comment>// Tab Key Causes A Burst
+</span>            {
+                particle[loop].x=0.0f;                                <span class=comment>// Center On X Axis
+</span>                particle[loop].y=0.0f;                                <span class=comment>// Center On Y Axis
+</span>                particle[loop].z=0.0f;                                <span class=comment>// Center On Z Axis
+</span>                particle[loop].xi=<span class=keyword>float</span>((rand()%50)-26.0f)*10.0f;    <span class=comment>// Random Speed On X Axis
+</span>                particle[loop].yi=<span class=keyword>float</span>((rand()%50)-25.0f)*10.0f;    <span class=comment>// Random Speed On Y Axis
+</span>                particle[loop].zi=<span class=keyword>float</span>((rand()%50)-25.0f)*10.0f;    <span class=comment>// Random Speed On Z Axis
+</span>            }
+        }
+    }
+    <span class=keyword>return</span> TRUE;                                            <span class=comment>// Everything Went OK
+</span>}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    <span class=keyword>switch</span>(uMsg) {
+        <span class=keyword>case</span> WM_ACTIVATE:
+        {
+            <span class=keyword>if</span>(!HIWORD(wParam))
+                mActive = <span class=keyword>true</span>;
+            <span class=keyword>else</span>
+                mActive = <span class=keyword>false</span>;
+
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SYSCOMMAND:
+        {
+            <span class=keyword>switch</span>(wParam) {
+                <span class=keyword>case</span> SC_SCREENSAVE:
+                <span class=keyword>case</span> SC_MONITORPOWER:
+                    <span class=keyword>return</span> 0;
+            }
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYDOWN:
+        {
+            mKeys[wParam] = <span class=keyword>true</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYUP:
+        {
+            mKeys[wParam] = <span class=keyword>false</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SIZE:
+        {
+            resizeGLScene(LOWORD(lParam), HIWORD(lParam));
+            <span class=keyword>return</span> 0;
+        }
+    }
+
+    <span class=keyword>return</span> DefWindowProc(hWnd, uMsg, wParam, lParam);
+}</pre></body>
+</html>

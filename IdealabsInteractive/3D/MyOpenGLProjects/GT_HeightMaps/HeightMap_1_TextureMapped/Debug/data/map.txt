@@ -1,0 +1,98 @@
+MAX_TEXTURES 	14
+TEX_ID_SKYBOX_BACK	data/SkyBox_Back.bmp
+TEX_ID_SKYBOX_BACK	data/SkyBox_Front.bmp
+TEX_ID_SKYBOX_BACK	data/SkyBox_Left.bmp
+TEX_ID_SKYBOX_BACK	data/SkyBox_Right.bmp
+TEX_ID_SKYBOX_BACK	data/SkyBox_Bottom.bmp
+TEX_ID_SKYBOX_BACK	data/SkyBox_Top.bmp
+TEX_ID_TERRAIN		data/Terrain.bmp
+TEX_ID_WALL 		data/walls.bmp
+TEX_ID_FLOOR 		data/stonefloor.bmp
+TEX_ID_CEILING 		data/ceiling.bmp
+TEX_ID_ROOMWALL 	data/roomwall.bmp
+TEX_ID_ROOMFLOOR 	data/roomfloor.bmp
+TEX_ID_ROOMCEILING 	data/roomceiling.bmp
+TEX_ID_FONT		data/FontBlack.bmp
+
+
+MAX_VERTICES 	58
+-3.0 0.0 -3.0
+-1.5 0.0 -3.0
+ 0.0 0.0 -3.0
+ 1.5 0.0 -3.0
+ 3.0 0.0 -3.0
+-3.0 0.0 -1.5
+-1.5 0.0 -1.5
+ 0.0 0.0 -1.5
+ 1.5 0.0 -1.5
+ 3.0 0.0 -3.0
+-3.0 0.0 0.0
+-1.5 0.0 0.0
+ 0.0 0.0 0.0
+ 1.5 0.0 0.0
+ 3.0 0.0 0.0
+-3.0 0.0 1.5
+-1.5 0.0 1.5
+ 0.0 0.0 1.5
+ 1.5 0.0 1.5
+ 3.0 0.0 1.5
+-3.0 0.0 3.0
+-1.5 0.0 3.0
+ 0.0 0.0 3.0
+ 1.5 0.0 3.0
+ 3.0 0.0 3.0
+-3.0 1.0 -3.0
+-1.5 1.0 -3.0
+ 0.0 1.5 -3.0
+ 1.5 1.5 -3.0
+ 3.0 1.5 -3.0
+-3.0 1.0 -1.5
+-1.5 1.0 -1.5
+ 0.0 1.5 -1.5
+ 1.5 1.5 -1.5
+ 3.0 1.5 -1.5
+-3.0 1.0 0.0
+-1.5 1.0 0.0
+ 0.0 1.5 0.0
+ 1.5 1.5 0.0
+ 3.0 1.5 0.0
+-3.0 1.0 1.5
+-1.5 1.0 1.5
+ 0.0 1.0 1.5
+ 1.5 1.0 1.5
+ 3.0 1.0 1.5
+-3.0 1.0 3.0
+-1.5 1.0 3.0
+ 0.0 1.0 3.0
+ 1.5 1.0 3.0
+ 0.0 1.5 1.5
+ 1.5 1.5 1.5
+ 3.0 1.5 1.5
+-3.0 0.5 -3.0			//53 Flat
+-3.0 0.5 -2.0			//54
+ 1.5 0.5 -2.0			//55
+ 1.5 0.5 -3.0			//56
+ 1.5 0.0 -1.0			//57
+-3.0 0.0 -1.0			//58
+
+
+MAX_FACES		19
+1 2 27 26 1 1 WALL            // starting wall
+21 1 26 46 4 1 WALL           // left hand passage
+24 21 46 49 3 1 WALL          // bottom wall
+19 24 49 44 1 1 WALL          // bottom right wall 
+20 19 51 52 1 1.5 ROOMWALL      // bottom room
+44 43 50 51 1 0.5 ROOMWALL      // bottom room above door
+5 20 52 30 3 1.5 ROOMWALL       // right room
+3 5 30 28 2 1.5 ROOMWALL        // top room
+18 3 28 50 3 1.5 ROOMWALL       // left room
+17 18 43 42 1 1 WALL       
+2 17 42 27 3 1 WALL           // right starting passage
+21 22 2 1 1 4 FLOOR
+22 24 19 17 2 1 FLOOR
+18 20 5 3 6 9 ROOMFLOOR
+47 46 26 27 1 4 CEILING
+49 47 42 44 2 1 CEILING
+52 50 28 30 2 3 ROOMCEILING
+53 54 55 56 2 3 ROOMCEILING	//Aa
+54 58 57 55 2 3 CEILING

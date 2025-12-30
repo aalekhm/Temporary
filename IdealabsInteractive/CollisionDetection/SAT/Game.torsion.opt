@@ -1,0 +1,20 @@
+<TorsionProjectOptions>
+<Address>127.0.0.1</Address>
+<Password>password</Password>
+<Port>6060</Port>
+<LastConfig>Release</LastConfig>
+<Breakpoints/>
+<Bookmarks>
+<Bookmark>
+<File>game\gameScripts\game.cs</File>
+<Line>344</Line>
+</Bookmark>
+</Bookmarks>
+<OpenFiles>
+<File ScrollX="0" ScrollY="304">game\gameScripts\game.cs</File>
+<File ScrollX="0" ScrollY="33" Active="true">game\gameScripts\Vectors.cs</File>
+<File ScrollX="0" ScrollY="20">game\gameScripts\VoronoiRegions.cs</File>
+<File ScrollX="0" ScrollY="83">game\gameScripts\CIRCLE_90.cs</File>
+<File ScrollX="0" ScrollY="0">..\..\..\Working Folder\Prototypes\PostToWebServer\Code\postClient\main.cs</File>
+</OpenFiles>
+</TorsionProjectOptions>

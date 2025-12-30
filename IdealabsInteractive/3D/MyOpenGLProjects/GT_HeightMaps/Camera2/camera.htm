@@ -1,0 +1,79 @@
+<html>
+
+<head>
+<title>Using a camera in OpenGL</title>
+</head>
+
+<body stylesrc="http://buggy/codecolony/home.htm" bgcolor="#000000" text="#FF0000" link="#ABABAB" vlink="#D6B001" alink="#FFFF00">
+<font FACE="Times New Roman" SIZE="2">
+
+<p></font><font FACE="Times New Roman" size="6"><strong>Using a camera in OpenGL</strong></font><font FACE="Times New Roman" size="3"></p>
+
+<p></font><font FACE="Times New Roman" size="4"><strong>You'll learn now:</strong></font><font FACE="Times New Roman" size="3"></p>
+
+<blockquote>
+  <ul>
+    <li>How you can use a camera in OpenGL</li>
+    <li>How to get user input</li>
+  </ul>
+</blockquote>
+
+<p></font><font FACE="Times New Roman" size="4"><strong>How can I use a camera in OpenGL?</strong></p>
+</font>
+
+<p><font FACE="Times New Roman" size="3">First of all: There is no thing like a camera in
+OpenGL. But, of course, you can simulate one. All you need to know &#150; and this is the
+same in reality: Moving an object is the same as moving yourself in the opposite
+direction. That means: If you want to simulate a viewer at the position (9|-3|10) you only
+have to apply the transformation <em>glTranslate ( -9, 3, -10)</em>. It is the same with
+rotations. <em>glScale</em> is logically not used for camera simulation. That is all
+&#150; nearly all. </font></p>
+<font FACE="Times New Roman" size="3">
+
+<p>You probably know games like Halflife, UnrealTournament and so on. They all have a
+&quot;ghost mode&quot;. The user can move into all directions, look around and whatever he
+wants. What the user really does is to move (forwards or backwards) or rotate about a
+certain axis. So why not do this all with OpenGL commands? The problem is &#150; again
+&#150; that matrix operations must be swapped. So even if you don't use <em>glLoadIdentity</em>
+but the matrix stack, you couldn't apply a translation when the user wants to move
+forwards. What you could do would be to get the current matrix (there are OpenGL commands
+to do so), load the identity matrix, call your transformation command and then multiply
+the saved matrix with the modelview matrix. But there is another possibility, which I
+myself prefer: In C++ you create a camera class with methods like &quot;move&quot;,
+&quot;rotate&quot; and so on. An object of this class would store the position and the
+direction that the &quot;camera&quot; looks to. If now &quot;move&quot; is called, you
+calculate the new view position using the direction. To apply the camera to your scene,
+you add a &quot;render&quot;-function to the class which calls the three &quot;<em>glRotate</em>&quot;s
+and a &quot;<em>glTranslate</em>&quot;. I have used RotateX, RotateY and RotateZ. RotateY
+means you turn your head. Look out of the window instead of towards your monitor and you
+have done the same like RotateY. RotateZ means you look on the floor. RotateX isn't used
+too often. Mainly in racing games, when you're sitting in your car and the track is higher
+on the right than on the left, for example.</p>
+
+<p>There is also another possibility to simulate a camera. GLU provides a function called <em>gluLookAt.
+</em>This is also a comfortable way, but it isn't too easy to get the
+&quot;up-vector&quot; without matrix calculations.</p>
+
+<p></font><font FACE="Times New Roman" size="4"><strong>How can I get user input?</strong></p>
+
+<p></font><font FACE="Times New Roman" size="3">Using GLUT getting user input isn't
+difficult. You define a function that takes three arguments: an unsigned char for the key,
+and two integers for the mousepositon. To work with a mouse you should use other GLUT
+commands, but game programmers do use DirectInput anyway.</p>
+
+<p>I'll use the keyboard method in the tutorials, because it's pretty easy to understand
+and the keyboard has enough keys to do a lot.</p>
+
+<p><a href="../opengl.htm#camera">Here</a> you can see the results of using this tutorial.</font></p>
+
+<p><font size="3"><a href="../opengl.htm">Back</a></font></p>
+
+<p><big>**************************************************************************</big></p>
+
+<p><big>Any comments? Conact me!</big></p>
+
+<p><big><a href="mailto:philipp.crocoll@web.de">philipp.crocoll@web.de</a></big></p>
+
+<p><big><a href="http://www.codecolony.de">www.codecolony.de</a></big></p>
+</body>
+</html>

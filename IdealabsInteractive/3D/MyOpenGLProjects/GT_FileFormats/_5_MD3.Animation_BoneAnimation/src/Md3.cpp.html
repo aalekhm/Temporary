@@ -1,0 +1,1725 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;MD3.h&quot;
+
+GLuint *texture;
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span><span class=comment>///////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// This version of the tutorial incorporates the animation data stored in the MD3
+</span><span class=comment>// character files.  We will be reading in the .cfg file that stores the animation
+</span><span class=comment>// data.  The rotations and translations of the models will be done using a matrix.
+</span><span class=comment>// There will be no more calls to glTranslatef().  To create the rotation and
+</span><span class=comment>// translation matrix, quaternions will be used.  This is because quaternions
+</span><span class=comment>// are excellent for interpolating between 2 rotations, as well as not overriding
+</span><span class=comment>// another translation causing &quot;gimbal lock&quot;.
+</span><span class=comment>// 
+</span><span class=comment>// So, why do we need to interpolate?  Well, the animations for the character are
+</span><span class=comment>// stored in key frames.  Instead of saving each frame of an animation, key frames
+</span><span class=comment>// are stored to cut down on memory and disk space.  The files would be huge if every
+</span><span class=comment>// frame was saved for every animation, as well as creating a huge memory footprint.  
+</span><span class=comment>// Can you imagine having 10+ models in memory with all of that animation data?  
+</span><span class=comment>// 
+</span><span class=comment>// The animation key frames are stored in 2 ways.  The torso and legs mesh have vertices
+</span><span class=comment>// stored for each of the key frames, along with separate rotations and translations
+</span><span class=comment>// for the basic bone animation.  Remember, that each .md3 represents a bone, that needs
+</span><span class=comment>// to be connected at a joint.  For instance, the torso is connected to the legs, and the
+</span><span class=comment>// head is connected to the torso.  So, that makes 3 bones and 2 joints.  If you add the
+</span><span class=comment>// weapon, the weapon is connected to the hand joint, which gives us 4 bones and 3 joints.
+</span><span class=comment>// Unlike conventional skeletal animation systems, the main animations of the character's
+</span><span class=comment>// movement, such as a gesture or swimming animation, are done not with bones, but with 
+</span><span class=comment>// vertex key frames, like in the .md2 format. Since the lower, upper, head and weapon models
+</span><span class=comment>// are totally different models, which aren't seamlessly connected to each other, then parent
+</span><span class=comment>// node needs to end a message (a translation and rotation) down to all it's child nodes to
+</span><span class=comment>// tell them where they need to be in order for the animation to look right.  A good example
+</span><span class=comment>// of this is when the legs has the DEATH3 animation set,  The legs might kick back into a back
+</span><span class=comment>// flip that lands the character on their face, dead.  Well, since the main models are separate,
+</span><span class=comment>// if the legs didn't tell the torso where to go, then the model's torso would stay in the same
+</span><span class=comment>// place and the body would detach itself from the legs.  The exporter calculates all this stuff
+</span><span class=comment>// for you of course.
+</span><span class=comment>// 
+</span><span class=comment>// But getting back to the interpolation, since we use key frames, if we didn't interpolate
+</span><span class=comment>// between them, the animation would look very jumping and unnatural.  It would also go too
+</span><span class=comment>// fast.  By interpolating, we create a smooth transition between each key frame.
+</span><span class=comment>//
+</span><span class=comment>// As seen in the .md2 tutorials, interpolating between vertices is easy if we use the
+</span><span class=comment>// linear interpolation function:  p(t) = p0 + t(p1 - p0).  The same goes for translations,
+</span><span class=comment>// since it's just 2 3D points.  This is not so for the rotations.  The Quake3 character
+</span><span class=comment>// stores the rotations for each key frame in a 3x3 matrix.  This isn't a simple linear
+</span><span class=comment>// interpolation that needs to be performed.  If we convert the matrices to a quaternion,  
+</span><span class=comment>// then use spherical linear interpolation (SLERP) between the current frame's quaternion 
+</span><span class=comment>// and the next key frame's quaternion, we will have a new interpolated quaternion that
+</span><span class=comment>// can be converted into a 4x4 matrix to be applied to the current model view matrix in OpenGL.
+</span><span class=comment>// After finding the interpolated translation to be applied, we can slip that into the rotation
+</span><span class=comment>// matrix before it's applied to the current matrix, which will require only one matrix command.
+</span><span class=comment>//
+</span><span class=comment>// You'll notice that in the CreateFromMatrix() function in our quaternion class, I allow a
+</span><span class=comment>// row and column count to be passed in.  This is just a dirty way to allow a 3x3 or 4x4 matrix
+</span><span class=comment>// to be passed in.  Instead of creating a whole new function and copy and pasting the main 
+</span><span class=comment>// code, it seemed fitting for a tutorial.  It's obvious that the quaternion class is missing
+</span><span class=comment>// a tremendous amount of functions, but I chose to only keep the functions that we would use.
+</span><span class=comment>// 
+</span><span class=comment>// For those of you who don't know what interpolation us, here is a section abstracted 
+</span><span class=comment>// from the MD2 Animation tutorial:
+</span><span class=comment>//
+</span><span class=comment>// -------------------------------------------------------------------------------------
+</span><span class=comment>// Interpolation: Gamedev.net's Game Dictionary say interpolation is &quot;using a ratio 
+</span><span class=comment>// to step gradually a variable from one value to another.&quot;  In our case, this
+</span><span class=comment>// means that we gradually move our vertices from one key frame to another key frame.
+</span><span class=comment>// There are many types of interpolation, but we are just going to use linear.
+</span><span class=comment>// The equation for linear interpolation is this:
+</span><span class=comment>//
+</span><span class=comment>//                p(t) = p0 + t(p1 - p0)
+</span><span class=comment>//
+</span><span class=comment>//                t - The current time with 0 being the start and 1 being the end
+</span><span class=comment>//                p(t) - The result of the equation with time t
+</span><span class=comment>//                p0 - The starting position
+</span><span class=comment>//                p1 - The ending position
+</span><span class=comment>//
+</span><span class=comment>// Let's throw in an example with numbers to test this equation.  If we have
+</span><span class=comment>// a vertex stored at 0 along the X axis and we wanted to move the point to
+</span><span class=comment>// 10 with 5 steps, see if you can fill in the equation without a time just yet.
+</span><span class=comment>//
+</span><span class=comment>// Finished?  You should have come up with:
+</span><span class=comment>//
+</span><span class=comment>//                p(t) = 0 + t(10 - 0)
+</span><span class=comment>//                p(t) = 0 + 10t
+</span><span class=comment>//                p(t) = 10t
+</span><span class=comment>//
+</span><span class=comment>// Now, all we need it a time from 0 to 1 to pass in, which will allow us to find any
+</span><span class=comment>// point from 0 to 10, depending on the time.  Since we wanted to find out the distance
+</span><span class=comment>// we need to travel each frame if we want to reach the end point in 5 steps, we just
+</span><span class=comment>// divide 1 by 5: 1/5 = 0.2
+</span><span class=comment>//
+</span><span class=comment>// We can then pass this into our equation:
+</span><span class=comment>//
+</span><span class=comment>//                p(0.2) = 10 * 0.2
+</span><span class=comment>//                p(0.2) = 2
+</span><span class=comment>//
+</span><span class=comment>// What does that tell us?  It tells us we need to move the vertex along the x
+</span><span class=comment>// axis each frame by a distance of 2 to reach 10 in 5 steps.  Yah yah, this isn't
+</span><span class=comment>// rocket science, but it's important to know that what your mind would have done
+</span><span class=comment>// immediately without thinking about it, is linear interpolation.  
+</span><span class=comment>//
+</span><span class=comment>// Are you starting to see how this applies to our model?  If we only read in key
+</span><span class=comment>// frames, then we need to interpolate every vertex between the current and next
+</span><span class=comment>// key frame for animation.  To get a perfect idea of what is going on, try
+</span><span class=comment>// taking out the interpolation and just render the key frames.  You will notice
+</span><span class=comment>// that you can still see what is kinda going on, but it moves at an incredible pace!
+</span><span class=comment>// There is not smoothness, just a really fast jumpy animation.
+</span><span class=comment>// ------------------------------------------------------------------------------------
+</span><span class=comment>//
+</span><span class=comment>// Let's jump into the code (hold your breath!)
+</span><span class=comment>//
+</span><span class=comment>//
+</span>
+
+<span class=comment>// This function converts a quaternion to a rotation matrix
+</span><span class=keyword>void</span> CQuaternion::createMatrix(<span class=keyword>float</span> *pMatrix) {
+    <span class=comment>// Make sure the matrix has allocated memory to store the rotation data
+</span>    <span class=keyword>if</span>(!pMatrix)
+        <span class=keyword>return</span>;
+
+    <span class=comment>// This function is a necessity when it comes to doing almost anything
+</span>    <span class=comment>// with quaternions.  Since we are working with OpenGL, which uses a 4x4
+</span>    <span class=comment>// homogeneous matrix, we need to have a way to take our quaternion and
+</span>    <span class=comment>// convert it to a rotation matrix to modify the current model view matrix.
+</span>    <span class=comment>// We pass in a 4x4 matrix, which is a 1D array of 16 floats.  This is how OpenGL
+</span>    <span class=comment>// allows us to pass in a matrix to glMultMatrixf(), so we use a single dimensioned array.
+</span>    <span class=comment>// After about 300 trees murdered and 20 packs of chalk depleted, the
+</span>    <span class=comment>// mathematicians came up with these equations for a quaternion to matrix converion:
+</span>    <span class=comment>//
+</span>    <span class=comment>//     ¦        2     2                                                 ¦
+</span>    <span class=comment>//     ¦ 1 - (2y  + 2z )   2xy + 2zw         2xz - 2yw            0     ¦
+</span>    <span class=comment>//     ¦                                                             ¦
+</span>    <span class=comment>//     ¦                          2     2                             ¦
+</span>    <span class=comment>// M = ¦ 2xy - 2zw         1 - (2x  + 2z )   2zy + 2xw            0     ¦
+</span>    <span class=comment>//     ¦                                                             ¦
+</span>    <span class=comment>//     ¦                                            2     2             ¦
+</span>    <span class=comment>//     ¦ 2xz + 2yw         2yz - 2xw         1 - (2x  + 2y )    0     ¦
+</span>    <span class=comment>//     ¦                                                             ¦
+</span>    <span class=comment>//     ¦                                                             ¦
+</span>    <span class=comment>//     ¦ 0                   0                 0                    1     |                                                     ¦
+</span>    <span class=comment>//     ¦                                                             ¦
+</span>    <span class=comment>// 
+</span>    <span class=comment>// This is of course a 4x4 matrix.  Notice that a rotational matrix can just
+</span>    <span class=comment>// be a 3x3 matrix, but since OpenGL uses a 4x4 matrix, we need to conform to the man.
+</span>    <span class=comment>// Remember that the identity matrix of a 4x4 matrix has a diagonal of 1's, where
+</span>    <span class=comment>// the rest of the indices are 0.  That is where we get the 0's lining the sides, and
+</span>    <span class=comment>// the 1 at the bottom-right corner.  Since OpenGL matrices are row by column, we fill
+</span>    <span class=comment>// in our matrix accordingly below.
+</span>    
+    <span class=comment>// Fill in the rows of the 4x4 matrix, according to the quaternion to matrix equations
+</span>    <span class=comment>// First row
+</span>    pMatrix[ 0] = 1.0f - 2.0f * (y*y + z*z);
+    pMatrix[ 1] = 2.0f * (x*y + z*w);
+    pMatrix[ 2] = 2.0f * (x*z - y*w);
+    pMatrix[ 3] = 0.0f;
+
+    <span class=comment>// Second row
+</span>    pMatrix[ 4] = 2.0f * ( x * y - z * w );  
+    pMatrix[ 5] = 1.0f - 2.0f * ( x * x + z * z ); 
+    pMatrix[ 6] = 2.0f * (z * y + x * w );  
+    pMatrix[ 7] = 0.0f;  
+
+    <span class=comment>// Third row
+</span>    pMatrix[ 8] = 2.0f * ( x * z + y * w );
+    pMatrix[ 9] = 2.0f * ( y * z - x * w );
+    pMatrix[10] = 1.0f - 2.0f * ( x * x + y * y );  
+    pMatrix[11] = 0.0f;  
+
+    <span class=comment>// Fourth row
+</span>    pMatrix[12] = 0;  
+    pMatrix[13] = 0;  
+    pMatrix[14] = 0;  
+    pMatrix[15] = 1.0f;
+
+    <span class=comment>// Now pMatrix[] is a 4x4 homogeneous matrix that can be applied to an OpenGL Matrix
+</span>}
+
+<span class=comment>// This creates a quaternion from a 3x3 or a 4x4 matrix, depending on rowColumnCount
+</span><span class=keyword>void</span> CQuaternion::createFromMatrix(<span class=keyword>float</span> *pTheMatrix, <span class=keyword>int</span> rowColumnCount) {
+    
+    <span class=comment>// Make sure the matrix has valid memory and it's not expected that we allocate it.
+</span>    <span class=comment>// Also, we do a check to make sure the matrix is a 3x3 or a 4x4 (must be 3 or 4).
+</span>    <span class=keyword>if</span>(!pTheMatrix || ((rowColumnCount != 3) &amp;&amp; (rowColumnCount != 4)))
+        <span class=keyword>return</span>;
+
+    <span class=comment>// This function is used to take in a 3x3 or 4x4 matrix and convert the matrix
+</span>    <span class=comment>// to a quaternion.  If rowColumnCount is a 3, then we need to convert the 3x3
+</span>    <span class=comment>// matrix passed in to a 4x4 matrix, otherwise we just leave the matrix how it is.
+</span>    <span class=comment>// Since we want to apply a matrix to an OpenGL matrix, we need it to be 4x4.
+</span>
+    <span class=comment>// Point the matrix pointer to the matrix passed in, assuming it's a 4x4 matrix
+</span>    <span class=keyword>float</span> *pMatrix = pTheMatrix;
+    
+    <span class=comment>// Create a 4x4 matrix to convert a 3x3 matrix to a 4x4 matrix (If rowColumnCount == 3)
+</span>    <span class=keyword>float</span> m4x4[16] = {0};
+
+    <span class=comment>// If the matrix is a 3x3 matrix (which it is for Quake3), then convert it to a 4x4
+</span>    <span class=keyword>if</span>(rowColumnCount == 3) {
+        <span class=comment>// Set the 9 top left indices of the 4x4 matrix to the 9 indices in the 3x3 matrix.
+</span>        <span class=comment>// It would be a good idea to actually draw this out so you can visualize it.
+</span>        m4x4[0]  = pTheMatrix[0];    m4x4[1]  = pTheMatrix[1];    m4x4[2]  = pTheMatrix[2];
+        m4x4[4]  = pTheMatrix[3];    m4x4[5]  = pTheMatrix[4];    m4x4[6]  = pTheMatrix[5];
+        m4x4[8]  = pTheMatrix[6];    m4x4[9]  = pTheMatrix[7];    m4x4[10] = pTheMatrix[8];
+        
+        <span class=comment>// Since the bottom and far right indices are zero, set the bottom right corner to 1.
+</span>        <span class=comment>// This is so that it follows the standard diagonal line of 1's in the identity matrix.
+</span>        m4x4[15] = 1;
+
+        <span class=comment>// Set the matrix pointer to the first index in the newly converted matrix
+</span>        pMatrix = &amp;m4x4[0];
+    }
+
+    <span class=comment>// The next step, once we made sure we are dealing with a 4x4 matrix, is to check the
+</span>    <span class=comment>// diagonal of the matrix.  This means that we add up all of the indices that comprise
+</span>    <span class=comment>// the standard 1's in the identity matrix.  If you draw out the identity matrix of a
+</span>    <span class=comment>// 4x4 matrix, you will see that they 1's form a diagonal line.  Notice we just assume
+</span>    <span class=comment>// that the last index (15) is 1 because it is not effected in the 3x3 rotation matrix.
+</span>
+    <span class=comment>// Find the diagonal of the matrix by adding up it's diagonal indices.
+</span>    <span class=comment>// This is also known as the &quot;trace&quot;, but I will call the variable diagonal.
+</span>    <span class=keyword>float</span> diagonal = pMatrix[0] + pMatrix[5] + pMatrix[10] + 1;
+    <span class=keyword>float</span> scale = 0.0f;
+
+    <span class=comment>// Below we check if the diagonal is greater than zero.  To avoid accidents with
+</span>    <span class=comment>// floating point numbers, we substitute 0 with 0.00000001.  If the diagonal is
+</span>    <span class=comment>// great than zero, we can perform an &quot;instant&quot; calculation, otherwise we will need
+</span>    <span class=comment>// to identify which diagonal element has the greatest value.  Note, that it appears
+</span>    <span class=comment>// that %99 of the time, the diagonal IS greater than 0 so the rest is rarely used.
+</span>
+    <span class=comment>// If the diagonal is greater than zero
+</span>    <span class=keyword>if</span>(diagonal &gt; 0.00000001) {
+        <span class=comment>// Calculate the scale of the diagonal
+</span>        scale = <span class=keyword>float</span>(sqrt(diagonal ) * 2);
+
+        <span class=comment>// Calculate the x, y, x and w of the quaternion through the respective equation
+</span>        x = ( pMatrix[9] - pMatrix[6] ) / scale;
+        y = ( pMatrix[2] - pMatrix[8] ) / scale;
+        z = ( pMatrix[4] - pMatrix[1] ) / scale;
+        w = 0.25f * scale;
+    }
+    <span class=keyword>else</span> {
+        <span class=comment>// If the first element of the diagonal is the greatest value
+</span>        <span class=keyword>if</span> ( pMatrix[0] &gt; pMatrix[5] &amp;&amp; pMatrix[0] &gt; pMatrix[10] )  
+        {    
+            <span class=comment>// Find the scale according to the first element, and double that value
+</span>            scale  = (<span class=keyword>float</span>)sqrt( 1.0f + pMatrix[0] - pMatrix[5] - pMatrix[10] ) * 2.0f;
+
+            <span class=comment>// Calculate the x, y, x and w of the quaternion through the respective equation
+</span>            x = 0.25f * scale;
+            y = (pMatrix[4] + pMatrix[1] ) / scale;
+            z = (pMatrix[2] + pMatrix[8] ) / scale;
+            w = (pMatrix[9] - pMatrix[6] ) / scale;    
+        } 
+        <span class=comment>// Else if the second element of the diagonal is the greatest value
+</span>        <span class=keyword>else</span> <span class=keyword>if</span> ( pMatrix[5] &gt; pMatrix[10] ) 
+        {
+            <span class=comment>// Find the scale according to the second element, and double that value
+</span>            scale  = (<span class=keyword>float</span>)sqrt( 1.0f + pMatrix[5] - pMatrix[0] - pMatrix[10] ) * 2.0f;
+            
+            <span class=comment>// Calculate the x, y, x and w of the quaternion through the respective equation
+</span>            x = (pMatrix[4] + pMatrix[1] ) / scale;
+            y = 0.25f * scale;
+            z = (pMatrix[9] + pMatrix[6] ) / scale;
+            w = (pMatrix[2] - pMatrix[8] ) / scale;
+        } 
+        <span class=comment>// Else the third element of the diagonal is the greatest value
+</span>        <span class=keyword>else</span> 
+        {    
+            <span class=comment>// Find the scale according to the third element, and double that value
+</span>            scale  = (<span class=keyword>float</span>)sqrt( 1.0f + pMatrix[10] - pMatrix[0] - pMatrix[5] ) * 2.0f;
+
+            <span class=comment>// Calculate the x, y, x and w of the quaternion through the respective equation
+</span>            x = (pMatrix[2] + pMatrix[8] ) / scale;
+            y = (pMatrix[9] + pMatrix[6] ) / scale;
+            z = 0.25f * scale;
+            w = (pMatrix[4] - pMatrix[1] ) / scale;
+        }
+    }
+}
+
+<span class=comment>// Returns a spherical linear interpolated quaternion between q1 and q2, with respect to t
+</span>CQuaternion CQuaternion::Slerp(CQuaternion &amp;q1, CQuaternion &amp;q2, <span class=keyword>float</span> t)
+{
+    <span class=comment>// Create a local quaternion to store the interpolated quaternion
+</span>    CQuaternion qInterpolated;
+
+    <span class=comment>// This function is the milk and honey of our quaternion code, the rest of
+</span>    <span class=comment>// the functions are an appendage to what is done here.  Everyone understands
+</span>    <span class=comment>// the terms, &quot;matrix to quaternion&quot;, &quot;quaternion to matrix&quot;, &quot;create quaternion matrix&quot;,
+</span>    <span class=comment>// &quot;quaternion multiplication&quot;, etc.. but &quot;SLERP&quot; is the stumbling block, even a little 
+</span>    <span class=comment>// bit after hearing what it stands for, &quot;Spherical Linear Interpolation&quot;.  What that
+</span>    <span class=comment>// means is that we have 2 quaternions (or rotations) and we want to interpolate between 
+</span>    <span class=comment>// them.  The reason what it's called &quot;spherical&quot; is that quaternions deal with a sphere.  
+</span>    <span class=comment>// Linear interpolation just deals with 2 points primarily, where when dealing with angles
+</span>    <span class=comment>// and rotations, we need to use sin() and cos() for interpolation.  If we wanted to use
+</span>    <span class=comment>// quaternions for camera rotations, which have much more instant and jerky changes in 
+</span>    <span class=comment>// rotations, we would use Spherical-Cubic Interpolation.  The equation for SLERP is this:
+</span>    <span class=comment>//
+</span>    <span class=comment>// q = (((b.a)^-1)^t)a
+</span>    <span class=comment>//
+</span>    <span class=comment>// Go here for an a detailed explanation and proofs of this equation:
+</span>    <span class=comment>//
+</span>    <span class=comment>// http://www.magic-software.com/Documentation/quat.pdf
+</span>    <span class=comment>//
+</span>    <span class=comment>// Now, Let's code it
+</span>
+    <span class=comment>// Here we do a check to make sure the 2 quaternions aren't the same, return q1 if they are
+</span>    <span class=keyword>if</span>(q1.x == q2.x &amp;&amp; q1.y == q2.y &amp;&amp; q1.z == q2.z &amp;&amp; q1.w == q2.w) 
+        <span class=keyword>return</span> q1;
+
+    <span class=comment>// Following the (b.a) part of the equation, we do a dot product between q1 and q2.
+</span>    <span class=comment>// We can do a dot product because the same math applied for a 3D vector as a 4D vector.
+</span>    <span class=keyword>float</span> result = (q1.x * q2.x) + (q1.y * q2.y) + (q1.z * q2.z) + (q1.w * q2.w);
+
+    <span class=comment>// If the dot product is less than 0, the angle is greater than 90 degrees
+</span>    <span class=keyword>if</span>(result &lt; 0.0f)
+    {
+        <span class=comment>// Negate the second quaternion and the result of the dot product
+</span>        q2 = CQuaternion(-q2.x, -q2.y, -q2.z, -q2.w);
+        result = -result;
+    }
+
+    <span class=comment>// Set the first and second scale for the interpolation
+</span>    <span class=keyword>float</span> scale0 = 1 - t, scale1 = t;
+
+    <span class=comment>// Next, we want to actually calculate the spherical interpolation.  Since this
+</span>    <span class=comment>// calculation is quite computationally expensive, we want to only perform it
+</span>    <span class=comment>// if the angle between the 2 quaternions is large enough to warrant it.  If the
+</span>    <span class=comment>// angle is fairly small, we can actually just do a simpler linear interpolation
+</span>    <span class=comment>// of the 2 quaternions, and skip all the complex math.  We create a &quot;delta&quot; value
+</span>    <span class=comment>// of 0.1 to say that if the cosine of the angle (result of the dot product) between
+</span>    <span class=comment>// the 2 quaternions is smaller than 0.1, then we do NOT want to perform the full on 
+</span>    <span class=comment>// interpolation using.  This is because you won't really notice the difference.
+</span>
+    <span class=comment>// Check if the angle between the 2 quaternions was big enough to warrant such calculations
+</span>    <span class=keyword>if</span>(1 - result &gt; 0.1f)
+    {
+        <span class=comment>// Get the angle between the 2 quaternions, and then store the sin() of that angle
+</span>        <span class=keyword>float</span> theta = (<span class=keyword>float</span>)acos(result);
+        <span class=keyword>float</span> sinTheta = (<span class=keyword>float</span>)sin(theta);
+
+        <span class=comment>// Calculate the scale for q1 and q2, according to the angle and it's sine value
+</span>        scale0 = (<span class=keyword>float</span>)sin( ( 1 - t ) * theta) / sinTheta;
+        scale1 = (<span class=keyword>float</span>)sin( ( t * theta) ) / sinTheta;
+    }    
+
+    <span class=comment>// Calculate the x, y, z and w values for the quaternion by using a special
+</span>    <span class=comment>// form of linear interpolation for quaternions.
+</span>    qInterpolated.x = (scale0 * q1.x) + (scale1 * q2.x);
+    qInterpolated.y = (scale0 * q1.y) + (scale1 * q2.y);
+    qInterpolated.z = (scale0 * q1.z) + (scale1 * q2.z);
+    qInterpolated.w = (scale0 * q1.w) + (scale1 * q2.w);
+
+    <span class=comment>// Return the interpolated quaternion
+</span>    <span class=keyword>return</span> qInterpolated;
+}
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+<span class=keyword>bool</span> bitmapLoader(LPCSTR fileName, GLuint textureID) {
+    HBITMAP hBMP;
+    BITMAP BMP;
+
+    hBMP = (HBITMAP)LoadImage(GetModuleHandle(NULL), fileName, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION | LR_LOADFROMFILE);
+
+    <span class=keyword>if</span>(!hBMP)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    GetObject(hBMP, <span class=keyword>sizeof</span>(BMP), &amp;BMP);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, BMP.bmWidth, BMP.bmHeight, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, BMP.bmBits);
+<span class=comment>/*
+char sCurText[255];
+sprintf(sCurText, &quot;%s = %d x %d&quot;, fileName, BMP.bmWidth, BMP.bmHeight);
+MessageBox(NULL, sCurText, &quot;W x H&quot;, MB_OK);
+//*/</span>
+    DeleteObject(hBMP);
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=keyword>bool</span> IsInString(string strString, string strSubString)
+{
+    <span class=comment>// Make sure both of these strings are valid, return false if any are empty
+</span>    <span class=keyword>if</span>(strString.length() &lt;= 0 || strSubString.length() &lt;= 0) <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// grab the starting index where the sub string is in the original string
+</span>    <span class=keyword>unsigned</span> <span class=keyword>int</span> index = strString.find(strSubString);
+
+    <span class=comment>// Make sure the index returned was valid
+</span>    <span class=keyword>if</span>(index &gt;= 0 &amp;&amp; index &lt; strString.length())
+        <span class=keyword>return</span> <span class=keyword>true</span>;
+
+    <span class=comment>// The sub string does not exist in strString.
+</span>    <span class=keyword>return</span> <span class=keyword>false</span>;
+}
+
+CMD3Model::CMD3Model() {
+    <span class=comment>// Here we initialize all our mesh structures for the character
+</span>    memset(&amp;m_Head,  0, <span class=keyword>sizeof</span>(t3DModel));
+    memset(&amp;m_Upper, 0, <span class=keyword>sizeof</span>(t3DModel));
+    memset(&amp;m_Lower, 0, <span class=keyword>sizeof</span>(t3DModel));
+    memset(&amp;m_Weapon, 0, <span class=keyword>sizeof</span>(t3DModel));
+
+    mModelTextures = <span class=keyword>new</span> GLuint[MAX_TEXTURES];
+    glGenTextures(MAX_TEXTURES, &amp;mModelTextures[0]);
+}
+
+CMD3Model::~CMD3Model() {
+    <span class=comment>// Here we free all of the meshes in our model
+</span>    destroyModel(&amp;m_Head);
+    destroyModel(&amp;m_Upper);
+    destroyModel(&amp;m_Lower);
+    destroyModel(&amp;m_Weapon);
+}
+
+<span class=comment>//This loads our Quake3 model from the given path and character name
+</span><span class=keyword>bool</span> CMD3Model::loadModel(LPSTR strModelPath, LPSTR strModelName) {
+
+    <span class=comment>// This function is where all the character loading is taken care of.  We use
+</span>    <span class=comment>// our CLoadMD3 class to load the 3 mesh and skins for the character. Since we
+</span>    <span class=comment>// just have 1 name for the model, we add that to _lower.md3, _upper.md3 and _head.md3
+</span>    <span class=comment>// to load the correct mesh files.
+</span>
+    <span class=keyword>char</span>    strLowerModelFileName[255] = {0};    <span class=comment>// This stores the file name for the lower.md3 model
+</span>    <span class=keyword>char</span>    strUpperModelFileName[255] = {0};    <span class=comment>// This stores the file name for the upper.md3 model
+</span>    <span class=keyword>char</span>    strHeadModelFileName[255] = {0};    <span class=comment>// This stores the file name for the head.md3 model
+</span>    <span class=keyword>char</span>    strLowerSkinFileName[255] = {0};    <span class=comment>// This stores the file name for the lower.md3 skin
+</span>    <span class=keyword>char</span>    strUpperSkinFileName[255] = {0};    <span class=comment>// This stores the file name for the upper.md3 skin
+</span>    <span class=keyword>char</span>    strHeadSkinFileName[255] = {0};        <span class=comment>// This stores the file name for the head.md3 skin
+</span>    CMD3Loader *md3Loader = <span class=keyword>new</span> CMD3Loader();
+
+    <span class=comment>// Make sure valid path and model names were passed in
+</span>    <span class=keyword>if</span>(!strModelPath || !strModelName)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// Store the correct files names for the .md3 and .skin file for each body part.
+</span>    <span class=comment>// We concatinate this on top of the path name to be loaded from.
+</span>    sprintf(strLowerModelFileName, &quot;%s\\%s_lower.md3&quot;, strModelPath, strModelName);
+    sprintf(strUpperModelFileName, &quot;%s\\%s_upper.md3&quot;, strModelPath, strModelName);
+    sprintf(strHeadModelFileName, &quot;%s\\%s_head.md3&quot;, strModelPath, strModelName);
+
+    <span class=comment>// Get the skin file names with their path
+</span>    sprintf(strLowerSkinFileName, &quot;%s\\%s_lower.skin&quot;, strModelPath, strModelName);
+    sprintf(strUpperSkinFileName, &quot;%s\\%s_upper.skin&quot;, strModelPath, strModelName);
+    sprintf(strHeadSkinFileName, &quot;%s\\%s_head.skin&quot;, strModelPath, strModelName);
+
+    <span class=comment>// Next we want to load the character meshes.  The CModelMD3 class has member
+</span>    <span class=comment>// variables for the head, upper and lower body parts.  These are of type t3DModel.
+</span>    <span class=comment>// Depending on which model we are loading, we pass in those structures to ImportMD3.
+</span>    <span class=comment>// This returns a true of false to let us know that the file was loaded okay.  The
+</span>    <span class=comment>// appropriate file name to load is passed in for the last parameter.
+</span>    
+    <span class=comment>// Load the head mesh (*_head.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;importMD3(&amp;m_Head, strHeadModelFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the HEAD model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the lower mesh (*_lower.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;importMD3(&amp;m_Lower, strLowerModelFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the LOWER model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the upper mesh (*_upper.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;importMD3(&amp;m_Upper, strUpperModelFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the UPPER model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the upper skin (*_upper.skin) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;loadSkin(&amp;m_Upper, strUpperSkinFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the UPPER skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the lower skin (*_lower.skin) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;loadSkin(&amp;m_Lower, strLowerSkinFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the LOWER skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the head skin (*_Head.skin) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;loadSkin(&amp;m_Head, strHeadSkinFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the HEAD skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Once the models and skins were loaded, we need to load then textures.
+</span>    <span class=comment>// We don't do error checking for this because we call CreateTexture() and 
+</span>    <span class=comment>// it already does error checking.  Most of the time there is only
+</span>    <span class=comment>// one or two textures that need to be loaded for each character.  There are
+</span>    <span class=comment>// different skins though for each character.  For instance, you could have a
+</span>    <span class=comment>// army looking Lara Croft, or the normal look.  You can have multiple types of
+</span>    <span class=comment>// looks for each model.  Usually it is just color changes though.
+</span>
+    <span class=comment>// Load the lower, upper and head textures.  
+</span>    loadModelTextures(&amp;m_Lower, strModelPath);
+    loadModelTextures(&amp;m_Upper, strModelPath);
+    loadModelTextures(&amp;m_Head,  strModelPath);
+
+    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>    <span class=comment>// We added to this function the code that loads the animation config file
+</span>
+    <span class=comment>// This stores the file name for the .cfg animation file
+</span>    <span class=keyword>char</span> strConfigFileName[255] = {0};
+
+    <span class=comment>// Add the path and file name prefix to the animation.cfg file
+</span>    sprintf(strConfigFileName, &quot;%s\\%s_animation.cfg&quot;, strModelPath, strModelName);
+
+    <span class=comment>// Load the animation config file (*_animation.config) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!loadAnimations(strConfigFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the Animation Config File!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+    <span class=comment>// The character data should all be loaded when we get here (except the weapon).
+</span>    <span class=comment>// Now comes the linking of the body parts.  This makes it so that the legs (lower.md3)
+</span>    <span class=comment>// are the parent node, then the torso (upper.md3) is a child node of the legs.  Finally,
+</span>    <span class=comment>// the head is a child node of the upper body.  What I mean by node, is that you can
+</span>    <span class=comment>// think of the model having 3 bones and 2 joints.  When you translate the legs you want
+</span>    <span class=comment>// the whole body to follow because they are inseparable (unless a magic trick goes wrong).
+</span>    <span class=comment>// The same goes for the head, it should go wherever the body goes.  When we draw the
+</span>    <span class=comment>// lower body, we then recursively draw all of it's children, which happen to be just the
+</span>    <span class=comment>// upper body.  Then we draw the upper body's children, which is just the head.  So, to
+</span>    <span class=comment>// sum this all up, to set each body part's children, we need to link them together.
+</span>    <span class=comment>// For more information on tags, refer to the Quick Notes and the functions below.
+</span>
+    <span class=comment>// Link the lower body to the upper body when the tag &quot;tag_torso&quot; is found in our tag array
+</span>    linkModel(&amp;m_Lower, &amp;m_Upper, &quot;tag_torso&quot;);
+
+    <span class=comment>// Link the upper body to the head when the tag &quot;tag_head&quot; is found in our tag array
+</span>    linkModel(&amp;m_Upper, &amp;m_Head, &quot;tag_head&quot;);
+
+    <span class=comment>// The character was loaded correctly so return true
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+<span class=comment>//This loads the .cfg file that stores all the animation information
+</span><span class=keyword>bool</span> CMD3Model::loadAnimations(LPSTR strConfigFile) {
+
+    <span class=comment>// This function is given a path and name to an animation config file to load.
+</span>    <span class=comment>// The implementation of this function is arbitrary, so if you have a better way
+</span>    <span class=comment>// to parse the animation file, that is just as good.  Whatever works.
+</span>    <span class=comment>// Basically, what is happening here, is that we are grabbing an animation line:
+</span>    <span class=comment>//
+</span>    <span class=comment>// &quot;0    31    0    25        // BOTH_DEATH1&quot;
+</span>    <span class=comment>//
+</span>    <span class=comment>// Then parsing it's values.  The first number is the starting frame, the next
+</span>    <span class=comment>// is the frame count for that animation (endFrame would equal startFrame + frameCount),
+</span>    <span class=comment>// the next is the looping frames (ignored), and finally the frames per second that
+</span>    <span class=comment>// the animation should run at.  The end of this line is the name of the animation.
+</span>    <span class=comment>// Once we get that data, we store the information in our tAnimationInfo object, then
+</span>    <span class=comment>// after we finish parsing the file, the animations are assigned to each model.  
+</span>    <span class=comment>// Remember, that only the torso and the legs objects have animation.  It is important
+</span>    <span class=comment>// to note also that the animation prefixed with BOTH_* are assigned to both the legs
+</span>    <span class=comment>// and the torso animation list, hence the name &quot;BOTH&quot; :)
+</span>
+    <span class=comment>// Create an animation object for every valid animation in the Quake3 Character
+</span>    tAnimation animations[MAX_ANIMATIONS] = {0};
+
+    <span class=comment>// Open the config file
+</span>    ifstream fin(strConfigFile);
+
+    <span class=comment>// Here we make sure that the file was found and could be opened
+</span>    <span class=keyword>if</span>(fin.fail()) {
+        <span class=comment>// Return an unsuccessful retrieval
+</span>        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    string strWord = &quot;&quot;;                <span class=comment>// This stores the current word we are reading in
+</span>    string strLine = &quot;&quot;;                <span class=comment>// This stores the current line we read in
+</span>    <span class=keyword>int</span> currentAnim = 0;                <span class=comment>// This stores the current animation count
+</span>    <span class=keyword>int</span> torsoOffset = 0;                <span class=comment>// The offset between the first torso and leg animation
+</span>
+    <span class=comment>// Here we go through every word in the file until a numeric number if found.
+</span>    <span class=comment>// This is how we know that we are on the animation lines, and past header info.
+</span>    <span class=comment>// This of course isn't the most solid way, but it works fine.  It wouldn't hurt
+</span>    <span class=comment>// to put in some more checks to make sure no numbers are in the header info.
+</span>    <span class=keyword>while</span>( fin &gt;&gt; strWord) {
+        <span class=comment>// If the first character of the word is NOT a number, we haven't hit an animation line
+</span>        <span class=keyword>if</span>(!isdigit(strWord[0])) {
+            getline(fin, strLine);
+            <span class=keyword>continue</span>;
+        }
+
+        <span class=comment>// If we get here, we must be on an animation line, so let's parse the data.
+</span>        <span class=comment>// We should already have the starting frame stored in strWord, so let's extract it.
+</span>        
+        <span class=comment>// Get the number stored in the strWord string and create some variables for the rest
+</span>        <span class=keyword>int</span> startFrame = atoi(strWord.c_str());
+        <span class=keyword>int</span> numOfFrames = 0, loopingFrames = 0, framesPerSecond = 0;
+        
+        <span class=comment>// Read in the number of frames, the looping frames, then the frames per second
+</span>        <span class=comment>// for this current animation we are on.
+</span>        fin &gt;&gt; numOfFrames &gt;&gt; loopingFrames &gt;&gt; framesPerSecond;
+
+        <span class=comment>// Initialize the current animation structure with the data just read in
+</span>        animations[currentAnim].startFrame    = startFrame;
+        animations[currentAnim].endFrame    = startFrame + numOfFrames;
+        animations[currentAnim].loopingFrames = loopingFrames;
+        animations[currentAnim].framesPerSecond = framesPerSecond;
+        
+        <span class=comment>// Read past the &quot;//&quot; and read in the animation name (I.E. &quot;BOTH_DEATH1&quot;).
+</span>        <span class=comment>// This might not be how every config file is set up, so make sure.
+</span>        fin &gt;&gt; strLine &gt;&gt; strLine;
+
+        <span class=comment>// Copy the name of the animation to our animation structure
+</span>        strcpy(animations[currentAnim].animationName, strLine.c_str());
+
+        <span class=comment>// If the animation is for both the legs and the torso, add it to their animation list
+</span>        <span class=keyword>if</span>(IsInString(strLine, &quot;BOTH&quot;)) {
+            <span class=comment>// Add the animation to each of the upper and lower mesh lists
+</span>            m_Upper.pAnimations.push_back(animations[currentAnim]);
+            m_Lower.pAnimations.push_back(animations[currentAnim]);
+        }
+        <span class=comment>// If the animation is for the torso, add it to the torso's list
+</span>        <span class=keyword>else</span> 
+        <span class=keyword>if</span>(IsInString(strLine, &quot;TORSO&quot;)) {
+            m_Upper.pAnimations.push_back(animations[currentAnim]);
+        }
+        <span class=comment>// If the animation is for the legs, add it to the legs's list
+</span>        <span class=keyword>else</span> {
+            <span class=comment>// Because I found that some config files have the starting frame for the
+</span>            <span class=comment>// torso and the legs a different number, we need to account for this by finding
+</span>            <span class=comment>// the starting frame of the first legs animation, then subtracting the starting
+</span>            <span class=comment>// frame of the first torso animation from it.  For some reason, some exporters
+</span>            <span class=comment>// might keep counting up, instead of going back down to the next frame after the
+</span>            <span class=comment>// end frame of the BOTH_DEAD3 anim.  This will make your program crash if so.
+</span>            
+            <span class=comment>// If the torso offset hasn't been set, set it
+</span>            <span class=keyword>if</span>(!torsoOffset)
+                torsoOffset = animations[LEGS_WALKCR].startFrame - animations[TORSO_GESTURE].startFrame;
+
+            <span class=comment>// Minus the offset from the legs animation start and end frame.
+</span>            animations[currentAnim].startFrame -= torsoOffset;
+            animations[currentAnim].endFrame -= torsoOffset;
+
+            <span class=comment>// Add the animation to the list of leg animations
+</span>            m_Lower.pAnimations.push_back(animations[currentAnim]);
+        }
+
+        <span class=comment>// Increase the current animation count
+</span>        currentAnim++;
+    }
+
+    <span class=comment>// Store the number if animations for each list by the STL vector size() function
+</span>    m_Lower.numOfAnimations = m_Lower.pAnimations.size();
+    m_Upper.numOfAnimations = m_Upper.pAnimations.size();
+    m_Head.numOfAnimations = m_Head.pAnimations.size();
+    m_Weapon.numOfAnimations = m_Weapon.pAnimations.size();
+
+    fin.close();
+
+    <span class=comment>// Return a success
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+<span class=comment>//This loads the textures for the current model passed in with a directory
+</span><span class=keyword>void</span> CMD3Model::loadModelTextures(t3DModel *pModel, LPSTR strTexturePath) {
+
+    <span class=comment>// This function loads the textures that are assigned to each mesh and it's
+</span>    <span class=comment>// sub-objects.  For instance, the Lara Croft character has a texture for the body
+</span>    <span class=comment>// and the face/head, and since she has the head as a sub-object in the lara_upper.md3 model, 
+</span>    <span class=comment>// the MD3 file needs to contain texture information for each separate object in the mesh.
+</span>    <span class=comment>// There is another thing to note too...  Some meshes use the same texture map as another 
+</span>    <span class=comment>// one. We don't want to load 2 of the same texture maps, so we need a way to keep track of
+</span>    <span class=comment>// which texture is already loaded so that we don't double our texture memory for no reason.
+</span>    <span class=comment>// This is controlled with a STL vector list of &quot;strings&quot;.  Every time we load a texture
+</span>    <span class=comment>// we add the name of the texture to our list of strings.  Before we load another one,
+</span>    <span class=comment>// we make sure that the texture map isn't already in our list.  If it is, we assign
+</span>    <span class=comment>// that texture index to our current models material texture ID.  If it's a new texture,
+</span>    <span class=comment>// then the new texture is loaded and added to our characters texture array: m_Textures[].
+</span>
+    <span class=comment>// Go through all the materials that are assigned to this model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfMaterials; i++) {
+        
+        <span class=comment>// Check to see if there is a file name to load in this material
+</span>        <span class=keyword>if</span>(strlen(pModel-&gt;pMaterials[i].textureFileName) &gt; 0) {
+
+            <span class=comment>// Create a boolean to tell us if we have a new texture to load
+</span>            <span class=keyword>bool</span> bNewTexture = <span class=keyword>true</span>;
+
+            <span class=comment>// Go through all the textures in our string list to see if it's already loaded
+</span>            <span class=keyword>for</span>(<span class=keyword>unsigned</span> <span class=keyword>int</span> j = 0; j &lt; vStrTextures.size(); j++) {
+                
+                <span class=comment>// If the texture name is already in our list of texture, don't load it again.
+</span>                <span class=keyword>if</span>((strcmp(pModel-&gt;pMaterials[i].textureFileName, vStrTextures[j].c_str()) == 0)) {
+
+                    <span class=comment>// We don't need to load this texture since it's already loaded
+</span>                    bNewTexture = <span class=keyword>false</span>;
+
+                    <span class=comment>// Assign the texture index to our current material textureID.
+</span>                    <span class=comment>// This ID will them be used as an index into m_Textures[].
+</span>                    pModel-&gt;pMaterials[i].textureID = j;
+                }
+            }
+
+            <span class=comment>// Make sure before going any further that this is a new texture to be loaded
+</span>            <span class=keyword>if</span>(bNewTexture == <span class=keyword>false</span>) 
+                <span class=keyword>continue</span>;
+
+            <span class=keyword>char</span> strFullPath[255] = {0};
+
+            <span class=comment>// Add the file name and path together so we can load the texture
+</span>            sprintf(strFullPath, &quot;%s\\%s&quot;, strTexturePath, pModel-&gt;pMaterials[i].textureFileName);
+
+            <span class=comment>// We pass in a reference to an index into our texture array member variable.
+</span>            <span class=comment>// The size() function returns the current loaded texture count.  Initially
+</span>            <span class=comment>// it will be 0 because we haven't added any texture names to our strTextures list.    
+</span>            bitmapLoader(strFullPath, mModelTextures[vStrTextures.size()]);
+
+            <span class=comment>// Set the texture ID for this material by getting the current loaded texture count
+</span>            pModel-&gt;pMaterials[i].textureID = vStrTextures.size();
+
+            <span class=comment>// Now we increase the loaded texture count by adding the texture name to our
+</span>            <span class=comment>// list of texture names.  Remember, this is used so we can check if a texture
+</span>            <span class=comment>// is already loaded before we load 2 of the same textures.  Make sure you
+</span>            <span class=comment>// understand what an STL vector list is.  We have a tutorial on it if you don't.
+</span>            vStrTextures.push_back(pModel-&gt;pMaterials[i].textureFileName);
+        }
+    }
+}
+
+<span class=keyword>void</span> CMD3Model::linkModel(t3DModel *pModel, t3DModel *pLinkedModel, LPSTR strTagName) {
+    
+    <span class=comment>// Make sure we have a valid model, link and tag name, otherwise quit this function
+</span>    <span class=keyword>if</span>(!pModel || !pLinkedModel || !strTagName)
+        <span class=keyword>return</span>;
+
+    <span class=comment>// This function is used to link 2 models together at a psuedo joint.  For instance,
+</span>    <span class=comment>// if we were animating an arm, we would link the top part of the arm to the shoulder,
+</span>    <span class=comment>// then the forearm to would be linked to the top part of the arm, then the hand to
+</span>    <span class=comment>// the forearm.  That is what is meant by linking.  That way, when we rotate the
+</span>    <span class=comment>// arm at the shoulder, the rest of the arm will move with it because they are attached
+</span>    <span class=comment>// to the same matrix that moves the top of the arm.  You can think of the shoulder
+</span>    <span class=comment>// as the arm's parent node, and the rest are children that are subject to move to where
+</span>    <span class=comment>// ever the top part of the arm goes.  That is how bone/skeletal animation works.
+</span>    <span class=comment>//
+</span>    <span class=comment>// So, we have an array of tags that have a position, rotation and name.  If we want
+</span>    <span class=comment>// to link the lower body to the upper body, we would pass in the lower body mesh first,
+</span>    <span class=comment>// then the upper body mesh, then the tag &quot;tag_torso&quot;.  This is a tag that quake set as
+</span>    <span class=comment>// as a standard name for the joint between the legs and the upper body.  This tag was
+</span>    <span class=comment>// saved with the lower.md3 model.  We just need to loop through the lower body's tags,
+</span>    <span class=comment>// and when we find &quot;tag_torso&quot;, we link the upper.md3 mesh too that tag index in our
+</span>    <span class=comment>// pLinks array.  This is an array of pointers to hold the address of the linked model.
+</span>    <span class=comment>// Quake3 models are set up in a weird way, but usually you would just forget about a
+</span>    <span class=comment>// separate array for links, you would just have a pointer to a t3DModel in the tag
+</span>    <span class=comment>// structure, which in retrospect, you wouldn't have a tag array, you would have
+</span>    <span class=comment>// a bone/joint array.  Stayed tuned for a bone animation tutorial from scratch.  This
+</span>    <span class=comment>// will show you exactly what I mean if you are confused.
+</span>    
+    <span class=comment>// Go through all of our tags and find which tag contains the strTagName, then link'em
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfTags; i++) {
+
+        <span class=comment>// If this current tag index has the tag name we are looking for
+</span>        <span class=keyword>if</span>(!_stricmp(pModel-&gt;pTags[i].tagName, strTagName)) {
+
+            <span class=comment>// Link the model's link index to the link (or model/mesh) and return
+</span>            pModel-&gt;pLinks[i] = pLinkedModel;
+            <span class=keyword>return</span>;
+        }
+    }
+}
+
+<span class=comment>//This loads a Quake3 weapon model from the given path and weapon name
+</span><span class=keyword>bool</span> CMD3Model::loadWeapon(LPSTR strPath, LPSTR strModel) {
+    
+    <span class=keyword>char</span> strWeaponModelFileName[255] = {0};        <span class=comment>// This stores the file name for the weapon model
+</span>    <span class=keyword>char</span> strWeaponShaderFileName[255] = {0};    <span class=comment>// This stores the file name for the weapon shader.
+</span>    CMD3Loader *md3Loader = <span class=keyword>new</span> CMD3Loader();
+
+    <span class=comment>// Make sure the path and model were valid, otherwise return false
+</span>    <span class=keyword>if</span>(!strPath || !strModel)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// Concatenate the path and model name together
+</span>    sprintf(strWeaponModelFileName, &quot;%s\\%s.md3&quot;, strPath, strModel);
+
+    <span class=comment>// Next we want to load the weapon mesh.  The CModelMD3 class has member
+</span>    <span class=comment>// variables for the weapon model and all it's sub-objects.  This is of type t3DModel.
+</span>    <span class=comment>// We pass in a reference to this model in to ImportMD3 to save the data read.
+</span>    <span class=comment>// This returns a true of false to let us know that the weapon was loaded okay.  The
+</span>    <span class=comment>// appropriate file name to load is passed in for the last parameter.
+</span>
+    <span class=comment>// Load the weapon mesh (*.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;importMD3(&amp;m_Weapon, strWeaponModelFileName)) {
+
+        <span class=comment>// Display the error message that we couldn't find the weapon MD3 file and return false
+</span>        MessageBox(NULL, &quot;Unable to load the WEAPON model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Unlike the other .MD3 files, a weapon has a .shader file attached with it, not a
+</span>    <span class=comment>// .skin file.  The shader file has it's own scripting language to describe behaviors
+</span>    <span class=comment>// of the weapon.  All we care about for this tutorial is it's normal texture maps.
+</span>    <span class=comment>// There are other texture maps in the shader file that mention the ammo and sphere maps,
+</span>    <span class=comment>// but we don't care about them for our purposes.  I gutted the shader file to just store
+</span>    <span class=comment>// the texture maps.  The order these are in the file is very important.  The first
+</span>    <span class=comment>// texture refers to the first object in the weapon mesh, the second texture refers
+</span>    <span class=comment>// to the second object in the weapon mesh, and so on.  I didn't want to write a complex
+</span>    <span class=comment>// .shader loader because there is a TON of things to keep track of.  It's a whole
+</span>    <span class=comment>// scripting language for goodness sakes! :)  Keep this in mind when downloading new guns.
+</span>
+    <span class=comment>// Add the path, file name and .shader extension together to get the file name and path
+</span>    sprintf(strWeaponShaderFileName, &quot;%s\\%s.shader&quot;, strPath, strModel);
+
+    <span class=comment>// Load our textures associated with the gun from the weapon shader file
+</span>    <span class=keyword>if</span>(!md3Loader-&gt;loadShader(&amp;m_Weapon, strWeaponShaderFileName)) {
+
+        <span class=comment>// Display the error message that we couldn't find the shader file and return false
+</span>        MessageBox(NULL, &quot;Unable to load the SHADER file!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// We should have the textures needed for each weapon part loaded from the weapon's
+</span>    <span class=comment>// shader, so let's load them in the given path.
+</span>    loadModelTextures(&amp;m_Weapon, strPath);
+
+    <span class=comment>// Just like when we loaded the character mesh files, we need to link the weapon to
+</span>    <span class=comment>// our character.  The upper body mesh (upper.md3) holds a tag for the weapon.
+</span>    <span class=comment>// This way, where ever the weapon hand moves, the gun will move with it.
+</span>
+    <span class=comment>// Link the weapon to the model's hand that has the weapon tag
+</span>    linkModel(&amp;m_Upper, &amp;m_Weapon, &quot;tag_weapon&quot;);
+
+    <span class=comment>// The weapon loaded okay, so let's return true to reflect this
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This frees our Quake3 model and all it's associated data
+</span><span class=keyword>void</span> CMD3Model::destroyModel(t3DModel *pModel) {
+    <span class=comment>// To free a model, we need to go through every sub-object and delete
+</span>    <span class=comment>// their model data.  Since there is only one array of tags and links stored
+</span>    <span class=comment>// for the model and all of it's objects, we need to only free the model's 
+</span>    <span class=comment>// tags and links once.
+</span>
+    <span class=comment>// Go through all the objects in the model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+        <span class=comment>// Free the faces, normals, vertices, and texture coordinates.
+</span>        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pFaces)            <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pFaces;
+        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pVertices)        <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pVertices;
+        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pTexVertices)    <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pTexVertices;
+        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pNormals)        <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pNormals;
+        
+        <span class=comment>// Free the tags associated with this model
+</span>        <span class=keyword>if</span>(pModel-&gt;pTags)
+            <span class=keyword>delete</span> [] pModel-&gt;pTags;
+
+        <span class=comment>// Free the links associated with this model (We use free because we used malloc())
+</span>        <span class=keyword>if</span>(pModel-&gt;pLinks)
+            free(pModel-&gt;pLinks);
+    }
+}
+
+<span class=comment>//This recursively draws all the character nodes, starting with the legs
+</span><span class=keyword>void</span> CMD3Model::drawModel() {
+
+    <span class=comment>// This is the function that is called by the client (you) when using the 
+</span>    <span class=comment>// CModelMD3 class object.  You will notice that we rotate the model by
+</span>    <span class=comment>// -90 degrees along the x-axis.  This is because most modelers have z up
+</span>    <span class=comment>// so we need to compensate for this.  Usually I would just switch the
+</span>    <span class=comment>// z and y values when loading in the vertices, but the rotations that
+</span>    <span class=comment>// are stored in the tags (joint info) are a matrix, which makes it hard
+</span>    <span class=comment>// to change those to reflect Y up.  I didn't want to mess with that so
+</span>    <span class=comment>// this 1 rotate will fix this problem.
+</span>
+    <span class=comment>// Rotate the model to compensate for the z up orientation that the model was saved
+</span>    glRotatef(-90, 1, 0, 0);
+
+    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>    <span class=comment>// Since we have animation now, when we draw the model the animation frames need
+</span>    <span class=comment>// to be updated.  To do that, we pass in our lower and upper models to UpdateModel().
+</span>    <span class=comment>// There is no need to pass in the head of weapon, since they don't have any animation.
+</span>
+    <span class=comment>// Update the leg and torso animations
+</span>    updateModel(&amp;m_Lower);
+    updateModel(&amp;m_Upper);
+
+    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>    
+    <span class=comment>// You might be thinking to draw the model we would just call RenderModel()
+</span>    <span class=comment>// 4 times for each body part and the gun right?  That sounds logical, but since
+</span>    <span class=comment>// we are doing a bone/joint animation... and the models need to be linked together,
+</span>    <span class=comment>// we can't do that.  It totally would ignore the tags.  Instead, we start at the
+</span>    <span class=comment>// root model, which is the legs.  The legs drawn first, then we go through each of
+</span>    <span class=comment>// the legs linked tags (just the upper body) and then it with the tag's rotation
+</span>    <span class=comment>// and translation values.  I ignored the rotation in this tutorial since we aren't
+</span>    <span class=comment>// doing any animation.  I didn't want to overwhelm you with quaternions just yet :)
+</span>    <span class=comment>// Normally in skeletal animation, the root body part is the hip area.  Then the legs
+</span>    <span class=comment>// bones are created as children to the torso.  The upper body is also a child to
+</span>    <span class=comment>// the torso.  Since the legs are one whole mesh, this works out somewhat the same way.
+</span>    <span class=comment>// This wouldn't work if the feet and legs weren't connected in the same mesh because
+</span>    <span class=comment>// the feet rotations and positioning don't directly effect the position and rotation
+</span>    <span class=comment>// of the upper body, the hips do.  If that makes sense...  That is why the root starts
+</span>    <span class=comment>// at the hips and moves down the legs, and also branches out to the upper body and
+</span>    <span class=comment>// out to the arms.
+</span>
+    <span class=comment>// Draw the first link, which is the lower body.  This will then recursively go
+</span>    <span class=comment>// through the models attached to this model and drawn them.
+</span>    drawLink(&amp;m_Lower);
+}
+
+<span class=comment>//This draws the current mesh with an effected matrix stack from the last mesh
+</span><span class=keyword>void</span> CMD3Model::drawLink(t3DModel *pModel) {
+    <span class=comment>// This function is our recursive function that handles the bone animation
+</span>    <span class=comment>// so to speak.  We first draw the model that is passed in (first the legs),
+</span>    <span class=comment>// then go through all of it's tags and draw them.  Notice that when we
+</span>    <span class=comment>// draw the model that is linked to the current model a new matrix scope
+</span>    <span class=comment>// is created with glPushMatrix() and glPopMatrix().  This is because each tag
+</span>    <span class=comment>// has a rotation and translation operation assigned to it.  For instance, when
+</span>    <span class=comment>// Lara does her back flip death animation, the legs send a rotation and translation 
+</span>    <span class=comment>// to the rest of the body to be rotated along with the legs as they flip backwards.  
+</span>    <span class=comment>// If you didn't do this, Lara's body and head would stay in the same place as the
+</span>    <span class=comment>// legs did a back flipped and landed on the floor.  Of course, this would look really
+</span>    <span class=comment>// stupid.  A 270-degree rotation to the rest of the body is done for that animation.
+</span>    <span class=comment>// Keep in mind, the legs mesh is NEVER translated or rotated.  It only rotates and
+</span>    <span class=comment>// translates the upper parts of the body.  All the rotation and translation of the
+</span>    <span class=comment>// legs is done in the canned animation that was created in the modeling program.
+</span>    <span class=comment>// Keep in mind that I ignore the rotation value for that is given in the tag since
+</span>    <span class=comment>// it doesn't really matter for a static model.  Also, since the rotation is given
+</span>    <span class=comment>// in a 3x3 rotation matrix, it would be a bit more code that could make you frustrated.
+</span>    
+    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>    <span class=comment>// Though the changes to this function from the previous tutorial aren't huge, they
+</span>    <span class=comment>// are pretty powerful.  Since animation is in effect, we need to create a rotational
+</span>    <span class=comment>// matrix for each key frame, at each joint, to be applied to the child nodes of that 
+</span>    <span class=comment>// object.  We can also slip in the interpolated translation into that same matrix.
+</span>    <span class=comment>// The big thing in this function is interpolating between the 2 rotations.  The process
+</span>    <span class=comment>// involves creating 2 quaternions from the current and next key frame, then using
+</span>    <span class=comment>// slerp (spherical linear interpolation) to find the interpolated quaternion, then
+</span>    <span class=comment>// converting that quaternion to a 4x4 matrix, adding the interpolated translation
+</span>    <span class=comment>// to that matrix, then finally applying it to the current model view matrix in OpenGL.
+</span>    <span class=comment>// This will then effect the next objects that are somehow explicitly or inexplicitly
+</span>    <span class=comment>// connected and drawn from that joint.
+</span>
+    <span class=comment>// Create some local variables to store all this crazy interpolation data
+</span>    CQuaternion qQuat, qNextQuat, qInterpolatedQuat;
+    <span class=keyword>float</span> *pMatrix, *pNextMatrix;
+    <span class=keyword>float</span> finalMatrix[16] = {0};
+    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+
+    <span class=comment>// Draw the current model passed in (Initially the legs)
+</span>    renderModel(pModel);
+
+    <span class=comment>// Now we need to go through all of this models tags and draw them.
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfTags; i++) {
+        <span class=comment>// Get the current link from the models array of links (Pointers to models)
+</span>        t3DModel *pLinkedModel = pModel-&gt;pLinks[i];
+
+        <span class=comment>// If this link has a valid address, let's draw it!
+</span>        <span class=keyword>if</span>(pLinkedModel) {
+            <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>            <span class=comment>// To find the current translation position for this frame of animation, we times
+</span>            <span class=comment>// the currentFrame by the number of tags, then add i.  This is similar to how
+</span>            <span class=comment>// the vertex key frames are interpolated.
+</span>
+            <span class=comment>// Let's grab the translation for this new model that will be drawn 
+</span>            CVector3 vPosition = pModel-&gt;pTags[pModel-&gt;currentFrame * pModel-&gt;numOfTags + i].vTranslatePosition;
+            
+            <span class=comment>// Grab the next key frame translation position
+</span>            CVector3 vNextPosition = pModel-&gt;pTags[pModel-&gt;nextFrame * pModel-&gt;numOfTags + i].vTranslatePosition;
+
+            <span class=comment>// By using the equation: p(t) = p0 + t(p1 - p0), with a time t,
+</span>            <span class=comment>// we create a new translation position that is closer to the next key frame.
+</span>            vPosition.x = vPosition.x + pModel-&gt;t * (vNextPosition.x - vPosition.x);
+            vPosition.y = vPosition.y + pModel-&gt;t * (vNextPosition.y - vPosition.y);
+            vPosition.z = vPosition.z + pModel-&gt;t * (vNextPosition.z - vPosition.z);
+
+            <span class=comment>// Now comes the more complex interpolation.  Just like the translation, we
+</span>            <span class=comment>// want to store the current and next key frame rotation matrix, then interpolate
+</span>            <span class=comment>// between the 2.
+</span>
+            <span class=comment>// Get a pointer to the start of the 3x3 rotation matrix for the current frame
+</span>            pMatrix = &amp;pModel-&gt;pTags[pModel-&gt;currentFrame * pModel-&gt;numOfTags + i].rotationMatrix[0][0];
+
+            <span class=comment>// Get a pointer to the start of the 3x3 rotation matrix for the next frame
+</span>            pNextMatrix = &amp;pModel-&gt;pTags[pModel-&gt;nextFrame * pModel-&gt;numOfTags + i].rotationMatrix[0][0];
+
+            <span class=comment>// Now that we have 2 1D arrays that store the matrices, let's interpolate them
+</span>
+            <span class=comment>// Convert the current and next key frame 3x3 matrix into a quaternion
+</span>            qQuat.createFromMatrix( pMatrix, 3);
+            qNextQuat.createFromMatrix( pNextMatrix, 3);
+
+            <span class=comment>// Using spherical linear interpolation, we find the interpolated quaternion
+</span>            qInterpolatedQuat = qQuat.Slerp(qQuat, qNextQuat, pModel-&gt;t);
+
+            <span class=comment>// Here we convert the interpolated quaternion into a 4x4 matrix
+</span>            qInterpolatedQuat.createMatrix( finalMatrix );
+
+            <span class=comment>// To cut out the need for 2 matrix calls, we can just slip the translation
+</span>            <span class=comment>// into the same matrix that holds the rotation.  That is what index 12-14 holds.
+</span>            finalMatrix[12] = vPosition.x;
+            finalMatrix[13] = vPosition.y;
+            finalMatrix[14] = vPosition.z;
+            <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+            <span class=comment>// Start a new matrix scope
+</span>            glPushMatrix();
+                <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>                <span class=comment>// Finally, apply the rotation and translation matrix to the current matrix
+</span>                glMultMatrixf(finalMatrix);
+                <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>                
+                <span class=comment>// Recursively draw the next model that is linked to the current one.
+</span>                <span class=comment>// This could either be a body part or a gun that is attached to
+</span>                <span class=comment>// the hand of the upper body model.
+</span>                drawLink(pLinkedModel);
+
+            <span class=comment>// End the current matrix scope
+</span>            glPopMatrix();
+        }
+    }
+}
+
+<span class=keyword>void</span> CMD3Model::renderModel(t3DModel *pModel) {
+    <span class=comment>// This function actually does the rendering to OpenGL.  If you have checked out
+</span>    <span class=comment>// our other file loading tutorials, it looks pretty much the same as those.  I
+</span>    <span class=comment>// left out the normals though.  You can go to any other loading and copy the code
+</span>    <span class=comment>// from those. Usually the Quake models creating the lighting effect in their textures
+</span>    <span class=comment>// anyway.  
+</span>
+    <span class=comment>// Make sure we have valid objects just in case. (size() is in the STL vector class)
+</span>    <span class=keyword>if</span>(pModel-&gt;pObjects.size() &lt;= 0)
+        <span class=keyword>return</span>;
+<span class=comment>//char logText[255];
+</span><span class=comment>//sprintf(logText, &quot;pModel-&gt;numOfObjects == %d&quot;, pModel-&gt;numOfObjects);
+</span><span class=comment>//fwrite(logText, 1, strlen(logText), mLogFile);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>    <span class=comment>// Go through all of the objects stored in this model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+        <span class=comment>// Get the current object that we are displaying
+</span>        t3DObject *currentObject = &amp;pModel-&gt;pObjects[i];
+        
+        <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>        <span class=comment>// Now that we have animation for our model, we need to interpolate between
+</span>        <span class=comment>// the vertex key frames.  The .md3 file format stores all of the vertex 
+</span>        <span class=comment>// key frames in a 1D array.  This means that in order to go to the next key frame,
+</span>        <span class=comment>// we need to follow this equation:  currentFrame * numberOfVertices
+</span>        <span class=comment>// That will give us the index of the beginning of that key frame.  We just
+</span>        <span class=comment>// add that index to the initial face index, when indexing into the vertex array.
+</span>
+        <span class=comment>// Find the current starting index for the current key frame we are on
+</span>        <span class=keyword>int</span> currentIndex = pModel-&gt;currentFrame * currentObject-&gt;numOfVertices;
+
+        <span class=comment>// Since we are interpolating, we also need the index for the next key frame
+</span>        <span class=keyword>int</span> nextIndex = pModel-&gt;nextFrame * currentObject-&gt;numOfVertices; 
+        <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+
+        <span class=comment>// If the object has a texture assigned to it, let's bind it to the model.
+</span>        <span class=comment>// This isn't really necessary since all models have textures, but I left this
+</span>        <span class=comment>// in here to keep to the same standard as the rest of the model loaders.
+</span>        <span class=keyword>if</span>(currentObject-&gt;bHasTexture) {
+            
+            <span class=comment>//Turn Texture Mapping On
+</span>            glEnable(GL_TEXTURE_2D);
+
+            <span class=comment>// Grab the texture index from the materialID index into our material list
+</span>            <span class=keyword>int</span> textureID = pModel-&gt;pMaterials[currentObject-&gt;materialID].textureID;
+
+            <span class=comment>// Bind the texture index that we got from the material textureID
+</span>            glBindTexture(GL_TEXTURE_2D, mModelTextures[textureID]);
+        }
+        <span class=keyword>else</span> {
+            
+            <span class=comment>//Turn Texture Mapping Off
+</span>            glDisable(GL_TEXTURE_2D);
+        }
+
+        <span class=comment>// Start drawing our model triangles
+</span>        glBegin(GL_TRIANGLES);
+            <span class=comment>// Go through all of the faces (polygons) of the object and draw them
+</span>            <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; currentObject-&gt;numOfFaces; j++) {
+                
+                <span class=comment>// Go through each vertex of the triangle and draw it.
+</span>                <span class=keyword>for</span>(<span class=keyword>int</span> whichVertex = 0; whichVertex &lt; 3; whichVertex++) {
+
+                    <span class=comment>// Get the index for the current point in the face list
+</span>                    <span class=keyword>int</span> index = currentObject-&gt;pFaces[j].vertexIndex[whichVertex];
+
+                    <span class=comment>// Make sure there is texture coordinates for this (%99.9 likelyhood)
+</span>                    <span class=keyword>if</span>(currentObject-&gt;pTexVertices) {
+                        
+                        <span class=comment>// Assign the texture coordinate to this vertex
+</span>                        glTexCoord2f(    currentObject-&gt;pTexVertices[index].x,
+                                        currentObject-&gt;pTexVertices[index].y
+                                    );
+                    }
+                    
+                    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>                    <span class=comment>// Like in the MD2 Animation tutorial, we use linear interpolation
+</span>                    <span class=comment>// between the current and next point to find the point in between,
+</span>                    <span class=comment>// depending on the model's &quot;t&quot; (0.0 to 1.0).
+</span>
+                    <span class=comment>// Store the current and next frame's vertex by adding the current
+</span>                    <span class=comment>// and next index to the initial index given from the face data.
+</span>                    CVector3 vPoint1 = currentObject-&gt;pVertices[ currentIndex + index ];
+                    CVector3 vPoint2 = currentObject-&gt;pVertices[ nextIndex + index];
+
+                    <span class=comment>// By using the equation: p(t) = p0 + t(p1 - p0), with a time t,
+</span>                    <span class=comment>// we create a new vertex that is closer to the next key frame.
+</span>                    glVertex3f(vPoint1.x + pModel-&gt;t * (vPoint2.x - vPoint1.x),
+                               vPoint1.y + pModel-&gt;t * (vPoint2.y - vPoint1.y),
+                               vPoint1.z + pModel-&gt;t * (vPoint2.z - vPoint1.z));
+                    <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>                }
+            }
+
+        <span class=comment>// Stop drawing polygons
+</span>        glEnd();
+    }
+}
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span><span class=comment>// This returns a specific model from the character (kLower, kUpper, kHead, kWeapon)
+</span>t3DModel *CMD3Model::getModel(<span class=keyword>int</span> whichPart) {
+    
+    <span class=comment>// Return the legs model if desired
+</span>    <span class=keyword>if</span>(whichPart == kLower)
+        <span class=keyword>return</span> &amp;m_Lower;
+
+    <span class=comment>// Return the torso model if desired
+</span>    <span class=keyword>if</span>(whichPart == kUpper) 
+        <span class=keyword>return</span> &amp;m_Upper;
+
+    <span class=comment>// Return the head model if desired
+</span>    <span class=keyword>if</span>(whichPart == kHead) 
+        <span class=keyword>return</span> &amp;m_Head;
+
+    <span class=comment>// Return the weapon model
+</span>    <span class=keyword>return</span> &amp;m_Weapon;
+}
+
+<span class=comment>// This sets the current frame of animation, depending on it's fps and t
+</span><span class=keyword>void</span> CMD3Model::updateModel(t3DModel *pModel) {
+    <span class=comment>// Initialize a start and end frame, for models with no animation
+</span>    <span class=keyword>int</span> startFrame = 0;
+    <span class=keyword>int</span> endFrame = 1;
+
+    <span class=comment>// This function is used to keep track of the current and next frames of animation
+</span>    <span class=comment>// for each model, depending on the current animation.  Some models down have animations,
+</span>    <span class=comment>// so there won't be any change.
+</span>
+    <span class=comment>// Here we grab the current animation that we are on from our model's animation list
+</span>    tAnimation *pAnim = &amp;pModel-&gt;pAnimations[pModel-&gt;currentAnim];
+
+    <span class=comment>// If there is any animations for this model
+</span>    <span class=keyword>if</span>(pModel-&gt;numOfAnimations) {
+        <span class=comment>// Set the starting and end frame from for the current animation
+</span>        startFrame = pAnim-&gt;startFrame;
+        endFrame = pAnim-&gt;endFrame;
+    }
+
+    <span class=comment>// This gives us the next frame we are going to.  We mod the current frame plus
+</span>    <span class=comment>// 1 by the current animations end frame to make sure the next frame is valid.
+</span>    pModel-&gt;nextFrame = (pModel-&gt;currentFrame + 1) % endFrame;
+
+    <span class=comment>// If the next frame is zero, that means that we need to start the animation over.
+</span>    <span class=comment>// To do this, we set nextFrame to the starting frame of this animation.
+</span>    <span class=keyword>if</span>(pModel-&gt;nextFrame == 0)
+        pModel-&gt;nextFrame = startFrame;
+
+    <span class=comment>// Next, we want to get the current time that we are interpolating by.  Remember,
+</span>    <span class=comment>// if t = 0 then we are at the beginning of the animation, where if t = 1 we are at the end.
+</span>    <span class=comment>// Anything from 0 to 1 can be thought of as a percentage from 0 to 100 percent complete.
+</span>    setCurrentTime(pModel);
+}
+
+<span class=comment>//This sets time t for the interpolation between the current and next key frame
+</span><span class=keyword>void</span> CMD3Model::setCurrentTime(t3DModel *pModel) {
+
+    <span class=keyword>float</span> elapsedTime = 0.0f;
+
+    <span class=comment>// This function is very similar to finding the frames per second.
+</span>    <span class=comment>// Instead of checking when we reach a second, we check if we reach
+</span>    <span class=comment>// 1 second / our animation speed. (1000 ms / animationSpeed).
+</span>    <span class=comment>// That's how we know when we need to switch to the next key frame.
+</span>    <span class=comment>// In the process, we get the t value for how far we are at to going to the
+</span>    <span class=comment>// next animation key frame.  We use time to do the interpolation, that way
+</span>    <span class=comment>// it runs the same speed on any persons computer, regardless of their specs.
+</span>    <span class=comment>// It might look choppier on a junky computer, but the key frames still be
+</span>    <span class=comment>// changing the same time as the other persons, it will just be not as smooth
+</span>    <span class=comment>// of a transition between each frame.  The more frames per second we get, the
+</span>    <span class=comment>// smoother the animation will be.  Since we are working with multiple models 
+</span>    <span class=comment>// we don't want to create static variables, so the t and elapsedTime data are 
+</span>    <span class=comment>// stored in the model's structure.
+</span>    
+    <span class=comment>// Return if there is no animations in this model
+</span>    <span class=keyword>if</span>(!pModel-&gt;pAnimations.size())
+        <span class=keyword>return</span>;
+
+    <span class=comment>// Get the current time in milliseconds
+</span>    <span class=keyword>float</span> time = (<span class=keyword>float</span>)GetTickCount();
+
+    <span class=comment>// Find the time that has elapsed since the last time that was stored
+</span>    elapsedTime = time - pModel-&gt;lastTime;
+
+    <span class=comment>// Store the animation speed for this animation in a local variable
+</span>    <span class=keyword>int</span> animationSpeed = pModel-&gt;pAnimations[pModel-&gt;currentAnim].framesPerSecond;
+
+    <span class=comment>// To find the current t we divide the elapsed time by the ratio of:
+</span>    <span class=comment>//
+</span>    <span class=comment>// (1_second / the_animation_frames_per_second)
+</span>    <span class=comment>//
+</span>    <span class=comment>// Since we are dealing with milliseconds, we need to use 1000
+</span>    <span class=comment>// milliseconds instead of 1 because we are using GetTickCount(), which is in 
+</span>    <span class=comment>// milliseconds. 1 second == 1000 milliseconds.  The t value is a value between 
+</span>    <span class=comment>// 0 to 1.  It is used to tell us how far we are from the current key frame to 
+</span>    <span class=comment>// the next key frame.
+</span>    <span class=keyword>float</span> t = elapsedTime / (1000.0f / animationSpeed);
+
+    <span class=comment>// If our elapsed time goes over the desired time segment, start over and go 
+</span>    <span class=comment>// to the next key frame.
+</span>    <span class=keyword>if</span> (elapsedTime &gt;= (1000.0f / animationSpeed) )
+    {
+        <span class=comment>// Set our current frame to the next key frame (which could be the start of the anim)
+</span>        pModel-&gt;currentFrame = pModel-&gt;nextFrame;
+
+        <span class=comment>// Set our last time for the model to the current time
+</span>        pModel-&gt;lastTime = time;
+    }
+
+    <span class=comment>// Set the t for the model to be used in interpolation
+</span>    pModel-&gt;t = t;
+}
+
+<span class=comment>// This sets the current animation that the upper body will be performing
+</span><span class=keyword>void</span> CMD3Model::setTorsoAnimation(LPSTR strAnimation) {
+    
+    <span class=comment>// Go through all of the animations in this model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; m_Upper.numOfAnimations; i++) {
+        
+        <span class=comment>// If the animation name passed in is the same as the current animation's name
+</span>        <span class=keyword>if</span>( !_stricmp(m_Upper.pAnimations[i].animationName, strAnimation) ) {
+            
+            <span class=comment>// Set the legs animation to the current animation we just found and return
+</span>            m_Upper.currentAnim = i;
+            m_Upper.currentFrame = m_Upper.pAnimations[m_Upper.currentAnim].startFrame;
+            <span class=keyword>return</span>;
+        }
+    }
+}
+
+<span class=comment>//This sets the current animation that the lower body will be performing
+</span><span class=keyword>void</span> CMD3Model::setLegsAnimation(LPSTR strAnimation) {
+    <span class=comment>// Go through all of the animations in this model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; m_Lower.numOfAnimations; i++) {
+        
+        <span class=comment>// If the animation name passed in is the same as the current animation's name
+</span>        <span class=keyword>if</span>( !_stricmp(m_Lower.pAnimations[i].animationName, strAnimation) ) {
+            
+            <span class=comment>// Set the legs animation to the current animation we just found and return
+</span>            m_Lower.currentAnim = i;
+            m_Lower.currentFrame = m_Lower.pAnimations[m_Lower.currentAnim].startFrame;
+            <span class=keyword>return</span>;
+        }
+    }
+}
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+
+<span class=comment>/////////////////////////////////////////////////////CMD3Loader///////////////////////////////////////////////////////////
+</span>CMD3Loader::CMD3Loader() {
+    <span class=comment>// Here we initialize our structures to 0
+</span>    memset(&amp;mMD3Header, 0, <span class=keyword>sizeof</span>(tMD3Header));
+
+    <span class=comment>// Set the pointers to null
+</span>    m_pSkins = NULL;
+    m_pTexCoords = NULL;
+    m_pFaces = NULL;
+    m_pBones = NULL;
+}
+
+<span class=comment>//This is called by the client to open the .Md3 file, read it, then clean up
+</span><span class=keyword>bool</span> CMD3Loader::importMD3(t3DModel *pModel, LPSTR strFileName) {
+
+    <span class=comment>// This function handles the entire model loading for the .md3 models.
+</span>    <span class=comment>// What happens is we load the file header, make sure it's a valid MD3 model,
+</span>    <span class=comment>// then load the rest of the data, then call our CleanUp() function.
+</span>
+    <span class=comment>// Open the MD3 file in binary
+</span>    mFilePointer = fopen(strFileName, &quot;rb&quot;);
+    
+    <span class=comment>// Make sure we have a valid file pointer (we found the file)
+</span>    <span class=keyword>if</span>(!mFilePointer) {
+        <span class=comment>// Display an error message and don't load anything if no file was found
+</span>        sprintf(logText, &quot;Unable to find the file: %s!&quot;, strFileName);
+        MessageBox(NULL, logText, &quot;Error&quot;, MB_OK);
+
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Now that we know the file was found and it's all cool, let's read in
+</span>    <span class=comment>// the header of the file.  If it has the correct 4 character ID and version number,
+</span>    <span class=comment>// we can continue to load the rest of the data, otherwise we need to print an error.
+</span>
+    <span class=comment>// Read the header data and store it in our m_Header member variable
+</span>    fread(&amp;mMD3Header, 1, <span class=keyword>sizeof</span>(tMD3Header), mFilePointer);
+
+    <span class=comment>// Get the 4 character ID
+</span>    <span class=keyword>char</span> *ID = mMD3Header.fileID;
+    <span class=comment>// The ID MUST equal &quot;IDP3&quot; and the version MUST be 15, or else it isn't a valid
+</span>    <span class=comment>// .MD3 file.  This is just the numbers ID Software chose.
+</span>
+    <span class=comment>// Make sure the ID == IDP3 and the version is this crazy number '15' or else it's a bad egg
+</span>    <span class=keyword>if</span>(    ID[0] != 'I' 
+        ||
+        ID[1] != 'D' 
+        ||
+        ID[2] != 'P' 
+        ||
+        ID[3] != '3' 
+        ||
+        mMD3Header.version != 15
+    ) {
+        <span class=comment>// Display an error message for bad file format, then stop loading
+</span>        sprintf(logText, &quot;Invalid file format (Version not 15): %s!&quot;, strFileName);
+        MessageBox(NULL, logText, &quot;Error&quot;, MB_OK);
+
+        <span class=keyword>return</span> <span class=keyword>false</span>;    
+    }
+
+    <span class=comment>// Read in the model and animation data
+</span>    readMD3Data(pModel);
+
+    <span class=comment>// Clean up after everything
+</span>    cleanUp();
+
+    <span class=comment>// Return a success
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This loads the texture information for the model from the *.skin file
+</span><span class=keyword>bool</span> CMD3Loader::loadSkin(t3DModel *pModel, LPSTR skinFileName) {
+    <span class=comment>// Make sure valid data was passed in
+</span>    <span class=keyword>if</span>(!pModel || !skinFileName) <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// This function is used to load a .skin file for the .md3 model associated
+</span>    <span class=comment>// with it.  The .skin file stores the textures that need to go with each
+</span>    <span class=comment>// object and subject in the .md3 files.  For instance, in our Lara Croft model,
+</span>    <span class=comment>// her upper body model links to 2 texture; one for her body and the other for
+</span>    <span class=comment>// her face/head.  The .skin file for the lara_upper.md3 model has 2 textures:
+</span>    <span class=comment>//
+</span>    <span class=comment>// u_torso,models/players/laracroft/default.bmp
+</span>    <span class=comment>// u_head,models/players/laracroft/default_h.bmp
+</span>    <span class=comment>//
+</span>    <span class=comment>// Notice the first word, then a comma.  This word is the name of the object
+</span>    <span class=comment>// in the .md3 file.  Remember, each .md3 file can have many sub-objects.
+</span>    <span class=comment>// The next bit of text is the Quake3 path into the .pk3 file where the 
+</span>    <span class=comment>// texture for that model is stored  Since we don't use the Quake3 path
+</span>    <span class=comment>// because we aren't making Quake, I just grab the texture name at the
+</span>    <span class=comment>// end of the string and disregard the rest.  of course, later this is
+</span>    <span class=comment>// concatenated to the original MODEL_PATH that we passed into load our character.
+</span>    <span class=comment>// So, for the torso object it's clear that default.bmp is assigned to it, where
+</span>    <span class=comment>// as the head model with the pony tail, is assigned to default_h.bmp.  Simple enough.
+</span>    <span class=comment>// What this function does is go through all the lines of the .skin file, and then
+</span>    <span class=comment>// goes through all of the sub-objects in the .md3 file to see if their name is
+</span>    <span class=comment>// in that line as a sub string.  We use our cool IsInString() function for that.
+</span>    <span class=comment>// If it IS in that line, then we know that we need to grab it's texture file at
+</span>    <span class=comment>// the end of the line.  I just parse backwards until I find the last '/' character,
+</span>    <span class=comment>// then copy all the characters from that index + 1 on (I.E. &quot;default.bmp&quot;).
+</span>    <span class=comment>// Remember, it's important to note that I changed the texture files from .tga
+</span>    <span class=comment>// files to .bmp files because that is what all of our tutorials use.  That way
+</span>    <span class=comment>// you don't have to sift through tons of image loading code.  You can write or
+</span>    <span class=comment>// get your own if you really want to use the .tga format.
+</span>
+    <span class=comment>// Open the skin file
+</span>    ifstream fin(skinFileName);
+
+    <span class=comment>// Make sure the file was opened
+</span>    <span class=keyword>if</span>(fin.fail()) {
+        <span class=comment>// Display the error message and return false
+</span>        MessageBox(NULL, &quot;Unable to load skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;    
+    }
+
+    <span class=comment>// These 2 variables are for reading in each line from the file, then storing
+</span>    <span class=comment>// the index of where the bitmap name starts after the last '/' character.
+</span>    string strLine = &quot;&quot;;
+    <span class=keyword>int</span> textureNameStart = 0;
+
+    <span class=comment>// Go through every line in the .skin file
+</span>    <span class=keyword>while</span>(getline(fin, strLine)) {
+        <span class=comment>// Loop through all of our objects to test if their name is in this line
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+            <span class=comment>// Check if the name of this object appears in this line from the skin file
+</span>            <span class=comment>// Check if the name of this object appears in this line from the skin file
+</span>            <span class=keyword>if</span>( IsInString(strLine, pModel-&gt;pObjects[i].objectName) ) {
+                <span class=comment>// To abstract the texture name, we loop through the string, starting
+</span>                <span class=comment>// at the end of it until we find a '/' character, then save that index + 1.
+</span>                <span class=keyword>for</span>(<span class=keyword>int</span> j = strLine.length() - 1; j &gt; 0; j--)
+                {
+                    <span class=comment>// If this character is a '/', save the index + 1
+</span>                    <span class=keyword>if</span>(strLine[j] == '/')
+                    {
+                        <span class=comment>// Save the index + 1 (the start of the texture name) and break
+</span>                        textureNameStart = j + 1;
+                        <span class=keyword>break</span>;
+                    }
+                }
+
+                <span class=comment>// Create a local material info structure
+</span>                tMaterial material;
+
+                <span class=comment>// Copy the name of the file into our texture file name variable.
+</span>                <span class=comment>// Notice that with string we can pass in the address of an index
+</span>                <span class=comment>// and it will only pass in the characters from that point on. Cool huh?
+</span>                <span class=comment>// So now the strFile name should hold something like (&quot;bitmap_name.bmp&quot;)
+</span>                strcpy(material.textureFileName, &amp;strLine[textureNameStart]);
+                
+                <span class=comment>// The tile or scale for the UV's is 1 to 1 
+</span>                material.uTile = material.vTile = 1;
+
+                <span class=comment>// Store the material ID for this object and set the texture boolean to true
+</span>                pModel-&gt;pObjects[i].materialID = pModel-&gt;numOfMaterials;
+                pModel-&gt;pObjects[i].bHasTexture = <span class=keyword>true</span>;
+
+                <span class=comment>// Here we increase the number of materials for the model
+</span>                pModel-&gt;numOfMaterials++;
+
+                <span class=comment>// Add the local material info structure to our model's material list
+</span>                pModel-&gt;pMaterials.push_back(material);
+            }
+        }
+    }
+
+    <span class=comment>// Close the file and return a success
+</span>    fin.close();
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This loads the basic shader texture info associated with the weapon model
+</span><span class=keyword>bool</span> CMD3Loader::loadShader(t3DModel *pModel, LPSTR shaderFileName) {
+    <span class=comment>// Make sure valid data was passed in
+</span>    <span class=keyword>if</span>(!pModel || !shaderFileName)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// This function is used to load the .shader file that is associated with
+</span>    <span class=comment>// the weapon model.  Instead of having a .skin file, weapons use a .shader file
+</span>    <span class=comment>// because it has it's own scripting language to describe the behavior of the
+</span>    <span class=comment>// weapon.  There is also many other factors like environment map and sphere map
+</span>    <span class=comment>// textures, among other things.  Since I am not trying to replicate Quake, I
+</span>    <span class=comment>// just care about the weapon's texture.  I went through each of the blocks
+</span>    <span class=comment>// in the shader file and deleted everything except the texture name (of course
+</span>    <span class=comment>// I changed the .tga files to .bmp for our purposes).  All this file now includes
+</span>    <span class=comment>// is a texture name on each line.  No parsing needs to be done.  It is important
+</span>    <span class=comment>// to keep in mind that the order of which these texture are stored in the file
+</span>    <span class=comment>// is in the same order each sub-object is loaded in the .md3 file.  For instance,
+</span>    <span class=comment>// the first texture name on the first line of the shader is the texture for
+</span>    <span class=comment>// the main gun object that is loaded, the second texture is for the second sub-object
+</span>    <span class=comment>// loaded, and so on. I just want to make sure that you understand that I hacked
+</span>    <span class=comment>// up the .shader file so I didn't have to parse through a whole language.  This is
+</span>    <span class=comment>// not a normal .shader file that we are loading.  I only kept the relevant parts.
+</span>
+    <span class=comment>// Open the shader file
+</span>    ifstream fin(shaderFileName);
+
+    <span class=comment>// Make sure the file was opened
+</span>    <span class=keyword>if</span>(fin.fail()) {
+        
+        <span class=comment>// Display the error message and return false
+</span>        MessageBox(NULL, &quot;Unable to load shader!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// These variables are used to read in a line at a time from the file, and also
+</span>    <span class=comment>// to store the current line being read so that we can use that as an index for the 
+</span>    <span class=comment>// textures, in relation to the index of the sub-object loaded in from the weapon model.
+</span>    string strLine = &quot;&quot;;
+    <span class=keyword>int</span> currentIndex = 0;
+
+    <span class=comment>// Go through and read in every line of text from the file
+</span>    <span class=keyword>while</span>(getline(fin, strLine)) {
+        
+        <span class=comment>// Create a local material info structure
+</span>        tMaterial material;
+            
+        <span class=comment>// Copy the name of the file into our texture file name variable
+</span>        strcpy(material.textureFileName, strLine.c_str());
+
+        <span class=comment>// The tile or scale for the UV's is 1 to 1 
+</span>        material.uTile = material.vTile = 1;
+
+        <span class=comment>// Store the material ID for this object and set the texture boolean to true
+</span>        pModel-&gt;pObjects[currentIndex].materialID = pModel-&gt;numOfMaterials;
+        pModel-&gt;pObjects[currentIndex].bHasTexture = <span class=keyword>true</span>;
+
+        <span class=comment>// Here we increase the number of materials for the model
+</span>        pModel-&gt;numOfMaterials++;
+        
+        <span class=comment>// Save the Material in a List
+</span>        <span class=comment>// Add the local material info structure to our model's material list
+</span>        pModel-&gt;pMaterials.push_back(material);
+
+        <span class=comment>// Here we increase the material index for the next texture (if any)
+</span>        currentIndex++;
+    }
+
+    <span class=comment>// Close the file and return a success
+</span>    fin.close();
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This function reads in all of the model's data, except the animation frames
+</span><span class=keyword>void</span> CMD3Loader::readMD3Data(t3DModel *pModel) {
+    <span class=keyword>int</span> i = 0;
+
+    <span class=comment>// This member function is the BEEF of our whole file.  This is where the
+</span>    <span class=comment>// main data is loaded.  The frustrating part is that once the data is loaded,
+</span>    <span class=comment>// you need to do a billion little things just to get the model loaded to the screen
+</span>    <span class=comment>// in a correct manner.
+</span>
+    <span class=comment>// Here we allocate memory for the bone information and read the bones in.
+</span>    m_pBones = <span class=keyword>new</span> tMD3Bone[mMD3Header.numOfFrames];
+    fread(m_pBones, <span class=keyword>sizeof</span>(tMD3Bone), mMD3Header.numOfFrames, mFilePointer);
+
+    <span class=comment>// Since we don't care about the bone positions, we just free it immediately.
+</span>    <span class=comment>// It might be cool to display them so you could get a visual of them with the model.
+</span>
+    <span class=comment>// Free the unused bones
+</span>    <span class=keyword>delete</span> [] m_pBones;
+
+    <span class=comment>// Next, after the bones are read in, we need to read in the tags.  Below we allocate
+</span>    <span class=comment>// memory for the tags and then read them in.  For every frame of animation there is
+</span>    <span class=comment>// an array of tags.
+</span>    pModel-&gt;pTags = <span class=keyword>new</span> tMD3Tag[mMD3Header.numOfFrames * mMD3Header.numOfTags];
+    fread(pModel-&gt;pTags, <span class=keyword>sizeof</span>(tMD3Tag), mMD3Header.numOfFrames * mMD3Header.numOfTags, mFilePointer);
+
+    <span class=comment>// Assign the number of tags to our model
+</span>    pModel-&gt;numOfTags = mMD3Header.numOfTags;
+
+    <span class=comment>// Now we want to initialize our links.  Links are not read in from the .MD3 file, so
+</span>    <span class=comment>// we need to create them all ourselves.  We use a double array so that we can have an
+</span>    <span class=comment>// array of pointers.  We don't want to store any information, just pointers to t3DModels.
+</span>    <span class=comment>// Aa - Links is an pointer to a MODEL
+</span>    pModel-&gt;pLinks = (t3DModel**) malloc( <span class=keyword>sizeof</span>(t3DModel) * mMD3Header.numOfTags);
+    
+    <span class=comment>// Initilialize our link pointers to NULL
+</span>    <span class=keyword>for</span>(i = 0; i &lt; mMD3Header.numOfTags; i++)
+        pModel-&gt;pLinks[i] = NULL;
+
+    <span class=comment>// Now comes the loading of the mesh data.  We want to use ftell() to get the current
+</span>    <span class=comment>// position in the file.  This is then used to seek to the starting position of each of
+</span>    <span class=comment>// the mesh data arrays.
+</span>
+    <span class=comment>// Get the current offset into the file
+</span>    <span class=keyword>long</span> meshOffset = ftell(mFilePointer);
+
+    <span class=comment>// Create a local meshHeader that stores the info about the mesh
+</span>    tMD3MeshInfo meshHeader;
+
+    <span class=comment>// Go through all of the sub-objects in this mesh
+</span>    <span class=keyword>for</span>(i = 0; i &lt; mMD3Header.numOfMeshes; i++) {
+
+        <span class=comment>// Seek to the start of this mesh and read in it's header
+</span>        fseek(mFilePointer, meshOffset, SEEK_SET);
+        fread(&amp;meshHeader, <span class=keyword>sizeof</span>(tMD3MeshInfo), 1, mFilePointer);
+
+        <span class=comment>// Here we allocate all of our memory from the header's information
+</span>        m_pSkins        = <span class=keyword>new</span> tMD3Skin[meshHeader.numOfSkins];
+        m_pTexCoords    = <span class=keyword>new</span> tMD3TexCoord[meshHeader.numOfVertices];
+        m_pVertices        = <span class=keyword>new</span> tMD3Triangle[meshHeader.numOfVertices * meshHeader.numOfMeshFrames];
+        m_pFaces        = <span class=keyword>new</span> tMD3Face[meshHeader.numOfTriangles];
+
+        <span class=comment>// Read in the skin information
+</span>        fread(m_pSkins, <span class=keyword>sizeof</span>(tMD3Skin), meshHeader.numOfSkins, mFilePointer);
+
+        <span class=comment>// Seek to the start of the triangle/face data, then read it in
+</span>        fseek(mFilePointer, meshOffset + meshHeader.offsetTriangleStart, SEEK_SET);
+        fread(m_pFaces, <span class=keyword>sizeof</span>(tMD3Face), meshHeader.numOfTriangles, mFilePointer);
+
+        <span class=comment>// Seek to the start of the UV coordinate data, then read it in
+</span>        fseek(mFilePointer, meshOffset + meshHeader.offsetUVStart, SEEK_SET);
+        fread(m_pTexCoords, <span class=keyword>sizeof</span>(tMD3TexCoord), meshHeader.numOfVertices, mFilePointer);
+
+        <span class=comment>// Seek to the start of the vertex/face index information, then read it in.
+</span>        fseek(mFilePointer, meshOffset + meshHeader.offsetVertexStart, SEEK_SET);
+        fread(m_pVertices, <span class=keyword>sizeof</span>(tMD3Triangle), meshHeader.numOfVertices * meshHeader.numOfMeshFrames, mFilePointer);
+
+        <span class=comment>// Now that we have the data loaded into the Quake3 structures, let's convert them to
+</span>        <span class=comment>// our data types like t3DModel and t3DObject.  That way the rest of our model loading
+</span>        <span class=comment>// code will be mostly the same as the other model loading tutorials.
+</span>        convertToDataStructures(pModel, meshHeader);
+
+        <span class=comment>// Free all the memory for this mesh since we just converted it to our structures
+</span>        <span class=keyword>delete</span> [] m_pSkins;
+        <span class=keyword>delete</span> [] m_pFaces;
+        <span class=keyword>delete</span> [] m_pTexCoords;
+        <span class=keyword>delete</span> [] m_pVertices;
+
+        <span class=comment>// Increase the offset into the file
+</span>        meshOffset += meshHeader.meshSize;
+    }
+}
+
+<span class=keyword>void</span> CMD3Loader::convertToDataStructures(t3DModel *pModel, tMD3MeshInfo meshHeader) {
+    <span class=keyword>int</span> i = 0;
+
+    <span class=comment>// This is function takes care of converting all of the Quake3 structures to our
+</span>    <span class=comment>// structures that we have been using in all of our mode loading tutorials.  You
+</span>    <span class=comment>// do not need this function if you are going to be using the Quake3 structures.
+</span>    <span class=comment>// I just wanted to make it modular with the rest of the tutorials so you (me really) 
+</span>    <span class=comment>// can make a engine out of them with an abstract base class.  Of course, each model
+</span>    <span class=comment>// has some different data variables inside of the, depending on each format, but that
+</span>    <span class=comment>// is perfect for some cool inheritance.  Just like in the .MD2 tutorials, we only
+</span>    <span class=comment>// need to load in the texture coordinates and face information for one frame
+</span>    <span class=comment>// of the animation (eventually in the next tutorial).  Where, the vertex information
+</span>    <span class=comment>// needs to be loaded for every new frame, since it's vertex key frame animation 
+</span>    <span class=comment>// used in .MD3 models.  Half-life models do NOT do this I believe.  It's just
+</span>    <span class=comment>// pure bone/skeletal animation.  That will be a cool tutorial if the time ever comes.
+</span>
+    <span class=comment>// Increase the number of objects (sub-objects) in our model since we are loading a new one
+</span>    pModel-&gt;numOfObjects++;
+
+    <span class=comment>// Create a empty object structure to store the object's info before we add it to our list
+</span>    t3DObject currentObject = {0};
+
+    <span class=comment>// Copy the name of the object to our object structure
+</span>    strcpy(currentObject.objectName, meshHeader.meshName);
+
+    <span class=comment>// Assign the vertex, texture coord and face count to our new structure
+</span>    currentObject.numOfVertices            = meshHeader.numOfVertices;
+    currentObject.numOfTextureVertex    = meshHeader.numOfVertices;
+    currentObject.numOfFaces            = meshHeader.numOfTriangles;
+
+    <span class=comment>// Allocate memory for the vertices, texture coordinates and face data.
+</span>    <span class=comment>// Notice that we multiply the number of vertices to be allocated by the
+</span>    <span class=comment>// number of frames in the mesh.  This is because each frame of animation has a 
+</span>    <span class=comment>// totally new set of vertices.  This will be used in the next animation tutorial.
+</span>    currentObject.pVertices                = <span class=keyword>new</span> CVector3[currentObject.numOfVertices * meshHeader.numOfMeshFrames];
+    currentObject.pTexVertices            = <span class=keyword>new</span> CVector2[currentObject.numOfVertices];
+    currentObject.pFaces                = <span class=keyword>new</span> tFace[currentObject.numOfFaces];
+
+    <span class=comment>// Go through all of the vertices and assign them over to our structure
+</span>    <span class=keyword>for</span>(i = 0; i &lt; currentObject.numOfVertices * meshHeader.numOfMeshFrames; i++) {
+
+        <span class=comment>// For some reason, the ratio 64 is what we need to divide the vertices by,
+</span>        <span class=comment>// otherwise the model is gargantuanly huge!  If you use another ratio, it
+</span>        <span class=comment>// screws up the model's body part position.  I found this out by just
+</span>        <span class=comment>// testing different numbers, and I came up with 65.  I looked at someone
+</span>        <span class=comment>// else's code and noticed they had 64, so I changed it to that.  I have never
+</span>        <span class=comment>// read any documentation on the model format that justifies this number, but
+</span>        <span class=comment>// I can't get it to work without it.  Who knows....  Maybe it's different for
+</span>        <span class=comment>// 3D Studio Max files verses other software?  You be the judge.  I just work here.. :)
+</span>        currentObject.pVertices[i].x = m_pVertices[i].vertex[0] / 64.0f;
+        currentObject.pVertices[i].y = m_pVertices[i].vertex[1] / 64.0f;
+        currentObject.pVertices[i].z = m_pVertices[i].vertex[2] / 64.0f;
+    }
+
+    <span class=comment>// Go through all of the uv coords and assign them over to our structure
+</span>    <span class=keyword>for</span>(i = 0; i &lt; currentObject.numOfVertices; i++) {
+
+        <span class=comment>// Since I changed the images to bitmaps, we need to negate the V ( or y) value.
+</span>        <span class=comment>// This is because I believe that TARGA (.tga) files, which were originally used
+</span>        <span class=comment>// with this model, have the pixels flipped horizontally.  If you use other image
+</span>        <span class=comment>// files and your texture mapping is crazy looking, try deleting this negative.
+</span>        currentObject.pTexVertices[i].x = m_pTexCoords[i].texCoords[0];
+        currentObject.pTexVertices[i].y = -m_pTexCoords[i].texCoords[1];
+    }
+
+    <span class=comment>// Go through all of the face data and assign it over to OUR structure
+</span>    <span class=keyword>for</span>(i = 0; i &lt; currentObject.numOfFaces; i++) {
+
+        <span class=comment>// Assign the vertex indices to our face data
+</span>        currentObject.pFaces[i].vertexIndex[0] = m_pFaces[i].vertexIndexes[0];
+        currentObject.pFaces[i].vertexIndex[1] = m_pFaces[i].vertexIndexes[1];
+        currentObject.pFaces[i].vertexIndex[2] = m_pFaces[i].vertexIndexes[2];
+
+        <span class=comment>// Assign the texture coord indices to our face data (same as the vertex indices)
+</span>        currentObject.pFaces[i].texCoordIndex[0] = m_pFaces[i].vertexIndexes[0];
+        currentObject.pFaces[i].texCoordIndex[1] = m_pFaces[i].vertexIndexes[1];
+        currentObject.pFaces[i].texCoordIndex[2] = m_pFaces[i].vertexIndexes[2];
+    }
+
+    <span class=comment>// Here we add the current object to our list object list
+</span>    pModel-&gt;pObjects.push_back(currentObject);
+}
+
+<span class=keyword>void</span> CMD3Loader::cleanUp() {
+
+    <span class=comment>// Since we free all of the member variable arrays in the same function as
+</span>    <span class=comment>// we allocate them, we don't need to do any other clean up other than
+</span>    <span class=comment>// closing the file pointer, which could probably also be done in the same
+</span>    <span class=comment>// function.  I left it here so you can add more of your cleanup if you add
+</span>    <span class=comment>// to this class. 
+</span>
+    <span class=comment>// Close the current file pointer
+</span>    fclose(mFilePointer);
+    mFilePointer = NULL;
+    <span class=comment>//fclose(mFileConsoleLog);
+</span>    <span class=comment>//mFileConsoleLog = NULL;
+</span>}
+
+</pre></body>
+</html>

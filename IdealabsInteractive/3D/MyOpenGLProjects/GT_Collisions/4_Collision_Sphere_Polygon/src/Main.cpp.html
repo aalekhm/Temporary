@@ -1,0 +1,766 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>//
+</span><span class=comment>// This tutorial is built from the &quot;PolygonCollision&quot; tutorial.  Instead of a line
+</span><span class=comment>// colliding with a polygon, we now can do better collision that checks to see if
+</span><span class=comment>// a sphere collides with a polygon.  The code is modular that it can do triangles
+</span><span class=comment>// and quads, or any other convex polygon.  This technique is great for camera  
+</span><span class=comment>// and world collision.  Since sphere to sphere collision is too simple, as well as
+</span><span class=comment>// sphere to plane collision, we will explain both of them in this tutorial.
+</span><span class=comment>// What this application does is allow us to move a wire frame sphere around and have
+</span><span class=comment>// it run into a triangle.  The sphere will turn green if it is colliding with
+</span><span class=comment>// the triangle, while it will be purple when there is no collision.  
+</span><span class=comment>// Here are the commands to move the sphere and camera position:
+</span><span class=comment>//
+</span><span class=comment>// LEFT ARROW - Moves the sphere left along it's current plane
+</span><span class=comment>// RIGHT ARROW - Moves the sphere right along it's current plane
+</span><span class=comment>// UP ARROW - Moves the sphere up along it's current plane
+</span><span class=comment>// DOWN ARROW - Moves the sphere down along it's current plane
+</span><span class=comment>// F3 - Moves the sphere towards the front of the triangle's plane
+</span><span class=comment>// F4 - Moves the sphere towards the back of the triangle's plane
+</span><span class=comment>// 
+</span><span class=comment>// F1 - Rotates the camera left
+</span><span class=comment>// F2 - Rotates the camera right
+</span><span class=comment>// ESC - Quits the program
+</span><span class=comment>//
+</span><span class=comment>// 
+</span><span class=comment>// Sphere and polygon collision is a lot more complicated that you might first assume.
+</span><span class=comment>// If you want to jump immediately to the theory, the concepts are explain in the 
+</span><span class=comment>// * QUICK NOTES * section near the bottom of this file or 3DMath.cpp.  The next 
+</span><span class=comment>// tutorial will show us how to use this code for our camera class, which will 
+</span><span class=comment>// allow us to collide and slide into the walls of a world.
+</span><span class=comment>//
+</span><span class=comment>//
+</span>
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *          
+</span>
+<span class=comment>// This    is the array of 3 vertices that will hold our triangle coordinates        
+</span>CVector3 vTriangle[3];
+
+<span class=comment>// This is the center of our sphere.  We are able to move it with the arrow keys.
+</span>CVector3 vPosition;
+
+<span class=comment>// This is the current rotate of our camera (F1 and F2 keys)
+</span><span class=keyword>float</span> rotateY = 0;
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+HDC            mHDC        = NULL;            <span class=comment>// Private GDI Device Context
+</span>HGLRC        mHRC        = NULL;            <span class=comment>// Permanent Rendering Context
+</span>HWND        mHWnd        = NULL;            <span class=comment>// Holds Our Window Handle
+</span>HINSTANCE    mHInstance;                    <span class=comment>// Holds The Instance Of The Application
+</span>
+<span class=keyword>bool</span>        mKeys[256];                    <span class=comment>// Array Used For The Keyboard Routine
+</span><span class=keyword>bool</span>        mActive = <span class=keyword>false</span>;            <span class=comment>// Window Active Flag
+</span><span class=keyword>bool</span>        mFULLSCREEN = <span class=keyword>true</span>;            <span class=comment>// Fullscreen Flag Set To TRUE By Default
+</span>
+<span class=keyword>int</span> cameraRotX, cameraRotY, cameraRotZ;
+<span class=keyword>float</span> cameraPosX, cameraPosY, cameraPosZ;
+<span class=keyword>const</span> <span class=keyword>float</span> piOver180 = 0.0174532925f;
+<span class=keyword>const</span> <span class=keyword>float</span> MOVE_SPEED = 0.05f;
+<span class=keyword>static</span> <span class=keyword>bool</span> L_MOUSE_DOWN = <span class=keyword>false</span>;
+
+GLuint *textures;
+
+<span class=keyword>int</span> glViewMode = GL_TRIANGLES;
+<span class=keyword>float</span> rotateFaceY = 0.0;
+<span class=keyword>int</span> CURRENT_FRAME_ID = 0;
+
+<span class=keyword>bool</span> g_RenderMode = <span class=keyword>false</span>;
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+GL<span class=keyword>void</span>    resizeGLScene(GLsizei width, GLsizei height);
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>);
+<span class=keyword>int</span> drawGLScene(GL<span class=keyword>void</span>);
+GL<span class=keyword>void</span> killGLWindow(GL<span class=keyword>void</span>);
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen);
+
+<span class=keyword>void</span> checkMouseMovement() {
+    <span class=keyword>if</span>(!L_MOUSE_DOWN)
+        <span class=keyword>return</span>;
+
+    <span class=keyword>int</span> screenCenterX = SCREEN_WIDTH&gt;&gt;1;
+    <span class=keyword>int</span> screenCenterY = SCREEN_HEIGHT&gt;&gt;1;
+
+    POINT mousePos;
+    GetCursorPos(&amp;mousePos);
+    
+    <span class=comment>//Mouse not moved, hence return;
+</span>    <span class=keyword>if</span>(mousePos.x == screenCenterX &amp;&amp; mousePos.y == screenCenterY)
+        <span class=keyword>return</span>;
+
+    SetCursorPos(screenCenterX, screenCenterY);
+    
+    <span class=comment>//Move, Rotate as proportinal to the displacement
+</span>    <span class=keyword>float</span> deltaX = (mousePos.x - screenCenterX)/5.0f;
+    <span class=keyword>float</span> deltaY = (mousePos.y - screenCenterY)/5.0f;
+    
+    cameraRotX -= deltaY;
+    cameraRotY -= deltaX;
+}
+
+<span class=keyword>void</span> checkKeyboardMovement() {
+    <span class=keyword>if</span>(mKeys['Q'] || mKeys[VK_LEFT]) {
+        cameraRotY = (cameraRotY + 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys['E'] || mKeys[VK_RIGHT]) {
+        cameraRotY = (cameraRotY - 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys['W']) {
+        cameraPosX -= sin( cameraRotY * piOver180 ) * MOVE_SPEED;
+        cameraPosZ -= cos( cameraRotY * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys['S']) {
+        cameraPosX += sin( cameraRotY * piOver180 ) * MOVE_SPEED;
+        cameraPosZ += cos( cameraRotY * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys['A']) {
+        cameraPosX += sin( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+        cameraPosZ += cos( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys['D']) {
+        cameraPosX -= sin( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+        cameraPosZ -= cos( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys[VK_UP]) {
+        cameraRotX = (cameraRotX + 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys[VK_DOWN]) {
+        cameraRotX = (cameraRotX - 1) % 360;
+    }
+}
+
+<span class=keyword>void</span> updateCamera(<span class=keyword>void</span>) {
+    checkMouseMovement();
+    checkKeyboardMovement();
+}
+
+<span class=comment>/*PITCH - Rotation around X - axis */</span>
+<span class=keyword>void</span> cameraPitch(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 1.0f, 0.0f, 0.0f);
+}
+
+<span class=comment>/*YAW - Rotation around Y - axis */</span>
+<span class=keyword>void</span> cameraYaw(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 0.0f, 1.0f, 0.0f);
+}
+
+<span class=comment>/*ROLL - Rotation around Z - axis */</span>
+<span class=keyword>void</span> cameraRoll(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 0.0f, 0.0f, 1.0f);
+}
+
+<span class=keyword>void</span> cameraMoveTo(<span class=keyword>float</span> xTranslate, <span class=keyword>float</span> yTranslate, <span class=keyword>float</span> zTranslate) {
+    glTranslatef(xTranslate, yTranslate, zTranslate);
+}
+
+<span class=keyword>void</span> moveCamera(<span class=keyword>void</span>) {
+    <span class=comment>//Player Camera - Rotation
+</span>    cameraPitch(-cameraRotX);
+    cameraYaw(-cameraRotY);
+    cameraRoll(-cameraRotZ);
+
+    <span class=comment>//Player Camera - Translation
+</span>    cameraMoveTo(-cameraPosX, -cameraPosY, -cameraPosZ);
+}
+
+<span class=keyword>void</span> handleKeyboard(<span class=keyword>void</span>) {
+    <span class=keyword>if</span>(mKeys[VK_F1]) {
+        mKeys[VK_F1] = <span class=keyword>false</span>;
+        killGLWindow();
+        mFULLSCREEN = !mFULLSCREEN;
+        <span class=keyword>if</span>(!createGLWindow(&quot;openGL window&quot;, 640, 480, 16, mFULLSCREEN)) {
+            <span class=keyword>return</span>;
+        }
+    }
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(mKeys['I']) {
+        vPosition.y += 0.01f;
+    }
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(mKeys['K']) {
+        vPosition.y -= 0.01f;
+    }
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(mKeys['J']) {
+        vPosition.x -= 0.01f;
+    }
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(mKeys['L']) {
+        vPosition.x += 0.01f;
+    }
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(mKeys[VK_NEXT]) {
+        vPosition.z += 0.01f;
+    }
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(mKeys[VK_PRIOR]) {
+        vPosition.z -= 0.01f;
+    }
+
+}
+
+<span class=keyword>bool</span> bitmapLoader(LPCSTR fileName, GLuint textureID) {
+    HBITMAP hBMP;
+    BITMAP BMP;
+
+    hBMP = (HBITMAP)LoadImage(GetModuleHandle(NULL), fileName, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION | LR_LOADFROMFILE);
+
+    <span class=keyword>if</span>(!hBMP)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    GetObject(hBMP, <span class=keyword>sizeof</span>(BMP), &amp;BMP);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, BMP.bmWidth, BMP.bmHeight, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, BMP.bmBits);
+<span class=comment>/*
+char sCurText[255];
+sprintf(sCurText, &quot;%s = %d x %d&quot;, fileName, BMP.bmWidth, BMP.bmHeight);
+MessageBox(NULL, sCurText, &quot;W x H&quot;, MB_OK);
+//*/</span>
+    DeleteObject(hBMP);
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=keyword>int</span> WINAPI WinMain(    HINSTANCE    hInstance, 
+                    HINSTANCE    hPrevInstance,
+                    LPSTR        lpCmdLine,
+                    <span class=keyword>int</span>            nCmdShow
+) {
+    MSG        msg;
+    <span class=keyword>bool</span>    done = <span class=keyword>false</span>;
+
+    <span class=comment>//if(MessageBox(NULL, &quot;Would you like to run in FULLSCREEN mode?&quot;, &quot;Start FullScreen&quot;, MB_YESNO) == IDNO)
+</span>        mFULLSCREEN = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(!createGLWindow(&quot;openGL Window...Press F1 to toogle between windowed &amp; Fullscreen Mode.&quot;, 640, 480, 16, mFULLSCREEN))
+        <span class=keyword>return</span> 0;
+
+    <span class=keyword>while</span>(!done) {
+        <span class=keyword>if</span>(PeekMessage(&amp;msg, NULL, 0, 0, PM_REMOVE)) {
+            <span class=keyword>if</span>(msg.message == WM_QUIT)
+                done = <span class=keyword>true</span>;
+            <span class=keyword>else</span>  {
+                TranslateMessage(&amp;msg);
+                DispatchMessage(&amp;msg);
+            }
+        }
+        <span class=keyword>else</span> {
+            <span class=keyword>if</span>(mActive) {
+                <span class=keyword>if</span>(mKeys[VK_ESCAPE])
+                    done = <span class=keyword>true</span>;
+                <span class=keyword>else</span> {
+                    drawGLScene();
+                    SwapBuffers(mHDC);
+                }
+            }
+
+            updateCamera();
+            handleKeyboard();
+        }
+    }
+
+    killGLWindow();
+    <span class=keyword>return</span> msg.wParam;
+}
+
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen) {
+    <span class=keyword>int</span>            iPixelFormat;
+    WNDCLASS    wc;
+    DWORD        dwExStyle;
+    DWORD        dwStyle;
+    RECT        windowRect;
+
+    windowRect.left        = (<span class=keyword>long</span>)0;
+    windowRect.right    = (<span class=keyword>long</span>)width;
+    windowRect.top        = (<span class=keyword>long</span>)0;
+    windowRect.bottom    = (<span class=keyword>long</span>)height;
+
+    mFULLSCREEN = isFullScreen;
+
+    mHInstance            = GetModuleHandle(NULL);
+    
+    wc.cbClsExtra        = 0;
+    wc.cbWndExtra        = 0;
+    wc.hbrBackground    = NULL;
+    wc.hCursor            = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon            = LoadIcon(NULL, IDI_WINLOGO);
+    wc.hInstance        = mHInstance;
+    wc.lpfnWndProc        = (WNDPROC) WndProc;
+    wc.lpszClassName    = &quot;OpenGL&quot;;
+    wc.lpszMenuName        = NULL;
+    wc.style            = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    
+    <span class=keyword>if</span>(!RegisterClass(&amp;wc)) {
+        MessageBox(NULL, &quot;Failed to Register the Window Class.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        DEVMODE    dmScreenSettings;
+        memset(&amp;dmScreenSettings, 0, <span class=keyword>sizeof</span>(dmScreenSettings));
+        dmScreenSettings.dmSize            = <span class=keyword>sizeof</span>(dmScreenSettings);
+        dmScreenSettings.dmPelsWidth    = width;
+        dmScreenSettings.dmPelsHeight    = height;
+        dmScreenSettings.dmBitsPerPel    = bits;
+        dmScreenSettings.dmFields        = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+
+        <span class=keyword>if</span>(ChangeDisplaySettings(&amp;dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            <span class=keyword>if</span>(MessageBox(NULL, &quot;The requested FullScreen Mode is not supported\n by your Video Card. Use Windowed Mode instead?&quot;, &quot;Error&quot;, MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+                mFULLSCREEN = <span class=keyword>false</span>;
+            <span class=keyword>else</span> {
+                MessageBox(NULL, &quot;Program will now close.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONSTOP);
+                <span class=keyword>return</span> <span class=keyword>false</span>;
+            }
+        }
+    }
+    
+    ShowCursor(!<span class=keyword>false</span>);
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        dwExStyle    = WS_EX_APPWINDOW;
+        dwStyle        = WS_POPUP;
+    }
+    <span class=keyword>else</span> {
+        dwExStyle    = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+        dwStyle        = WS_OVERLAPPEDWINDOW;
+    }
+
+    AdjustWindowRectEx(&amp;windowRect, dwStyle, <span class=keyword>false</span>, dwExStyle);
+
+    <span class=keyword>if</span>(!(mHWnd = CreateWindowEx(    dwExStyle,
+                                &quot;OpenGL&quot;,
+                                title,
+                                dwStyle | 
+                                WS_CLIPSIBLINGS |
+                                WS_CLIPCHILDREN,
+                                0, 0,
+                                windowRect.right - windowRect.left,
+                                windowRect.bottom - windowRect.top,
+                                NULL,
+                                NULL,
+                                mHInstance,
+                                NULL))
+    ) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHDC = GetDC(mHWnd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to get Device Context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>static</span> PIXELFORMATDESCRIPTOR pfd = 
+    {
+        <span class=keyword>sizeof</span>(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW |
+        PFD_SUPPORT_OPENGL |
+        PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        bits,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        16,
+        0,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    <span class=keyword>if</span>(!(iPixelFormat = ChoosePixelFormat(mHDC, &amp;pfd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to choose Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!SetPixelFormat(mHDC, iPixelFormat, &amp;pfd)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to set Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHRC = wglCreateContext(mHDC))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to create wgl context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!wglMakeCurrent(mHDC, mHRC)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to make wgl context&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+                                
+    ShowWindow(mHWnd, <span class=keyword>true</span>);
+    SetForegroundWindow(mHWnd);
+    SetFocus(mHWnd);
+
+    resizeGLScene(width, height);
+
+    <span class=keyword>if</span>(!initGL()) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> resizeGLScene(GLsizei width, GLsizei height) {
+    <span class=keyword>if</span>(height == 0)
+        height = 1;
+
+    glViewport(0, 0, width, height);
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(45.0f, (GL<span class=keyword>float</span>)width/(GL<span class=keyword>float</span>)height, 0.1f, 150.0f);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>) {
+    textures = <span class=keyword>new</span> GLuint[MAX_TEXTURES];
+    glGenTextures(MAX_TEXTURES, &amp;textures[0]);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>    
+    <span class=comment>// Here is where we define our triangle.  Remember it is important which
+</span>    <span class=comment>// direction you define the vertices.  This is important because it allows
+</span>    <span class=comment>// us to know which side the normal will be on when we calculate the triangle's
+</span>    <span class=comment>// normal.  Though clockwise is more natural to me to use, more people use
+</span>    <span class=comment>// counter-clockwise.  Also, if you enable back face culling in OpenGL, the
+</span>    <span class=comment>// default is counter-clockwise (GL_CCW).  We start with the bottom-left
+</span>    <span class=comment>// vertices, then the bottom-right and finally, the top vertex.
+</span>    vTriangle[0] = CVector3(-1,  0,   0);
+    vTriangle[1] = CVector3( 1,  0,   0);
+    vTriangle[2] = CVector3( 0,  1,   0);
+
+    <span class=comment>// We need an initial position for the sphere's center, so we place it
+</span>    <span class=comment>// right in the middle of the triangle, initially colliding with it.
+</span>    vPosition = CVector3(0, 0.5f, 0);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_COLOR_MATERIAL);                        <span class=comment>// Allow color
+</span>    
+    <span class=comment>///////////////////////////////////
+</span>    glShadeModel(GL_SMOOTH);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    glClearDepth(1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    <span class=comment>//glEnable(GL_CULL_FACE);                                // Turn culling on
+</span>    <span class=comment>//glCullFace(GL_FRONT);                                // Quake2 uses front face culling apparently
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> killGLWindow() {
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        ChangeDisplaySettings(NULL, 0);
+        ShowCursor(<span class=keyword>true</span>);
+    }
+
+    <span class=keyword>if</span>(mHRC) {
+        <span class=keyword>if</span>(!wglMakeCurrent(NULL, NULL))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        <span class=keyword>if</span>(!wglDeleteContext(mHRC))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        mHRC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHDC &amp;&amp; !ReleaseDC(mHWnd, mHDC)) {
+        MessageBox(NULL, &quot;Release of Device Context failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHDC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHWnd &amp;&amp; !DestroyWindow(mHWnd)) {
+        MessageBox(NULL, &quot;Release of mHWnd failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHWnd = NULL;
+    }
+
+    <span class=keyword>if</span>(!UnregisterClass(&quot;OpenGL&quot;, mHInstance)) {
+        MessageBox(NULL, &quot;UnRegisterClass failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHInstance = NULL;
+    }
+}
+
+<span class=keyword>int</span> drawGLScene() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+
+    moveCamera();
+
+    glTranslatef(0.0, -0.0, -5.0f);
+    glRotatef(rotateY, 0, 1, 0);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+    <span class=comment>// We need a radius for our sphere, so let's create it here with 0.1
+</span>    <span class=keyword>float</span> radius = 0.1f;
+
+    glBegin(GL_TRIANGLES);
+        
+        glColor3ub(255, 0, 0);
+        glVertex3f(    vTriangle[0].x, vTriangle[0].y, vTriangle[0].z);
+
+        glColor3ub(0, 255, 0);
+        glVertex3f(    vTriangle[1].x, vTriangle[1].y, vTriangle[1].z);
+
+        glColor3ub(0, 0, 255);
+        glVertex3f(    vTriangle[2].x, vTriangle[2].y, vTriangle[2].z);
+    glEnd();
+
+    <span class=comment>// Instead of calculating the sphere ourselves, we are going to use quadrics.
+</span>    <span class=comment>// Check out the tutorial on quadrics if this is confusing for you.
+</span>
+    <span class=comment>// Allocate a quadric object to use as a sphere
+</span>    GLUquadricObj *pObj = gluNewQuadric();            <span class=comment>// Get a Quadric off the stack
+</span>
+    <span class=comment>// To make it easier to see, we want the sphere to be in wire frame
+</span>    gluQuadricDrawStyle(pObj, GLU_LINE);            <span class=comment>// Draw the sphere normally
+</span>
+    <span class=comment>// Move the sphere to it's center position
+</span>    glTranslatef(vPosition.x, vPosition.y, vPosition.z);
+    
+    <span class=comment>// Now we get to the wonderful function that does it all for us.  All we
+</span>    <span class=comment>// need to do is pass in the array of vertices for the triangle, the center
+</span>    <span class=comment>// of the sphere and it's radius.  This will return a true or false, depending
+</span>    <span class=comment>// on if we collided or not.  True = The Sphere Collided
+</span>    <span class=keyword>bool</span> bCollided = spherePolygonCollision(vTriangle, vPosition, 3, radius);
+
+    <span class=comment>// If we collided we want the sphere to be green, otherwise it should be purple
+</span>    <span class=keyword>if</span>(bCollided)
+        glColor3ub(255, 0, 0);
+    <span class=keyword>else</span>
+        glColor3ub(0, 255, 0);
+
+    <span class=comment>// Draw the quadric as a sphere with the radius of .1 and a 15 by 15 detail.
+</span>    <span class=comment>// To increase the detail of the sphere, just increase the 2 last parameters.
+</span>    gluSphere(pObj, radius, 15, 15);
+    
+    <span class=comment>// Free the Quadric
+</span>    gluDeleteQuadric(pObj);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>//char logText[255] = {0};
+</span><span class=comment>//sprintf(logText, &quot;vNormal = %f %f %f&quot;, vNormal.x, vNormal.y, vNormal.z);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>
+
+    <span class=comment>//rotateFaceY = (float)(((UINT)rotateFaceY + 1) % 360);
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    <span class=keyword>switch</span>(uMsg) {
+        <span class=keyword>case</span> WM_CREATE:
+        {
+            SetCursorPos(SCREEN_WIDTH&gt;&gt;1, SCREEN_HEIGHT&gt;&gt;1);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_ACTIVATE:
+        {
+            <span class=keyword>if</span>(!HIWORD(wParam))
+                mActive = <span class=keyword>true</span>;
+            <span class=keyword>else</span>
+                mActive = <span class=keyword>false</span>;
+
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SYSCOMMAND:
+        {
+            <span class=keyword>switch</span>(wParam) {
+                <span class=keyword>case</span> SC_SCREENSAVE:
+                <span class=keyword>case</span> SC_MONITORPOWER:
+                    <span class=keyword>return</span> 0;
+            }
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYDOWN:
+        {
+            mKeys[wParam] = <span class=keyword>true</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYUP:
+        {
+            mKeys[wParam] = <span class=keyword>false</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SIZE:
+        {
+            resizeGLScene(LOWORD(lParam), HIWORD(lParam));
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_LBUTTONDOWN:
+        {
+            SetCursorPos(SCREEN_WIDTH&gt;&gt;1, SCREEN_HEIGHT&gt;&gt;1);
+            L_MOUSE_DOWN = <span class=keyword>true</span>;
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_LBUTTONUP:        
+        {
+            L_MOUSE_DOWN = <span class=keyword>false</span>;
+
+            <span class=comment>//glViewMode = (glViewMode == GL_TRIANGLES)?GL_LINES:GL_TRIANGLES;
+</span>        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_RBUTTONDOWN:
+            g_RenderMode = !g_RenderMode;    <span class=comment>// Change the rendering mode
+</span>
+            <span class=comment>// Change the rendering mode to and from lines or triangles
+</span>            <span class=keyword>if</span>(g_RenderMode) {
+                <span class=comment>// Render the triangles in fill mode        
+</span>                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
+            }
+            <span class=keyword>else</span> {
+                <span class=comment>// Render the triangles in wire frame mode
+</span>                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);    
+            }
+        <span class=keyword>break</span>;
+    }
+
+    <span class=keyword>return</span> DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// As you can see, using our sphere-polygon collision function is really simple.
+</span><span class=comment>// The hard part is actually creating the code underneath it.  To test the collision
+</span><span class=comment>// detection, I set up some keys to move the camera and sphere around.  If the
+</span><span class=comment>// sphere is colliding with the triangle it will turn green, otherwise it will 
+</span><span class=comment>// be purple.
+</span><span class=comment>//
+</span><span class=comment>// You might be thinking, &quot;So how does this help me games?&quot;.  Well, this code
+</span><span class=comment>// is perfect for checking if your character (3rd person view) or camera (1st person view)
+</span><span class=comment>// collides with the world.  Eventually, you are going to have to get down to checking
+</span><span class=comment>// collision with each polygon, this is a perfect technique.  It's faster than any
+</span><span class=comment>// other geometry-polygon collision test that I know of.  Some games, like MDK2
+</span><span class=comment>// used a cylinder for their character collision.  This is also another great way.
+</span><span class=comment>// An ellipse is another geometric shape that is fast.  Though bounding box checks
+</span><span class=comment>// can be slower, these are also still excellent choices, especially if you only
+</span><span class=comment>// need to check the front 3 faces of the box.  The next tutorial will show us
+</span><span class=comment>// how to create a function for our camera class that checks polygons and collides
+</span><span class=comment>// and slides along them.  We will have a little textured world to move around.
+</span><span class=comment>// I bet your mouth is drooling already.  
+</span><span class=comment>//
+</span><span class=comment>// Let's take a look at the explanations given in 3DMath.cpp of the theory/math behind
+</span><span class=comment>// sphere to polygon collision:
+</span><span class=comment>//
+</span><span class=comment>// Basically, here is the overview:  
+</span><span class=comment>//
+</span><span class=comment>// 1) First you want to check if the sphere collides with the triangle's plane.
+</span><span class=comment>//    Remember, that planes are infinite and you could be 500 units from the
+</span><span class=comment>//    polygon and it's still going to trigger this first test.  We want to 
+</span><span class=comment>//    write a function that classifies the sphere.  Either it's completely 
+</span><span class=comment>//    in front of the plane (the side the normal is on), intersecting the
+</span><span class=comment>//    plane or completely behind the plane.  Got it so far?  We created a 
+</span><span class=comment>//    function called ClassifySphere() that returns BEHIND, FRONT or INTERSECTS.
+</span><span class=comment>//    If ClassifySphere() returns INTERSECTS, then we move on to step 2, otherwise
+</span><span class=comment>//    we did not collide with the triangle.
+</span><span class=comment>// 
+</span><span class=comment>// 2) The second step is to get an intersection point right in front of the sphere.
+</span><span class=comment>//    This one of the tricky parts.  We know that once we have an intersection point
+</span><span class=comment>//    on the plane of the triangle, we just need to use the InsidePolygon() function
+</span><span class=comment>//    to see if that point is inside the dimensions of the triangle, just like we
+</span><span class=comment>//    did with the Ray to Polygon Collision tutorial.  So, how do we get the point
+</span><span class=comment>//    of intersection?  It's not as simple as it might sound.  Since a sphere is
+</span><span class=comment>//    infinite, there would be a million points that it collided at.  You can just
+</span><span class=comment>//    draw a ray in the direction the sphere was moving because it could have just
+</span><span class=comment>//    nicked the bottom of the triangle and your ray would find an intersection
+</span><span class=comment>//    point that is outside of the triangle.  Well, it turns out that we need to
+</span><span class=comment>//    first try and give it a shot.  We will try the first attempt a different way though.
+</span><span class=comment>//    We know that we can find the normal vector of the triangle, which in essence
+</span><span class=comment>//    tells us the direction that the triangle is facing.  From ClassifyPoly(),
+</span><span class=comment>//      it also returns the distance the center our sphere is from the plane.  That
+</span><span class=comment>//    means we have a distance our sphere center is from the plane, and the normal
+</span><span class=comment>//    tells us the direction the plane is in.  If we multiply the normal by the
+</span><span class=comment>//    distance from the plane we get an offset.  This offset can then be subtracted
+</span><span class=comment>//    from the center of the sphere.  Believe it or not, but we now have a position
+</span><span class=comment>//    on the plane in the direction of the plane.  Usually, this intersection points
+</span><span class=comment>//    works fine, but if we get around the edges of the polygon, this does not work.
+</span><span class=comment>//    What we just did is also called &quot;projecting the center of the sphere onto the plane&quot;.
+</span><span class=comment>//    Another way to do this is to shoot out a ray from the center of the sphere in
+</span><span class=comment>//    the opposite direction of the normal, then we find the intersection of that line
+</span><span class=comment>//    and the plane.  My way just takes 3 multiplies and a subtraction.  You choose.
+</span><span class=comment>//
+</span><span class=comment>// 3) Once we have our psuedo intersection point, we just pass it into InsidePolygon(),
+</span><span class=comment>//    along with the triangle vertices and the vertex count.  This will then return
+</span><span class=comment>//    true if the intersection point was inside of the triangle, otherwise false.
+</span><span class=comment>//    Remember, just because this returns false doesn't mean we stop there!  If
+</span><span class=comment>//    we didn't collide yet, we need to skip to step 4.
+</span><span class=comment>//
+</span><span class=comment>// 4) If we get here, it's assumed that we tried our intersection point and it
+</span><span class=comment>//    wasn't in the polygon's perimeter.  No fear!  There is hope!  If we get to step
+</span><span class=comment>//    4, that's means that our center point is outside of the polygon's perimeter. Since
+</span><span class=comment>//    we are dealing with a sphere, we could still be colliding because of the sphere's radius.
+</span><span class=comment>//       This last check requires us to find the point on each of the polygon's edges that
+</span><span class=comment>//    is closest to the sphere's center.  We have a tutorial on finding this, so make sure
+</span><span class=comment>//    you have read it or are comfortable with the concept.  If we are dealing with a
+</span><span class=comment>//    triangle, we go through every side and get an edge vector, and calculate the closest
+</span><span class=comment>//    point on those lines to our sphere's center.  After getting each closest point, we
+</span><span class=comment>//    calculate the distance that point is from our sphere center.  If the distance is
+</span><span class=comment>//    less than the radius of the sphere, there was a collision.  This way is pretty fast.  
+</span><span class=comment>//    You don't need to calculate all three sides evey time, since the first closest point's 
+</span><span class=comment>//    distance could be less than the radius and you return &quot;true&quot;.
+</span><span class=comment>// 
+</span><span class=comment>//
+</span><span class=comment>// Quite a bit of theory, but not too bad.  Once again, the next tutorial will 
+</span><span class=comment>// demonstrate how to hook this up to our camera class and collide and slide against 
+</span><span class=comment>// walls in a world. Check it out at www.GameTutorials.com - You won't find any place like it!
+</span><span class=comment>//
+</span><span class=comment>// I would like to thank Paul Nettle for the collision detection idea.  If you want a great
+</span><span class=comment>// tutorial on collision detection, check out http://www.fluidstudios.com/publications.html.
+</span><span class=comment>// I thuroughly enjoyed the tutorial on &quot;Generic Collision Detection for Games Using Ellipsoids&quot;.
+</span><span class=comment>// This provides a great visual tutorial on this topic as well.  I highly recommend it!
+</span><span class=comment>//
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>// © 2000-2003 GameTutorials
+</span><span class=comment>//
+</span></pre></body>
+</html>

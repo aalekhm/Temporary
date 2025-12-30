@@ -1,0 +1,4 @@
+﻿main.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/SAFESEH' specification
+     Creating library D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\_DLL`s\RandomAccessFile_Dll\Debug\RandomAccessFile_d.lib and object D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\_DLL`s\RandomAccessFile_Dll\Debug\RandomAccessFile_d.exp
+  RandomAccessFile.vcxproj -> D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\_DLL`s\RandomAccessFile_Dll\Debug\RandomAccessFile_d.dll
+  RandomAccessFile.vcxproj -> D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\_DLL`s\RandomAccessFile_Dll\Debug\RandomAccessFile_d.pdb (Full PDB)

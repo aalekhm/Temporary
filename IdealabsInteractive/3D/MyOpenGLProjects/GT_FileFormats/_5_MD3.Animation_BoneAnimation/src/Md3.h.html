@@ -1,0 +1,356 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _MD3_H_
+<span class=pp>#define</span> _MD3_H_
+
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=comment>// This file stores all of our structures and classes (besides the modular model ones in main.h)
+</span><span class=comment>// in order to read in and display a Quake3 character.  The file format is of type
+</span><span class=comment>// .MD3 and comes in many different files for each main body part section.  We convert
+</span><span class=comment>// these Quake3 structures to our own structures in Md3.cpp so that we are not dependant
+</span><span class=comment>// on their model data structures.  You can do what ever you want, but I like mine :P :)
+</span>
+<span class=comment>// This holds the header information that is read in at the beginning of the file
+</span><span class=keyword>struct</span> tMD3Header{
+    <span class=keyword>char</span>    fileID[4];                <span class=comment>// This stores the File ID - Must be 'ID3'
+</span>    <span class=keyword>int</span>        version;                <span class=comment>// This stores the file version - Must be 15
+</span>    <span class=keyword>char</span>    fileName[68];            <span class=comment>// This stores the name of the File
+</span>    <span class=keyword>int</span>        numOfFrames;            <span class=comment>// This stores number of animation frames
+</span>    <span class=keyword>int</span>        numOfTags;                <span class=comment>// This stores the tag Count
+</span>    <span class=keyword>int</span>        numOfMeshes;            <span class=comment>// This stores the number of sub-objects in the Mesh
+</span>    <span class=keyword>int</span>        numMaxSkins;            <span class=comment>// This stores the number of skins for the mesh
+</span>    <span class=keyword>int</span>        headerSize;                <span class=comment>// This stores the mesh header size
+</span>    <span class=keyword>int</span>        tagStart;                <span class=comment>// This stores the offset into the file for tags
+</span>    <span class=keyword>int</span>        tagEnd;                    <span class=comment>// This stores the end offset into the file for tags
+</span>    <span class=keyword>int</span>        fileSize;                <span class=comment>// This stores the file size
+</span>};
+
+<span class=comment>// This structure is used to read in the mesh data for the .md3 models
+</span><span class=keyword>struct</span> tMD3MeshInfo {
+    <span class=keyword>char</span>    meshID[4];                <span class=comment>// This stores the mesh ID (We don't care)
+</span>    <span class=keyword>char</span>    meshName[68];            <span class=comment>// This stores the mesh name (We do care)
+</span>    <span class=keyword>int</span>        numOfMeshFrames;        <span class=comment>// This stores the mesh aniamtion frame count
+</span>    <span class=keyword>int</span>        numOfSkins;                <span class=comment>// This stores the mesh skin count
+</span>    <span class=keyword>int</span>        numOfVertices;            <span class=comment>// This stores the mesh vertex count
+</span>    <span class=keyword>int</span>        numOfTriangles;            <span class=comment>// This stores the mesh face count
+</span>    <span class=keyword>int</span>        offsetTriangleStart;    <span class=comment>// This stores the starting offset for the triangles
+</span>    <span class=keyword>int</span>        headerSize;                <span class=comment>// This stores the header size for the mesh
+</span>    <span class=keyword>int</span>        offsetUVStart;            <span class=comment>// This stores the starting offset for the UV coordinates
+</span>    <span class=keyword>int</span>        offsetVertexStart;        <span class=comment>// This stores the starting offset for the vertex indices
+</span>    <span class=keyword>int</span>        meshSize;                <span class=comment>// This stores the total mesh size
+</span>};
+
+<span class=comment>// This is our tag structure for the .MD3 file format.  These are used link other
+</span><span class=comment>// models to and the rotate and transate the child models of that model.
+</span><span class=keyword>struct</span> tMD3Tag {
+    <span class=keyword>char</span>        tagName[64];            <span class=comment>// This stores the name of the tag (I.E. &quot;tag_torso&quot;)
+</span>    CVector3    vTranslatePosition;        <span class=comment>// This stores the translation that should be performed
+</span>    <span class=keyword>float</span>        rotationMatrix[3][3];    <span class=comment>// This stores the 3x3 rotation matrix for this frame
+</span>};
+
+<span class=comment>// This stores the bone information (useless as far as I can see...)
+</span><span class=keyword>struct</span> tMD3Bone {
+    <span class=keyword>float</span>        mins[3];                <span class=comment>// This is the min (x, y, z) value for the bone
+</span>    <span class=keyword>float</span>        maxs[3];                <span class=comment>// This is the max (x, y, z) value for the bone
+</span>    <span class=keyword>float</span>        position[3];            <span class=comment>// This supposedly stores the bone position???
+</span>    <span class=keyword>float</span>        scale;                    <span class=comment>// This stores the scale of the bone
+</span>    <span class=keyword>char</span>        creator[16];            <span class=comment>// The modeler used to create the model (I.E. &quot;3DS Max&quot;)
+</span>};
+
+<span class=comment>// This stores the normals and vertex indices 
+</span><span class=keyword>struct</span> tMD3Triangle {
+    <span class=keyword>signed</span> <span class=keyword>short</span>    vertex[3];            <span class=comment>// The vertex for this face (scale down by 64.0f)
+</span>    <span class=keyword>unsigned</span> <span class=keyword>char</span>    normal[2];            <span class=comment>// This stores some crazy normal values (not sure...)
+</span>};
+
+<span class=comment>// This stores the indices into the vertex and texture coordinate arrays
+</span><span class=keyword>struct</span> tMD3Face {
+    <span class=keyword>int</span>                vertexIndexes[3];
+};
+
+<span class=comment>// This stores UV coordinates
+</span><span class=keyword>struct</span> tMD3TexCoord {
+    <span class=keyword>float</span>            texCoords[2];
+};
+
+<span class=comment>// This stores a skin name (We don't use this, just the name of the model to get the texture)
+</span><span class=keyword>struct</span> tMD3Skin {
+    <span class=keyword>char</span>            skinName[68];
+};
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+<span class=comment>// These defines are used to pass into GetModel(), which is member function of CModelMD3
+</span><span class=pp>#define</span> kLower        0        <span class=comment>// This stores the ID for the legs model
+</span><span class=pp>#define</span> kUpper        1        <span class=comment>// This stores the ID for the torso model
+</span><span class=pp>#define</span> kHead        2        <span class=comment>// This stores the ID for the head model
+</span><span class=pp>#define</span> kWeapon        3        <span class=comment>// This stores the ID for the weapon model
+</span>
+<span class=comment>// This enumeration stores all the animations in order from the config file (.cfg)
+</span><span class=keyword>typedef</span> <span class=keyword>enum</span> {
+    
+    <span class=comment>// If one model is set to one of the BOTH_* animations, the other one should be too,
+</span>    <span class=comment>// otherwise it looks really bad and confusing.
+</span>    
+    BOTH_DEATH1 = 0,        <span class=comment>// The first twirling death animation
+</span>    BOTH_DEAD,                <span class=comment>// The end of the first twirling death animation
+</span>    BOTH_DEATH2,            <span class=comment>// The second twirling death animation
+</span>    BOTH_DEAD2,                <span class=comment>// The end of the second twirling death animation
+</span>    BOTH_DEATH3,            <span class=comment>// The back flip death animation
+</span>    BOTH_DEAD3,                <span class=comment>// The end of the back flip death animation
+</span>    
+    <span class=comment>// The next block is the animations that the upper body performs
+</span>
+    TORSO_GESTURE,            <span class=comment>// The torso's gesturing animation
+</span>
+    TORSO_ATTACK,            <span class=comment>// The torso's attack1 animation
+</span>    TORSO_ATTACK2,            <span class=comment>// The torso's attack2 animation
+</span>        
+    TORSO_DROP,                <span class=comment>// The torso's weapon drop animation
+</span>    TORSO_RAISE,            <span class=comment>// The torso's weapon pickup animation
+</span>
+    TORSO_STAND,            <span class=comment>// The torso's idle stand animation
+</span>    TORSO_STAND2,            <span class=comment>// The torso's idle stand2 animation
+</span>    
+    <span class=comment>// The final block is the animations that the legs perform
+</span>
+    LEGS_WALKCR,            <span class=comment>// The legs's crouching walk animation
+</span>    LEGS_WALK,                <span class=comment>// The legs's walk animation
+</span>    LEGS_RUN,                <span class=comment>// The legs's run animation
+</span>    LEGS_BACK,                <span class=comment>// The legs's running backwards animation
+</span>    LEGS_SWIM,                <span class=comment>// The legs's swimming animation
+</span>
+    LEGS_JUMP,                <span class=comment>// The legs's jumping animation
+</span>    LEGS_LAND,                <span class=comment>// The legs's landing animation
+</span>
+    LEGS_JUMPB,                <span class=comment>// The legs's jumping back animation
+</span>    LEGS_LANDB,                <span class=comment>// The legs's landing back animation
+</span>
+    LEGS_IDLE,                <span class=comment>// The legs's idle stand animation
+</span>    LEGS_IDLECR,            <span class=comment>// The legs's idle crouching animation
+</span>
+    LEGS_TURN,                <span class=comment>// The legs's turn animation
+</span>
+    MAX_ANIMATIONS            <span class=comment>// The define for the maximum amount of animations
+</span>}eAnimations;
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+<span class=comment>// This class handles all of the main loading code
+</span><span class=keyword>class</span> CMD3Loader {
+    <span class=keyword>public</span>:
+        <span class=comment>// This inits the data members
+</span>        CMD3Loader();
+
+        <span class=comment>// This is the function that you call to load the MD3 model
+</span>        <span class=keyword>bool</span>    importMD3(t3DModel *pModel, <span class=keyword>char</span> *strFileName);
+        
+        <span class=comment>// This loads a model's .skin file
+</span>        <span class=keyword>bool</span>    loadSkin(t3DModel *pModel, LPSTR skinFileName);
+
+        <span class=comment>// This loads a weapon's .shader file
+</span>        <span class=keyword>bool</span>    loadShader(t3DModel *pModel, LPSTR shaderFileName);
+
+    <span class=keyword>private</span>:
+        <span class=comment>// This reads in the data from the MD3 file and stores it in the member variables,
+</span>        <span class=comment>// later to be converted to our cool structures so we don't depend on Quake3 stuff.
+</span>        <span class=keyword>void</span> readMD3Data(t3DModel *pModel);
+
+        <span class=comment>// This converts the member variables to our pModel structure, and takes the model
+</span>        <span class=comment>// to be loaded and the mesh header to get the mesh info.
+</span>        <span class=keyword>void</span> convertToDataStructures(t3DModel *pModel, tMD3MeshInfo meshHeader);
+        
+        <span class=comment>// This frees memory and closes the file
+</span>        <span class=keyword>void</span> cleanUp();
+        
+        <span class=comment>// Member Variables        
+</span>
+        <span class=comment>// The file pointer
+</span>        FILE *mFilePointer, *mFileConsoleLog;
+        <span class=keyword>char</span> logText[255];
+
+        tMD3Header        mMD3Header;                <span class=comment>// The header data
+</span>        
+        tMD3Skin        *m_pSkins;                <span class=comment>// The skin name data (not used)
+</span>        tMD3TexCoord    *m_pTexCoords;            <span class=comment>// The texture coordinates
+</span>        tMD3Face        *m_pFaces;                <span class=comment>// Face/Triangle data
+</span>        tMD3Triangle    *m_pVertices;            <span class=comment>// Vertex/UV indices
+</span>        tMD3Bone        *m_pBones;                <span class=comment>// This stores the bone data (not used)
+</span>};
+
+<span class=comment>// This is our model class that we use to load and draw and free the Quake3 characters
+</span><span class=keyword>class</span> CMD3Model {
+    <span class=keyword>public</span>:
+        <span class=comment>// These our our init and deinit() C++ functions (Constructor/Deconstructor)
+</span>        CMD3Model();
+        ~CMD3Model();
+        
+        <span class=comment>// This loads the model from a path and name prefix.   It takes the path and
+</span>        <span class=comment>// model name prefix to be added to _upper.md3, _lower.md3 or _head.md3.
+</span>        <span class=keyword>bool</span> loadModel(LPSTR strPath, LPSTR strModel);
+
+        <span class=comment>// This loads the weapon and takes the same path and model name to be added to .md3
+</span>        <span class=keyword>bool</span> loadWeapon(LPSTR strPath, LPSTR strModel);
+
+        <span class=comment>// This links a model to another model (pLink) so that it's the parent of that child.
+</span>        <span class=comment>// The strTagName is the tag, or joint, that they will be linked at (I.E. &quot;tag_torso&quot;).
+</span>        <span class=keyword>void</span> linkModel(t3DModel *pModel, t3DModel *pLink, LPSTR strTagName);
+
+        <span class=comment>// This renders the character to the screen
+</span>        <span class=keyword>void</span> drawModel();
+
+        <span class=comment>// This frees the character's data
+</span>        <span class=keyword>void</span> destroyModel(t3DModel *pModel);
+
+        <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW 
+</span>        
+        <span class=comment>// This takes a string of an animation and sets the torso animation accordingly
+</span>        <span class=keyword>void</span> setTorsoAnimation(LPSTR strAnimation);
+
+        <span class=comment>// This takes a string of an animation and sets the legs animation accordingly
+</span>        <span class=keyword>void</span> setLegsAnimation(LPSTR strAnimation);
+
+        <span class=comment>// This returns a pointer to a .md3 model in the character (kLower, kUpper, kHead, kWeapon)
+</span>        t3DModel *getModel(<span class=keyword>int</span> whichPart);
+
+        <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+    <span class=keyword>private</span>:
+        <span class=comment>// This loads the models textures with a given path
+</span>        <span class=keyword>void</span> loadModelTextures(t3DModel *pModel, LPSTR strTexturePath);
+
+        <span class=comment>// This recursively draws the character models, starting with the lower.md3 model
+</span>        <span class=keyword>void</span> drawLink(t3DModel *pModel);
+
+        <span class=comment>// This a md3 model to the screen (not the whole character)
+</span>        <span class=keyword>void</span> renderModel(t3DModel *pModel);
+        
+        <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>        
+        <span class=comment>// This loads the animation config file (.cfg) for the character
+</span>        <span class=keyword>bool</span> loadAnimations(LPSTR strConfigFile);
+
+        <span class=comment>// This updates the models current frame of animation, and calls SetCurrentTime()
+</span>        <span class=keyword>void</span> updateModel(t3DModel *pModel);
+
+        <span class=comment>// This sets the lastTime, t, and the currentFrame of the models animation when needed
+</span>        <span class=keyword>void</span> setCurrentTime(t3DModel *pModel);
+        <span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+        <span class=comment>// Member Variables
+</span>
+        <span class=comment>// This stores the texture array for each of the textures assigned to this model
+</span>        GLuint *mModelTextures;    
+
+        <span class=comment>// This stores a list of all the names of the textures that have been loaded.  
+</span>        <span class=comment>// This was created so that we could check to see if a texture that is assigned
+</span>        <span class=comment>// to a mesh has already been loaded.  If so, then we don't need to load it again
+</span>        <span class=comment>// and we can assign the textureID to the same textureID as the first loaded texture.
+</span>        <span class=comment>// You could get rid of this variable by doing something tricky in the texture loading
+</span>        <span class=comment>// function, but I didn't want to make it too confusing to load the textures.
+</span>        vector&lt;string&gt; vStrTextures;
+
+        <span class=comment>// These are are models for the character's head and upper and lower body parts
+</span>        t3DModel    m_Head;
+        t3DModel    m_Upper;
+        t3DModel    m_Lower;
+
+        <span class=comment>// This store the players weapon model (optional load)
+</span>        t3DModel    m_Weapon;
+};
+
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span>
+<span class=comment>// This is our quaternion class
+</span><span class=keyword>class</span> CQuaternion {
+    <span class=keyword>public</span>:
+        <span class=comment>// This is our default constructor, which initializes everything to an identity
+</span>        <span class=comment>// quaternion.  An identity quaternion has x, y, z as 0 and w as 1.
+</span>        CQuaternion() {
+            x = y = z = 0.0f;
+            w = 1.0f;
+        }
+
+        <span class=comment>// Creates a constructor that will allow us to initialize the quaternion when creating it
+</span>        CQuaternion(<span class=keyword>float</span> X, <span class=keyword>float</span> Y, <span class=keyword>float</span> Z, <span class=keyword>float</span> W) {
+            x = X;
+            y = Y;
+            w = Z;
+            z = W;
+        }
+
+        <span class=comment>// This takes in an array of 16 floats to fill in a 4x4 homogeneous matrix from a quaternion
+</span>        <span class=keyword>void</span> createMatrix(<span class=keyword>float</span> *pMatrix);
+
+        <span class=comment>// This takes a 3x3 or 4x4 matrix and converts it to a quaternion, depending on rowColumnCount
+</span>        <span class=keyword>void</span> createFromMatrix(<span class=keyword>float</span> *pMatrix, <span class=keyword>int</span> rowColumnCount);
+
+        <span class=comment>// This returns a spherical linear interpolated quaternion between q1 and q2, according to t
+</span>        CQuaternion Slerp(CQuaternion &amp;q1, CQuaternion &amp;q2, <span class=keyword>float</span> t);
+
+    <span class=keyword>private</span>:
+        <span class=comment>// This stores the 4D values for the quaternion
+</span>
+        <span class=keyword>float</span> x, y, z, w;
+};
+
+<span class=comment>//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ NEW
+</span><span class=pp>#endif</span>
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>// 
+</span><span class=comment>// There were a bunch of functions added to this file, since the last MD3 tutorial.
+</span><span class=comment>// We added an enum for the animation indices, along with some defines for GetModel().
+</span><span class=comment>//
+</span><span class=comment>// The CLoadMD3 class stayed the same, but these functions were added to our CLoadMD3 class:
+</span><span class=comment>//
+</span><span class=comment>//    This takes a string of an animation and sets the torso animation accordingly
+</span><span class=comment>//    void SetTorsoAnimation(LPSTR strAnimation);
+</span><span class=comment>//
+</span><span class=comment>//    This takes a string of an animation and sets the legs animation accordingly
+</span><span class=comment>//    void SetLegsAnimation(LPSTR strAnimation);
+</span><span class=comment>//
+</span><span class=comment>//    This returns a pointer to a .md3 model in the character (kLower, kUpper, kHead, kWeapon)
+</span><span class=comment>//    t3DModel *GetModel(int whichPart);
+</span><span class=comment>//
+</span><span class=comment>//    This loads the animation config file (.cfg) for the character
+</span><span class=comment>//    bool LoadAnimations(LPSTR strConfigFile);
+</span><span class=comment>//
+</span><span class=comment>//    This updates the models current frame of animation, and calls SetCurrentTime()
+</span><span class=comment>//    void UpdateModel(t3DModel *pModel);
+</span><span class=comment>//
+</span><span class=comment>//    This sets the lastTime, t, and the currentFrame of the models animation when needed
+</span><span class=comment>//    void SetCurrentTime(t3DModel *pModel);
+</span><span class=comment>//
+</span><span class=comment>// We also added a CQuaternion class to help with our key frame rotation interpolation.
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span><span class=comment>// The Quake3 .Md3 file format is owned by ID Software.  This tutorial is being used 
+</span><span class=comment>// as a teaching tool to help understand model loading and animation.  This should
+</span><span class=comment>// not be sold or used under any way for commercial use with out written consent
+</span><span class=comment>// from ID Software.
+</span><span class=comment>//
+</span><span class=comment>// Quake, Quake2 and Quake3 are trademarks of ID Software.
+</span><span class=comment>// Lara Croft is a trademark of Eidos and should not be used for any commercial gain.
+</span><span class=comment>// All trademarks used are properties of their respective owners. 
+</span><span class=comment>//
+</span><span class=comment>//
+</span></pre></body>
+</html>

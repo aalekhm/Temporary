@@ -1,0 +1,24 @@
+MAX_TEXTURES 		1
+TEX_ID_FONT		1	data/FontBlack.bmp
+
+CAMERA_POSITION		0	30	120	0.0	0.0	0.0
+
+MAX_VERTICES 		8
+-50.0 	 0.0	-50.0		//1
+-50.0 	 0.0 	 50.0		//2
+ 50.0 	 0.0  	 50.0		//3
+ 50.0 	 0.0 	-50.0		//4
+
+-50 	 5.0	-50.0		//5
+ 50 	 5.0	-50.0		//6
+
+-50 	 5.0	 50.0		//7
+ 50 	 5.0	 50.0		//8
+
+MAX_FACES		5
+1 2 3 4 10 10 		1            // Entire floor
+5 1 4 6  1 10 		2            // front wall
+7 2 1 5  1 10 		2            // left-side wall
+8 3 2 7  1 10 		2            // right-side wall
+6 4 3 8  1 10 		2            // back wall
+

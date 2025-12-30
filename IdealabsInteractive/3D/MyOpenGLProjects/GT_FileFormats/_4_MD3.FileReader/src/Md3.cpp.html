@@ -1,0 +1,1139 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;MD3.h&quot;
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=comment>//using namespace ConsoleLog;
+</span>
+GLuint *texture;
+
+<span class=keyword>char</span> logText[255];
+FILE *mFileConsoleLog;
+
+<span class=keyword>void</span> log(<span class=keyword>const</span> <span class=keyword>char</span> *format, ...) {
+    va_list        ap;                        <span class=comment>// Pointer To List Of Arguments
+</span>
+    va_start(ap, format);                    <span class=comment>// Parses The String For Variables
+</span>        vsprintf(logText, format, ap);    <span class=comment>// And Converts Symbols To Actual Numbers
+</span>    va_end(ap);                            <span class=comment>// Results Are Stored In Text
+</span>    
+    fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+}
+
+<span class=keyword>bool</span> bitmapLoader(LPCSTR fileName, GLuint textureID) {
+    HBITMAP hBMP;
+    BITMAP BMP;
+
+    hBMP = (HBITMAP)LoadImage(GetModuleHandle(NULL), fileName, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION | LR_LOADFROMFILE);
+
+    <span class=keyword>if</span>(!hBMP)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    GetObject(hBMP, <span class=keyword>sizeof</span>(BMP), &amp;BMP);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, BMP.bmWidth, BMP.bmHeight, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, BMP.bmBits);
+<span class=comment>/*
+char sCurText[255];
+sprintf(sCurText, &quot;%s = %d x %d&quot;, fileName, BMP.bmWidth, BMP.bmHeight);
+MessageBox(NULL, sCurText, &quot;W x H&quot;, MB_OK);
+//*/</span>
+    DeleteObject(hBMP);
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+CMD3Model::CMD3Model() {
+    <span class=comment>// Here we initialize all our mesh structures for the character
+</span>    memset(&amp;m_Head,  0, <span class=keyword>sizeof</span>(t3DModel));
+    memset(&amp;m_Upper, 0, <span class=keyword>sizeof</span>(t3DModel));
+    memset(&amp;m_Lower, 0, <span class=keyword>sizeof</span>(t3DModel));
+    memset(&amp;m_Weapon, 0, <span class=keyword>sizeof</span>(t3DModel));
+
+    mModelTextures = <span class=keyword>new</span> GLuint[MAX_TEXTURES];
+    glGenTextures(MAX_TEXTURES, &amp;mModelTextures[0]);
+}
+
+CMD3Model::~CMD3Model() {
+    <span class=comment>// Here we free all of the meshes in our model
+</span>    destroyModel(&amp;m_Head);
+    destroyModel(&amp;m_Upper);
+    destroyModel(&amp;m_Lower);
+    destroyModel(&amp;m_Weapon);
+}
+
+<span class=comment>//This loads our Quake3 model from the given path and character name
+</span><span class=keyword>bool</span> CMD3Model::loadModel(LPSTR strModelPath, LPSTR strModelName) {
+    mFileConsoleLog = fopen(&quot;console.log&quot;, &quot;wb&quot;);
+
+    log(&quot;/******************* LOADING MODEL *******************/\r\n\r\n&quot;);    
+
+    <span class=comment>// This function is where all the character loading is taken care of.  We use
+</span>    <span class=comment>// our CLoadMD3 class to load the 3 mesh and skins for the character. Since we
+</span>    <span class=comment>// just have 1 name for the model, we add that to _lower.md3, _upper.md3 and _head.md3
+</span>    <span class=comment>// to load the correct mesh files.
+</span>
+    <span class=keyword>char</span>    strLowerModelFileName[255] = {0};    <span class=comment>// This stores the file name for the lower.md3 model
+</span>    <span class=keyword>char</span>    strUpperModelFileName[255] = {0};    <span class=comment>// This stores the file name for the upper.md3 model
+</span>    <span class=keyword>char</span>    strHeadModelFileName[255] = {0};    <span class=comment>// This stores the file name for the head.md3 model
+</span>    <span class=keyword>char</span>    strLowerSkinFileName[255] = {0};    <span class=comment>// This stores the file name for the lower.md3 skin
+</span>    <span class=keyword>char</span>    strUpperSkinFileName[255] = {0};    <span class=comment>// This stores the file name for the upper.md3 skin
+</span>    <span class=keyword>char</span>    strHeadSkinFileName[255] = {0};        <span class=comment>// This stores the file name for the head.md3 skin
+</span>    CMD3Loader    md3Loader;
+
+    <span class=comment>// Make sure valid path and model names were passed in
+</span>    <span class=keyword>if</span>(!strModelPath || !strModelName)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    
+    <span class=comment>// Store the correct files names for the .md3 and .skin file for each body part.
+</span>    <span class=comment>// We concatinate this on top of the path name to be loaded from.
+</span>    sprintf(strLowerModelFileName, &quot;%s\\%s_lower.md3&quot;, strModelPath, strModelName);
+    sprintf(strUpperModelFileName, &quot;%s\\%s_upper.md3&quot;, strModelPath, strModelName);
+    sprintf(strHeadModelFileName, &quot;%s\\%s_head.md3&quot;, strModelPath, strModelName);
+
+    <span class=comment>// Get the skin file names with their path
+</span>    sprintf(strLowerSkinFileName, &quot;%s\\%s_lower.skin&quot;, strModelPath, strModelName);
+    sprintf(strUpperSkinFileName, &quot;%s\\%s_upper.skin&quot;, strModelPath, strModelName);
+    sprintf(strHeadSkinFileName, &quot;%s\\%s_head.skin&quot;, strModelPath, strModelName);
+
+    <span class=comment>// Next we want to load the character meshes.  The CModelMD3 class has member
+</span>    <span class=comment>// variables for the head, upper and lower body parts.  These are of type t3DModel.
+</span>    <span class=comment>// Depending on which model we are loading, we pass in those structures to ImportMD3.
+</span>    <span class=comment>// This returns a true of false to let us know that the file was loaded okay.  The
+</span>    <span class=comment>// appropriate file name to load is passed in for the last parameter.
+</span>    
+    <span class=comment>// Load the head mesh (*_head.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader.importMD3(&amp;m_Head, strHeadModelFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the HEAD model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the lower mesh (*_lower.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader.importMD3(&amp;m_Lower, strLowerModelFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the LOWER model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the upper mesh (*_upper.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader.importMD3(&amp;m_Upper, strUpperModelFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the UPPER model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+    
+    <span class=comment>// Load the upper skin (*_upper.skin) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader.loadSkin(&amp;m_Upper, strUpperSkinFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the UPPER skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the lower skin (*_lower.skin) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader.loadSkin(&amp;m_Lower, strLowerSkinFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the LOWER skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Load the head skin (*_Head.skin) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader.loadSkin(&amp;m_Head, strHeadSkinFileName)) {
+        <span class=comment>// Display an error message telling us the file could not be found
+</span>        MessageBox(NULL, &quot;Unable to load the HEAD skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Once the models and skins were loaded, we need to load then textures.
+</span>    <span class=comment>// We don't do error checking for this because we call CreateTexture() and 
+</span>    <span class=comment>// it already does error checking.  Most of the time there is only
+</span>    <span class=comment>// one or two textures that need to be loaded for each character.  There are
+</span>    <span class=comment>// different skins though for each character.  For instance, you could have a
+</span>    <span class=comment>// army looking Lara Croft, or the normal look.  You can have multiple types of
+</span>    <span class=comment>// looks for each model.  Usually it is just color changes though.
+</span>
+    <span class=comment>// Load the lower, upper and head textures.  
+</span>    loadModelTextures(&amp;m_Lower, strModelPath);
+    loadModelTextures(&amp;m_Upper, strModelPath);
+    loadModelTextures(&amp;m_Head,  strModelPath);
+
+    <span class=comment>// The character data should all be loaded when we get here (except the weapon).
+</span>    <span class=comment>// Now comes the linking of the body parts.  This makes it so that the legs (lower.md3)
+</span>    <span class=comment>// are the parent node, then the torso (upper.md3) is a child node of the legs.  Finally,
+</span>    <span class=comment>// the head is a child node of the upper body.  What I mean by node, is that you can
+</span>    <span class=comment>// think of the model having 3 bones and 2 joints.  When you translate the legs you want
+</span>    <span class=comment>// the whole body to follow because they are inseparable (unless a magic trick goes wrong).
+</span>    <span class=comment>// The same goes for the head, it should go wherever the body goes.  When we draw the
+</span>    <span class=comment>// lower body, we then recursively draw all of it's children, which happen to be just the
+</span>    <span class=comment>// upper body.  Then we draw the upper body's children, which is just the head.  So, to
+</span>    <span class=comment>// sum this all up, to set each body part's children, we need to link them together.
+</span>    <span class=comment>// For more information on tags, refer to the Quick Notes and the functions below.
+</span>
+    <span class=comment>// Link the lower body to the upper body when the tag &quot;tag_torso&quot; is found in our tag array
+</span>    linkModel(&amp;m_Lower, &amp;m_Upper, &quot;tag_torso&quot;);
+
+    <span class=comment>// Link the upper body to the head when the tag &quot;tag_head&quot; is found in our tag array
+</span>    linkModel(&amp;m_Upper, &amp;m_Head, &quot;tag_head&quot;);
+
+    <span class=comment>// The character was loaded correctly so return true
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This loads the textures for the current model passed in with a directory
+</span><span class=keyword>void</span> CMD3Model::loadModelTextures(t3DModel *pModel, LPSTR strTexturePath) {
+
+    <span class=comment>// This function loads the textures that are assigned to each mesh and it's
+</span>    <span class=comment>// sub-objects.  For instance, the Lara Croft character has a texture for the body
+</span>    <span class=comment>// and the face/head, and since she has the head as a sub-object in the lara_upper.md3 model, 
+</span>    <span class=comment>// the MD3 file needs to contain texture information for each separate object in the mesh.
+</span>    <span class=comment>// There is another thing to note too...  Some meshes use the same texture map as another 
+</span>    <span class=comment>// one. We don't want to load 2 of the same texture maps, so we need a way to keep track of
+</span>    <span class=comment>// which texture is already loaded so that we don't double our texture memory for no reason.
+</span>    <span class=comment>// This is controlled with a STL vector list of &quot;strings&quot;.  Every time we load a texture
+</span>    <span class=comment>// we add the name of the texture to our list of strings.  Before we load another one,
+</span>    <span class=comment>// we make sure that the texture map isn't already in our list.  If it is, we assign
+</span>    <span class=comment>// that texture index to our current models material texture ID.  If it's a new texture,
+</span>    <span class=comment>// then the new texture is loaded and added to our characters texture array: m_Textures[].
+</span>
+    <span class=comment>// Go through all the materials that are assigned to this model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfMaterials; i++) {
+        
+        <span class=comment>// Check to see if there is a file name to load in this material
+</span>        <span class=keyword>if</span>(strlen(pModel-&gt;pMaterials[i].textureFileName) &gt; 0) {
+
+            <span class=comment>// Create a boolean to tell us if we have a new texture to load
+</span>            <span class=keyword>bool</span> bNewTexture = <span class=keyword>true</span>;
+
+            <span class=comment>// Go through all the textures in our string list to see if it's already loaded
+</span>            <span class=keyword>for</span>(<span class=keyword>unsigned</span> <span class=keyword>int</span> j = 0; j &lt; vStrTextures.size(); j++) {
+                
+                <span class=comment>// If the texture name is already in our list of texture, don't load it again.
+</span>                <span class=keyword>if</span>((strcmp(pModel-&gt;pMaterials[i].textureFileName, vStrTextures[j].c_str()) == 0)) {
+
+                    <span class=comment>// We don't need to load this texture since it's already loaded
+</span>                    bNewTexture = <span class=keyword>false</span>;
+
+                    <span class=comment>// Assign the texture index to our current material textureID.
+</span>                    <span class=comment>// This ID will them be used as an index into m_Textures[].
+</span>                    pModel-&gt;pMaterials[i].textureID = j;
+                }
+            }
+
+            <span class=comment>// Make sure before going any further that this is a new texture to be loaded
+</span>            <span class=keyword>if</span>(bNewTexture == <span class=keyword>false</span>) 
+                <span class=keyword>continue</span>;
+
+            <span class=keyword>char</span> strFullPath[255] = {0};
+
+            <span class=comment>// Add the file name and path together so we can load the texture
+</span>            sprintf(strFullPath, &quot;%s\\%s&quot;, strTexturePath, pModel-&gt;pMaterials[i].textureFileName);
+
+            <span class=comment>// We pass in a reference to an index into our texture array member variable.
+</span>            <span class=comment>// The size() function returns the current loaded texture count.  Initially
+</span>            <span class=comment>// it will be 0 because we haven't added any texture names to our strTextures list.    
+</span>            bitmapLoader(strFullPath, mModelTextures[vStrTextures.size()]);
+
+            <span class=comment>// Set the texture ID for this material by getting the current loaded texture count
+</span>            pModel-&gt;pMaterials[i].textureID = vStrTextures.size();
+
+            <span class=comment>// Now we increase the loaded texture count by adding the texture name to our
+</span>            <span class=comment>// list of texture names.  Remember, this is used so we can check if a texture
+</span>            <span class=comment>// is already loaded before we load 2 of the same textures.  Make sure you
+</span>            <span class=comment>// understand what an STL vector list is.  We have a tutorial on it if you don't.
+</span>            vStrTextures.push_back(pModel-&gt;pMaterials[i].textureFileName);
+        }
+    }
+}
+
+<span class=keyword>void</span> CMD3Model::linkModel(t3DModel *pModel, t3DModel *pLinkedModel, LPSTR strTagName) {
+    
+    <span class=comment>// Make sure we have a valid model, link and tag name, otherwise quit this function
+</span>    <span class=keyword>if</span>(!pModel || !pLinkedModel || !strTagName)
+        <span class=keyword>return</span>;
+
+    <span class=comment>// This function is used to link 2 models together at a psuedo joint.  For instance,
+</span>    <span class=comment>// if we were animating an arm, we would link the top part of the arm to the shoulder,
+</span>    <span class=comment>// then the forearm to would be linked to the top part of the arm, then the hand to
+</span>    <span class=comment>// the forearm.  That is what is meant by linking.  That way, when we rotate the
+</span>    <span class=comment>// arm at the shoulder, the rest of the arm will move with it because they are attached
+</span>    <span class=comment>// to the same matrix that moves the top of the arm.  You can think of the shoulder
+</span>    <span class=comment>// as the arm's parent node, and the rest are children that are subject to move to where
+</span>    <span class=comment>// ever the top part of the arm goes.  That is how bone/skeletal animation works.
+</span>    <span class=comment>//
+</span>    <span class=comment>// So, we have an array of tags that have a position, rotation and name.  If we want
+</span>    <span class=comment>// to link the lower body to the upper body, we would pass in the lower body mesh first,
+</span>    <span class=comment>// then the upper body mesh, then the tag &quot;tag_torso&quot;.  This is a tag that quake set as
+</span>    <span class=comment>// as a standard name for the joint between the legs and the upper body.  This tag was
+</span>    <span class=comment>// saved with the lower.md3 model.  We just need to loop through the lower body's tags,
+</span>    <span class=comment>// and when we find &quot;tag_torso&quot;, we link the upper.md3 mesh too that tag index in our
+</span>    <span class=comment>// pLinks array.  This is an array of pointers to hold the address of the linked model.
+</span>    <span class=comment>// Quake3 models are set up in a weird way, but usually you would just forget about a
+</span>    <span class=comment>// separate array for links, you would just have a pointer to a t3DModel in the tag
+</span>    <span class=comment>// structure, which in retrospect, you wouldn't have a tag array, you would have
+</span>    <span class=comment>// a bone/joint array.  Stayed tuned for a bone animation tutorial from scratch.  This
+</span>    <span class=comment>// will show you exactly what I mean if you are confused.
+</span>    
+    <span class=comment>// Go through all of our tags and find which tag contains the strTagName, then link'em
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfTags; i++) {
+
+        <span class=comment>// If this current tag index has the tag name we are looking for
+</span>        <span class=keyword>if</span>(!_stricmp(pModel-&gt;pTags[i].tagName, strTagName)) {
+
+            <span class=comment>// Link the model's link index to the link (or model/mesh) and return
+</span>            pModel-&gt;pLinks[i] = pLinkedModel;
+            <span class=keyword>return</span>;
+        }
+    }
+}
+
+<span class=comment>//This loads a Quake3 weapon model from the given path and weapon name
+</span><span class=keyword>bool</span> CMD3Model::loadWeapon(LPSTR strPath, LPSTR strModel) {
+    
+    <span class=keyword>char</span> strWeaponModelFileName[255] = {0};        <span class=comment>// This stores the file name for the weapon model
+</span>    <span class=keyword>char</span> strWeaponShaderFileName[255] = {0};    <span class=comment>// This stores the file name for the weapon shader.
+</span>    CMD3Loader md3Loader;
+
+    <span class=comment>// Make sure the path and model were valid, otherwise return false
+</span>    <span class=keyword>if</span>(!strPath || !strModel)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// Concatenate the path and model name together
+</span>    sprintf(strWeaponModelFileName, &quot;%s\\%s.md3&quot;, strPath, strModel);
+
+    <span class=comment>// Next we want to load the weapon mesh.  The CModelMD3 class has member
+</span>    <span class=comment>// variables for the weapon model and all it's sub-objects.  This is of type t3DModel.
+</span>    <span class=comment>// We pass in a reference to this model in to ImportMD3 to save the data read.
+</span>    <span class=comment>// This returns a true of false to let us know that the weapon was loaded okay.  The
+</span>    <span class=comment>// appropriate file name to load is passed in for the last parameter.
+</span>
+    <span class=comment>// Load the weapon mesh (*.md3) and make sure it loaded properly
+</span>    <span class=keyword>if</span>(!md3Loader.importMD3(&amp;m_Weapon, strWeaponModelFileName)) {
+
+        <span class=comment>// Display the error message that we couldn't find the weapon MD3 file and return false
+</span>        MessageBox(NULL, &quot;Unable to load the WEAPON model!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Unlike the other .MD3 files, a weapon has a .shader file attached with it, not a
+</span>    <span class=comment>// .skin file.  The shader file has it's own scripting language to describe behaviors
+</span>    <span class=comment>// of the weapon.  All we care about for this tutorial is it's normal texture maps.
+</span>    <span class=comment>// There are other texture maps in the shader file that mention the ammo and sphere maps,
+</span>    <span class=comment>// but we don't care about them for our purposes.  I gutted the shader file to just store
+</span>    <span class=comment>// the texture maps.  The order these are in the file is very important.  The first
+</span>    <span class=comment>// texture refers to the first object in the weapon mesh, the second texture refers
+</span>    <span class=comment>// to the second object in the weapon mesh, and so on.  I didn't want to write a complex
+</span>    <span class=comment>// .shader loader because there is a TON of things to keep track of.  It's a whole
+</span>    <span class=comment>// scripting language for goodness sakes! :)  Keep this in mind when downloading new guns.
+</span>
+    <span class=comment>// Add the path, file name and .shader extension together to get the file name and path
+</span>    sprintf(strWeaponShaderFileName, &quot;%s\\%s.shader&quot;, strPath, strModel);
+
+    <span class=comment>// Load our textures associated with the gun from the weapon shader file
+</span>    <span class=keyword>if</span>(!md3Loader.loadShader(&amp;m_Weapon, strWeaponShaderFileName)) {
+
+        <span class=comment>// Display the error message that we couldn't find the shader file and return false
+</span>        MessageBox(NULL, &quot;Unable to load the SHADER file!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// We should have the textures needed for each weapon part loaded from the weapon's
+</span>    <span class=comment>// shader, so let's load them in the given path.
+</span>    loadModelTextures(&amp;m_Weapon, strPath);
+
+    <span class=comment>// Just like when we loaded the character mesh files, we need to link the weapon to
+</span>    <span class=comment>// our character.  The upper body mesh (upper.md3) holds a tag for the weapon.
+</span>    <span class=comment>// This way, where ever the weapon hand moves, the gun will move with it.
+</span>
+    <span class=comment>// Link the weapon to the model's hand that has the weapon tag
+</span>    linkModel(&amp;m_Upper, &amp;m_Weapon, &quot;tag_weapon&quot;);
+
+    <span class=comment>// The weapon loaded okay, so let's return true to reflect this
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This frees our Quake3 model and all it's associated data
+</span><span class=keyword>void</span> CMD3Model::destroyModel(t3DModel *pModel) {
+    <span class=comment>// To free a model, we need to go through every sub-object and delete
+</span>    <span class=comment>// their model data.  Since there is only one array of tags and links stored
+</span>    <span class=comment>// for the model and all of it's objects, we need to only free the model's 
+</span>    <span class=comment>// tags and links once.
+</span>
+    <span class=comment>// Go through all the objects in the model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+        <span class=comment>// Free the faces, normals, vertices, and texture coordinates.
+</span>        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pFaces)            <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pFaces;
+        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pVertices)        <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pVertices;
+        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pTexVertices)    <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pTexVertices;
+        <span class=keyword>if</span>(pModel-&gt;pObjects[i].pNormals)        <span class=keyword>delete</span> [] pModel-&gt;pObjects[i].pNormals;
+        
+        <span class=comment>// Free the tags associated with this model
+</span>        <span class=keyword>if</span>(pModel-&gt;pTags)
+            <span class=keyword>delete</span> [] pModel-&gt;pTags;
+
+        <span class=comment>// Free the links associated with this model (We use free because we used malloc())
+</span>        <span class=keyword>if</span>(pModel-&gt;pLinks)
+            free(pModel-&gt;pLinks);
+    }
+}
+
+<span class=comment>//This recursively draws all the character nodes, starting with the legs
+</span><span class=keyword>void</span> CMD3Model::drawModel() {
+    <span class=comment>// This is the function that is called by the client (you) when using the 
+</span>    <span class=comment>// CModelMD3 class object.  You will notice that we rotate the model by
+</span>    <span class=comment>// -90 degrees along the x-axis.  This is because most modelers have z up
+</span>    <span class=comment>// so we need to compensate for this.  Usually I would just switch the
+</span>    <span class=comment>// z and y values when loading in the vertices, but the rotations that
+</span>    <span class=comment>// are stored in the tags (joint info) are a matrix, which makes it hard
+</span>    <span class=comment>// to change those to reflect Y up.  I didn't want to mess with that so
+</span>    <span class=comment>// this 1 rotate will fix this problem.
+</span>
+    <span class=comment>// Rotate the model to compensate for the z up orientation that the model was saved
+</span>    glRotatef(-90, 1, 0, 0);
+    
+    <span class=comment>// You might be thinking to draw the model we would just call RenderModel()
+</span>    <span class=comment>// 4 times for each body part and the gun right?  That sounds logical, but since
+</span>    <span class=comment>// we are doing a bone/joint animation... and the models need to be linked together,
+</span>    <span class=comment>// we can't do that.  It totally would ignore the tags.  Instead, we start at the
+</span>    <span class=comment>// root model, which is the legs.  The legs drawn first, then we go through each of
+</span>    <span class=comment>// the legs linked tags (just the upper body) and then it with the tag's rotation
+</span>    <span class=comment>// and translation values.  I ignored the rotation in this tutorial since we aren't
+</span>    <span class=comment>// doing any animation.  I didn't want to overwhelm you with quaternions just yet :)
+</span>    <span class=comment>// Normally in skeletal animation, the root body part is the hip area.  Then the legs
+</span>    <span class=comment>// bones are created as children to the torso.  The upper body is also a child to
+</span>    <span class=comment>// the torso.  Since the legs are one whole mesh, this works out somewhat the same way.
+</span>    <span class=comment>// This wouldn't work if the feet and legs weren't connected in the same mesh because
+</span>    <span class=comment>// the feet rotations and positioning don't directly effect the position and rotation
+</span>    <span class=comment>// of the upper body, the hips do.  If that makes sense...  That is why the root starts
+</span>    <span class=comment>// at the hips and moves down the legs, and also branches out to the upper body and
+</span>    <span class=comment>// out to the arms.
+</span>
+    <span class=comment>// Draw the first link, which is the lower body.  This will then recursively go
+</span>    <span class=comment>// through the models attached to this model and drawn them.
+</span>    drawLink(&amp;m_Lower);
+}
+
+<span class=comment>//This draws the current mesh with an effected matrix stack from the last mesh
+</span><span class=keyword>void</span> CMD3Model::drawLink(t3DModel *pModel) {
+    <span class=comment>// This function is our recursive function that handles the bone animation
+</span>    <span class=comment>// so to speak.  We first draw the model that is passed in (first the legs),
+</span>    <span class=comment>// then go through all of it's tags and draw them.  Notice that when we
+</span>    <span class=comment>// draw the model that is linked to the current model a new matrix scope
+</span>    <span class=comment>// is created with glPushMatrix() and glPopMatrix().  This is because each tag
+</span>    <span class=comment>// has a rotation and translation operation assigned to it.  For instance, when
+</span>    <span class=comment>// Lara does her back flip death animation, the legs send a rotation and translation 
+</span>    <span class=comment>// to the rest of the body to be rotated along with the legs as they flip backwards.  
+</span>    <span class=comment>// If you didn't do this, Lara's body and head would stay in the same place as the
+</span>    <span class=comment>// legs did a back flipped and landed on the floor.  Of course, this would look really
+</span>    <span class=comment>// stupid.  A 270-degree rotation to the rest of the body is done for that animation.
+</span>    <span class=comment>// Keep in mind, the legs mesh is NEVER translated or rotated.  It only rotates and
+</span>    <span class=comment>// translates the upper parts of the body.  All the rotation and translation of the
+</span>    <span class=comment>// legs is done in the canned animation that was created in the modeling program.
+</span>    <span class=comment>// Keep in mind that I ignore the rotation value for that is given in the tag since
+</span>    <span class=comment>// it doesn't really matter for a static model.  Also, since the rotation is given
+</span>    <span class=comment>// in a 3x3 rotation matrix, it would be a bit more code that could make you frustrated.
+</span>
+    <span class=comment>// Draw the current model passed in (Initially the legs)
+</span>    renderModel(pModel);
+
+    <span class=comment>// Now we need to go through all of this models tags and draw them.
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfTags; i++) {
+        <span class=comment>// Get the current link from the models array of links (Pointers to models)
+</span>        t3DModel *pLinkedModel = pModel-&gt;pLinks[i];
+
+        <span class=comment>// If this link has a valid address, let's draw it!
+</span>        <span class=keyword>if</span>(pLinkedModel) {
+<span class=comment>//char logText[255];
+</span><span class=comment>//sprintf(logText, &quot;NUM_OF_TAGS %d&quot;, pModel-&gt;numOfTags);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;aaaaaaaa&quot;, MB_OK);
+</span>
+            <span class=comment>// Let's grab the translation for this new model that will be drawn 
+</span>            CVector3 vTranslatePosition = pModel-&gt;pTags[i].vTranslatePosition;
+
+            <span class=comment>// Start a new matrix scope
+</span>            glPushMatrix();
+                
+                <span class=comment>// Translate the new model to be drawn to it's position
+</span>                glTranslatef(vTranslatePosition.x, vTranslatePosition.y, vTranslatePosition.z);
+
+                <span class=comment>// Recursively draw the next model that is linked to the current one.
+</span>                <span class=comment>// This could either be a body part or a gun that is attached to
+</span>                <span class=comment>// the hand of the upper body model.
+</span>                drawLink(pLinkedModel);
+
+            <span class=comment>// End the current matrix scope
+</span>            glPopMatrix();
+        }
+    }
+}
+
+<span class=keyword>void</span> CMD3Model::renderModel(t3DModel *pModel) {
+    <span class=comment>// This function actually does the rendering to OpenGL.  If you have checked out
+</span>    <span class=comment>// our other file loading tutorials, it looks pretty much the same as those.  I
+</span>    <span class=comment>// left out the normals though.  You can go to any other loading and copy the code
+</span>    <span class=comment>// from those. Usually the Quake models creating the lighting effect in their textures
+</span>    <span class=comment>// anyway.  
+</span>
+    <span class=comment>// Make sure we have valid objects just in case. (size() is in the STL vector class)
+</span>    <span class=keyword>if</span>(pModel-&gt;pObjects.size() &lt;= 0)
+        <span class=keyword>return</span>;
+
+    <span class=comment>// Go through all of the objects stored in this model
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+        <span class=comment>// Get the current object that we are displaying
+</span>        t3DObject *currentObject = &amp;pModel-&gt;pObjects[i];
+
+        <span class=comment>// If the object has a texture assigned to it, let's bind it to the model.
+</span>        <span class=comment>// This isn't really necessary since all models have textures, but I left this
+</span>        <span class=comment>// in here to keep to the same standard as the rest of the model loaders.
+</span>        <span class=keyword>if</span>(currentObject-&gt;bHasTexture) {
+            
+            <span class=comment>//Turn Texture Mapping On
+</span>            glEnable(GL_TEXTURE_2D);
+
+            <span class=comment>// Grab the texture index from the materialID index into our material list
+</span>            <span class=keyword>int</span> textureID = pModel-&gt;pMaterials[currentObject-&gt;materialID].textureID;
+
+            <span class=comment>// Bind the texture index that we got from the material textureID
+</span>            glBindTexture(GL_TEXTURE_2D, mModelTextures[textureID]);
+        }
+        <span class=keyword>else</span> {
+            
+            <span class=comment>//Turn Texture Mapping Off
+</span>            glDisable(GL_TEXTURE_2D);
+        }
+
+        <span class=comment>// Start drawing our model triangles
+</span>        glBegin(GL_TRIANGLES);
+            <span class=comment>// Go through all of the faces (polygons) of the object and draw them
+</span>            <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; currentObject-&gt;numOfFaces; j++) {
+                
+                <span class=comment>// Go through each vertex of the triangle and draw it.
+</span>                <span class=keyword>for</span>(<span class=keyword>int</span> whichVertex = 0; whichVertex &lt; 3; whichVertex++) {
+
+                    <span class=comment>// Get the index for the current point in the face list
+</span>                    <span class=keyword>int</span> index = currentObject-&gt;pFaces[j].vertexIndex[whichVertex];
+
+                    <span class=comment>// Make sure there is texture coordinates for this (%99.9 likelyhood)
+</span>                    <span class=keyword>if</span>(currentObject-&gt;pTexVertices) {
+                        
+                        <span class=comment>// Assign the texture coordinate to this vertex
+</span>                        glTexCoord2f(    currentObject-&gt;pTexVertices[index].x,
+                                        currentObject-&gt;pTexVertices[index].y
+                                    );
+                    }
+
+                    <span class=comment>// Get the vertex that we are dealing with.  This code will change
+</span>                    <span class=comment>// a bunch when we doing our key frame animation in the next .MD3 tutorial.
+</span>                    CVector3 vPoint1 = currentObject-&gt;pVertices[index];
+
+                    <span class=comment>// Render the current vertex
+</span>                    glVertex3f(    vPoint1.x,
+                                vPoint1.y,
+                                vPoint1.z
+                            );
+                }
+            }
+
+        <span class=comment>// Stop drawing polygons
+</span>        glEnd();
+    }
+}
+
+<span class=comment>/////////////////////////////////////////////////////CMD3Loader///////////////////////////////////////////////////////////
+</span>CMD3Loader::CMD3Loader() {
+    <span class=comment>// Here we initialize our structures to 0
+</span>    memset(&amp;mMD3Header, 0, <span class=keyword>sizeof</span>(tMD3Header));
+
+    <span class=comment>// Set the pointers to null
+</span>    m_pSkins = NULL;
+    m_pTexCoords = NULL;
+    m_pFaces = NULL;
+    m_pBones = NULL;
+}
+
+<span class=comment>//This is called by the client to open the .Md3 file, read it, then clean up
+</span><span class=keyword>bool</span> CMD3Loader::importMD3(t3DModel *pModel, LPSTR strFileName) {
+    log(&quot;\t/******************* IMPORTING MODEL = %s\r\n\r\n&quot;, strFileName);
+
+    <span class=comment>// This function handles the entire model loading for the .md3 models.
+</span>    <span class=comment>// What happens is we load the file header, make sure it's a valid MD3 model,
+</span>    <span class=comment>// then load the rest of the data, then call our CleanUp() function.
+</span>
+    <span class=comment>// Open the MD3 file in binary
+</span>    mFilePointer = fopen(strFileName, &quot;rb&quot;);
+    
+    <span class=comment>// Make sure we have a valid file pointer (we found the file)
+</span>    <span class=keyword>if</span>(!mFilePointer) {
+        <span class=comment>// Display an error message and don't load anything if no file was found
+</span>        sprintf(logText, &quot;Unable to find the file: %s!&quot;, strFileName);
+        MessageBox(NULL, logText, &quot;Error&quot;, MB_OK);
+
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Now that we know the file was found and it's all cool, let's read in
+</span>    <span class=comment>// the header of the file.  If it has the correct 4 character ID and version number,
+</span>    <span class=comment>// we can continue to load the rest of the data, otherwise we need to print an error.
+</span>
+    <span class=comment>// Read the header data and store it in our m_Header member variable
+</span>    fread(&amp;mMD3Header, 1, <span class=keyword>sizeof</span>(tMD3Header), mFilePointer);
+    
+    log(&quot;\t\t/**************** MD3 MODEL HEADER ****************/\r\n&quot;);
+        log(&quot;\t\t\t fileID[4]\t\t\t= %s\r\n&quot;, mMD3Header.fileID);
+        log(&quot;\t\t\t version;\t\t\t= %d\r\n&quot;, mMD3Header.version);
+        log(&quot;\t\t\t fileName[68]\t\t\t= %s\r\n&quot;, mMD3Header.fileName);
+        log(&quot;\t\t\t numOfFrames\t\t\t= %d\r\n&quot;, mMD3Header.numOfFrames);
+        log(&quot;\t\t\t numOfTags\t\t\t= %d\r\n&quot;, mMD3Header.numOfTags);
+        log(&quot;\t\t\t numOfMeshes\t\t\t= %d\r\n&quot;, mMD3Header.numOfMeshes);
+        log(&quot;\t\t\t numMaxSkins\t\t\t= %d\r\n&quot;, mMD3Header.numMaxSkins);
+        log(&quot;\t\t\t headerSize\t\t\t= %d\r\n&quot;, mMD3Header.headerSize);
+        log(&quot;\t\t\t tagStart\t\t\t= %d\r\n&quot;, mMD3Header.tagStart);
+        log(&quot;\t\t\t tagEnd\t\t\t\t= %d\r\n&quot;, mMD3Header.tagEnd);
+        log(&quot;\t\t\t fileSize\t\t\t= %d\r\n&quot;, mMD3Header.fileSize);
+    log(&quot;\t\t/**************** END OF MD3 MODEL HEADER ****************/\r\n\r\n&quot;);
+    <span class=comment>// Get the 4 character ID
+</span>    <span class=keyword>char</span> *ID = mMD3Header.fileID;
+    <span class=comment>// The ID MUST equal &quot;IDP3&quot; and the version MUST be 15, or else it isn't a valid
+</span>    <span class=comment>// .MD3 file.  This is just the numbers ID Software chose.
+</span>
+    <span class=comment>// Make sure the ID == IDP3 and the version is this crazy number '15' or else it's a bad egg
+</span>    <span class=keyword>if</span>(    ID[0] != 'I' 
+        ||
+        ID[1] != 'D' 
+        ||
+        ID[2] != 'P' 
+        ||
+        ID[3] != '3' 
+        ||
+        mMD3Header.version != 15
+    ) {
+        <span class=comment>// Display an error message for bad file format, then stop loading
+</span>        sprintf(logText, &quot;Invalid file format (Version not 15): %s!&quot;, strFileName);
+        MessageBox(NULL, logText, &quot;Error&quot;, MB_OK);
+        log(&quot;Invalid file format (Version not 15): %s!&quot;, strFileName);
+        <span class=keyword>return</span> <span class=keyword>false</span>;    
+    }
+
+    <span class=comment>// Read in the model and animation data
+</span>    readMD3Data(pModel);
+    
+    <span class=comment>// Clean up after everything
+</span>    cleanUp();
+    
+    log(&quot;\t/**************** FINISHED IMPORTING ****************/ \r\n\r\n&quot;);
+    <span class=comment>// Return a success
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=keyword>bool</span> IsInString(string strString, string strSubString)
+{
+    <span class=comment>// Make sure both of these strings are valid, return false if any are empty
+</span>    <span class=keyword>if</span>(strString.length() &lt;= 0 || strSubString.length() &lt;= 0) <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// grab the starting index where the sub string is in the original string
+</span>    <span class=keyword>unsigned</span> <span class=keyword>int</span> index = strString.find(strSubString);
+
+    <span class=comment>// Make sure the index returned was valid
+</span>    <span class=keyword>if</span>(index &gt;= 0 &amp;&amp; index &lt; strString.length())
+        <span class=keyword>return</span> <span class=keyword>true</span>;
+
+    <span class=comment>// The sub string does not exist in strString.
+</span>    <span class=keyword>return</span> <span class=keyword>false</span>;
+}
+
+<span class=comment>//This loads the texture information for the model from the *.skin file
+</span><span class=keyword>bool</span> CMD3Loader::loadSkin(t3DModel *pModel, LPSTR skinFileName) {
+    <span class=comment>// Make sure valid data was passed in
+</span>    <span class=keyword>if</span>(!pModel || !skinFileName) <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// This function is used to load a .skin file for the .md3 model associated
+</span>    <span class=comment>// with it.  The .skin file stores the textures that need to go with each
+</span>    <span class=comment>// object and subject in the .md3 files.  For instance, in our Lara Croft model,
+</span>    <span class=comment>// her upper body model links to 2 texture; one for her body and the other for
+</span>    <span class=comment>// her face/head.  The .skin file for the lara_upper.md3 model has 2 textures:
+</span>    <span class=comment>//
+</span>    <span class=comment>// u_torso,models/players/laracroft/default.bmp
+</span>    <span class=comment>// u_head,models/players/laracroft/default_h.bmp
+</span>    <span class=comment>//
+</span>    <span class=comment>// Notice the first word, then a comma.  This word is the name of the object
+</span>    <span class=comment>// in the .md3 file.  Remember, each .md3 file can have many sub-objects.
+</span>    <span class=comment>// The next bit of text is the Quake3 path into the .pk3 file where the 
+</span>    <span class=comment>// texture for that model is stored  Since we don't use the Quake3 path
+</span>    <span class=comment>// because we aren't making Quake, I just grab the texture name at the
+</span>    <span class=comment>// end of the string and disregard the rest.  of course, later this is
+</span>    <span class=comment>// concatenated to the original MODEL_PATH that we passed into load our character.
+</span>    <span class=comment>// So, for the torso object it's clear that default.bmp is assigned to it, where
+</span>    <span class=comment>// as the head model with the pony tail, is assigned to default_h.bmp.  Simple enough.
+</span>    <span class=comment>// What this function does is go through all the lines of the .skin file, and then
+</span>    <span class=comment>// goes through all of the sub-objects in the .md3 file to see if their name is
+</span>    <span class=comment>// in that line as a sub string.  We use our cool IsInString() function for that.
+</span>    <span class=comment>// If it IS in that line, then we know that we need to grab it's texture file at
+</span>    <span class=comment>// the end of the line.  I just parse backwards until I find the last '/' character,
+</span>    <span class=comment>// then copy all the characters from that index + 1 on (I.E. &quot;default.bmp&quot;).
+</span>    <span class=comment>// Remember, it's important to note that I changed the texture files from .tga
+</span>    <span class=comment>// files to .bmp files because that is what all of our tutorials use.  That way
+</span>    <span class=comment>// you don't have to sift through tons of image loading code.  You can write or
+</span>    <span class=comment>// get your own if you really want to use the .tga format.
+</span>
+    <span class=comment>// Open the skin file
+</span>    ifstream fin(skinFileName);
+
+    <span class=comment>// Make sure the file was opened
+</span>    <span class=keyword>if</span>(fin.fail()) {
+        <span class=comment>// Display the error message and return false
+</span>        MessageBox(NULL, &quot;Unable to load skin!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;    
+    }
+
+    <span class=comment>// These 2 variables are for reading in each line from the file, then storing
+</span>    <span class=comment>// the index of where the bitmap name starts after the last '/' character.
+</span>    string strLine = &quot;&quot;;
+    <span class=keyword>int</span> textureNameStart = 0;
+
+    <span class=comment>// Go through every line in the .skin file
+</span>    <span class=keyword>while</span>(getline(fin, strLine)) {
+        <span class=comment>// Loop through all of our objects to test if their name is in this line
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+            <span class=comment>// Check if the name of this object appears in this line from the skin file
+</span>            <span class=comment>// Check if the name of this object appears in this line from the skin file
+</span>            <span class=keyword>if</span>( IsInString(strLine, pModel-&gt;pObjects[i].objectName) ) {
+                <span class=comment>// To abstract the texture name, we loop through the string, starting
+</span>                <span class=comment>// at the end of it until we find a '/' character, then save that index + 1.
+</span>                <span class=keyword>for</span>(<span class=keyword>int</span> j = strLine.length() - 1; j &gt; 0; j--)
+                {
+                    <span class=comment>// If this character is a '/', save the index + 1
+</span>                    <span class=keyword>if</span>(strLine[j] == '/')
+                    {
+                        <span class=comment>// Save the index + 1 (the start of the texture name) and break
+</span>                        textureNameStart = j + 1;
+                        <span class=keyword>break</span>;
+                    }
+                }
+
+                <span class=comment>// Create a local material info structure
+</span>                tMaterial material;
+
+                <span class=comment>// Copy the name of the file into our texture file name variable.
+</span>                <span class=comment>// Notice that with string we can pass in the address of an index
+</span>                <span class=comment>// and it will only pass in the characters from that point on. Cool huh?
+</span>                <span class=comment>// So now the strFile name should hold something like (&quot;bitmap_name.bmp&quot;)
+</span>                strcpy(material.textureFileName, &amp;strLine[textureNameStart]);
+                
+                <span class=comment>// The tile or scale for the UV's is 1 to 1 
+</span>                material.uTile = material.vTile = 1;
+
+                <span class=comment>// Store the material ID for this object and set the texture boolean to true
+</span>                pModel-&gt;pObjects[i].materialID = pModel-&gt;numOfMaterials;
+                pModel-&gt;pObjects[i].bHasTexture = <span class=keyword>true</span>;
+
+                <span class=comment>// Here we increase the number of materials for the model
+</span>                pModel-&gt;numOfMaterials++;
+
+                <span class=comment>// Add the local material info structure to our model's material list
+</span>                pModel-&gt;pMaterials.push_back(material);
+            }
+        }
+    }
+
+    <span class=comment>// Close the file and return a success
+</span>    fin.close();
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This loads the basic shader texture info associated with the weapon model
+</span><span class=keyword>bool</span> CMD3Loader::loadShader(t3DModel *pModel, LPSTR shaderFileName) {
+    <span class=comment>// Make sure valid data was passed in
+</span>    <span class=keyword>if</span>(!pModel || !shaderFileName)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// This function is used to load the .shader file that is associated with
+</span>    <span class=comment>// the weapon model.  Instead of having a .skin file, weapons use a .shader file
+</span>    <span class=comment>// because it has it's own scripting language to describe the behavior of the
+</span>    <span class=comment>// weapon.  There is also many other factors like environment map and sphere map
+</span>    <span class=comment>// textures, among other things.  Since I am not trying to replicate Quake, I
+</span>    <span class=comment>// just care about the weapon's texture.  I went through each of the blocks
+</span>    <span class=comment>// in the shader file and deleted everything except the texture name (of course
+</span>    <span class=comment>// I changed the .tga files to .bmp for our purposes).  All this file now includes
+</span>    <span class=comment>// is a texture name on each line.  No parsing needs to be done.  It is important
+</span>    <span class=comment>// to keep in mind that the order of which these texture are stored in the file
+</span>    <span class=comment>// is in the same order each sub-object is loaded in the .md3 file.  For instance,
+</span>    <span class=comment>// the first texture name on the first line of the shader is the texture for
+</span>    <span class=comment>// the main gun object that is loaded, the second texture is for the second sub-object
+</span>    <span class=comment>// loaded, and so on. I just want to make sure that you understand that I hacked
+</span>    <span class=comment>// up the .shader file so I didn't have to parse through a whole language.  This is
+</span>    <span class=comment>// not a normal .shader file that we are loading.  I only kept the relevant parts.
+</span>
+    <span class=comment>// Open the shader file
+</span>    ifstream fin(shaderFileName);
+
+    <span class=comment>// Make sure the file was opened
+</span>    <span class=keyword>if</span>(fin.fail()) {
+        
+        <span class=comment>// Display the error message and return false
+</span>        MessageBox(NULL, &quot;Unable to load shader!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// These variables are used to read in a line at a time from the file, and also
+</span>    <span class=comment>// to store the current line being read so that we can use that as an index for the 
+</span>    <span class=comment>// textures, in relation to the index of the sub-object loaded in from the weapon model.
+</span>    string strLine = &quot;&quot;;
+    <span class=keyword>int</span> currentIndex = 0;
+
+    <span class=comment>// Go through and read in every line of text from the file
+</span>    <span class=keyword>while</span>(getline(fin, strLine)) {
+        
+        <span class=comment>// Create a local material info structure
+</span>        tMaterial material;
+            
+        <span class=comment>// Copy the name of the file into our texture file name variable
+</span>        strcpy(material.textureFileName, strLine.c_str());
+
+        <span class=comment>// The tile or scale for the UV's is 1 to 1 
+</span>        material.uTile = material.vTile = 1;
+
+        <span class=comment>// Store the material ID for this object and set the texture boolean to true
+</span>        pModel-&gt;pObjects[currentIndex].materialID = pModel-&gt;numOfMaterials;
+        pModel-&gt;pObjects[currentIndex].bHasTexture = <span class=keyword>true</span>;
+
+        <span class=comment>// Here we increase the number of materials for the model
+</span>        pModel-&gt;numOfMaterials++;
+        
+        <span class=comment>// Save the Material in a List
+</span>        <span class=comment>// Add the local material info structure to our model's material list
+</span>        pModel-&gt;pMaterials.push_back(material);
+
+        <span class=comment>// Here we increase the material index for the next texture (if any)
+</span>        currentIndex++;
+    }
+
+    <span class=comment>// Close the file and return a success
+</span>    fin.close();
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This function reads in all of the model's data, except the animation frames
+</span><span class=keyword>void</span> CMD3Loader::readMD3Data(t3DModel *pModel) {
+    <span class=keyword>int</span> i = 0;
+
+    <span class=comment>// This member function is the BEEF of our whole file.  This is where the
+</span>    <span class=comment>// main data is loaded.  The frustrating part is that once the data is loaded,
+</span>    <span class=comment>// you need to do a billion little things just to get the model loaded to the screen
+</span>    <span class=comment>// in a correct manner.
+</span>    
+    <span class=comment>// Here we allocate memory for the bone information and read the bones in.
+</span>    m_pBones = <span class=keyword>new</span> tMD3Bone[mMD3Header.numOfFrames];
+    fread(m_pBones, <span class=keyword>sizeof</span>(tMD3Bone), mMD3Header.numOfFrames, mFilePointer);
+    logBonesInfo(m_pBones, mMD3Header.numOfFrames);
+
+    <span class=comment>// Since we don't care about the bone positions, we just free it immediately.
+</span>    <span class=comment>// It might be cool to display them so you could get a visual of them with the model.
+</span>
+    <span class=comment>// Free the unused bones
+</span>    <span class=keyword>delete</span> [] m_pBones;
+    
+    
+    <span class=comment>// Next, after the bones are read in, we need to read in the tags.  Below we allocate
+</span>    <span class=comment>// memory for the tags and then read them in.  For every frame of animation there is
+</span>    <span class=comment>// an array of tags.
+</span>    pModel-&gt;pTags = <span class=keyword>new</span> tMD3Tag[mMD3Header.numOfFrames * mMD3Header.numOfTags];
+    fread(pModel-&gt;pTags, <span class=keyword>sizeof</span>(tMD3Tag), mMD3Header.numOfFrames * mMD3Header.numOfTags, mFilePointer);
+    logTagsInfo(pModel-&gt;pTags, mMD3Header.numOfTags, mMD3Header.numOfFrames);
+
+    <span class=comment>// Assign the number of tags to our model
+</span>    pModel-&gt;numOfTags = mMD3Header.numOfTags;
+
+    <span class=comment>// Now we want to initialize our links.  Links are not read in from the .MD3 file, so
+</span>    <span class=comment>// we need to create them all ourselves.  We use a double array so that we can have an
+</span>    <span class=comment>// array of pointers.  We don't want to store any information, just pointers to t3DModels.
+</span>    <span class=comment>// Aa - Links is an pointer to a MODEL
+</span>    pModel-&gt;pLinks = (t3DModel**) malloc( <span class=keyword>sizeof</span>(t3DModel) * mMD3Header.numOfTags);
+    
+    <span class=comment>// Initilialize our link pointers to NULL
+</span>    <span class=keyword>for</span>(i = 0; i &lt; mMD3Header.numOfTags; i++)
+        pModel-&gt;pLinks[i] = NULL;
+
+    <span class=comment>// Now comes the loading of the mesh data.  We want to use ftell() to get the current
+</span>    <span class=comment>// position in the file.  This is then used to seek to the starting position of each of
+</span>    <span class=comment>// the mesh data arrays.
+</span>
+    <span class=comment>// Get the current offset into the file
+</span>    <span class=keyword>long</span> meshOffset = ftell(mFilePointer);
+
+    <span class=comment>// Create a local meshHeader that stores the info about the mesh
+</span>    tMD3MeshInfo meshHeader;
+    
+    log(&quot;\t\t/**************** MESHES ****************/ \r\n&quot;);
+    log(&quot;\t\tMAX_MESHES = %d\r\n&quot;, mMD3Header.numOfMeshes);
+
+    <span class=comment>// Go through all of the sub-objects in this mesh
+</span>    <span class=keyword>for</span>(i = 0; i &lt; mMD3Header.numOfMeshes; i++) {
+        log(&quot;\t\t\tMESHES_NO = %d\r\n&quot;, i);
+        
+        <span class=comment>// Seek to the start of this mesh and read in it's header
+</span>        fseek(mFilePointer, meshOffset, SEEK_SET);
+        fread(&amp;meshHeader, <span class=keyword>sizeof</span>(tMD3MeshInfo), 1, mFilePointer);
+        logMeshesInfo(&amp;meshHeader);
+
+        <span class=comment>// Here we allocate all of our memory from the header's information
+</span>        m_pSkins        = <span class=keyword>new</span> tMD3Skin[meshHeader.numOfSkins];
+        m_pTexCoords    = <span class=keyword>new</span> tMD3TexCoord[meshHeader.numOfVertices];
+        m_pVertices        = <span class=keyword>new</span> tMD3Triangle[meshHeader.numOfVertices * meshHeader.numOfMeshFrames];
+        m_pFaces        = <span class=keyword>new</span> tMD3Face[meshHeader.numOfTriangles];
+
+        <span class=comment>// Read in the skin information
+</span>        fread(m_pSkins, <span class=keyword>sizeof</span>(tMD3Skin), meshHeader.numOfSkins, mFilePointer);
+        logSkinsInfo(m_pSkins, meshHeader.numOfSkins);
+
+        <span class=comment>// Seek to the start of the triangle/face data, then read it in
+</span>        fseek(mFilePointer, meshOffset + meshHeader.offsetTriangleStart, SEEK_SET);
+        fread(m_pFaces, <span class=keyword>sizeof</span>(tMD3Face), meshHeader.numOfTriangles, mFilePointer);
+        logFacesInfo(m_pFaces, meshHeader.numOfTriangles);
+
+        <span class=comment>// Seek to the start of the UV coordinate data, then read it in
+</span>        fseek(mFilePointer, meshOffset + meshHeader.offsetUVStart, SEEK_SET);
+        fread(m_pTexCoords, <span class=keyword>sizeof</span>(tMD3TexCoord), meshHeader.numOfVertices, mFilePointer);
+        logTextureCoordsInfo(m_pTexCoords, meshHeader.numOfVertices);
+
+        <span class=comment>// Seek to the start of the vertex/face index information, then read it in.
+</span>        fseek(mFilePointer, meshOffset + meshHeader.offsetVertexStart, SEEK_SET);
+        fread(m_pVertices, <span class=keyword>sizeof</span>(tMD3Triangle), meshHeader.numOfVertices * meshHeader.numOfMeshFrames, mFilePointer);
+        logVerticesInfo(m_pVertices, meshHeader.numOfMeshFrames, meshHeader.numOfVertices);
+
+        <span class=comment>// Now that we have the data loaded into the Quake3 structures, let's convert them to
+</span>        <span class=comment>// our data types like t3DModel and t3DObject.  That way the rest of our model loading
+</span>        <span class=comment>// code will be mostly the same as the other model loading tutorials.
+</span>        convertToDataStructures(pModel, meshHeader);
+
+        <span class=comment>// Free all the memory for this mesh since we just converted it to our structures
+</span>        <span class=keyword>delete</span> [] m_pSkins;
+        <span class=keyword>delete</span> [] m_pFaces;
+        <span class=keyword>delete</span> [] m_pTexCoords;
+        <span class=keyword>delete</span> [] m_pVertices;
+
+        <span class=comment>// Increase the offset into the file
+</span>        meshOffset += meshHeader.meshSize;
+    }
+
+    log(&quot;\t\t/**************** END OF MESHES ****************/ \r\n\r\n&quot;);
+}
+
+<span class=keyword>void</span> CMD3Loader::convertToDataStructures(t3DModel *pModel, tMD3MeshInfo meshHeader) {
+    <span class=keyword>int</span> i = 0;
+
+    <span class=comment>// This is function takes care of converting all of the Quake3 structures to our
+</span>    <span class=comment>// structures that we have been using in all of our mode loading tutorials.  You
+</span>    <span class=comment>// do not need this function if you are going to be using the Quake3 structures.
+</span>    <span class=comment>// I just wanted to make it modular with the rest of the tutorials so you (me really) 
+</span>    <span class=comment>// can make a engine out of them with an abstract base class.  Of course, each model
+</span>    <span class=comment>// has some different data variables inside of the, depending on each format, but that
+</span>    <span class=comment>// is perfect for some cool inheritance.  Just like in the .MD2 tutorials, we only
+</span>    <span class=comment>// need to load in the texture coordinates and face information for one frame
+</span>    <span class=comment>// of the animation (eventually in the next tutorial).  Where, the vertex information
+</span>    <span class=comment>// needs to be loaded for every new frame, since it's vertex key frame animation 
+</span>    <span class=comment>// used in .MD3 models.  Half-life models do NOT do this I believe.  It's just
+</span>    <span class=comment>// pure bone/skeletal animation.  That will be a cool tutorial if the time ever comes.
+</span>
+    <span class=comment>// Increase the number of objects (sub-objects) in our model since we are loading a new one
+</span>    pModel-&gt;numOfObjects++;
+
+    <span class=comment>// Create a empty object structure to store the object's info before we add it to our list
+</span>    t3DObject currentObject = {0};
+
+    <span class=comment>// Copy the name of the object to our object structure
+</span>    strcpy(currentObject.objectName, meshHeader.meshName);
+
+    <span class=comment>// Assign the vertex, texture coord and face count to our new structure
+</span>    currentObject.numOfVertices            = meshHeader.numOfVertices;
+    currentObject.numOfTextureVertex    = meshHeader.numOfVertices;
+    currentObject.numOfFaces            = meshHeader.numOfTriangles;
+
+    <span class=comment>// Allocate memory for the vertices, texture coordinates and face data.
+</span>    <span class=comment>// Notice that we multiply the number of vertices to be allocated by the
+</span>    <span class=comment>// number of frames in the mesh.  This is because each frame of animation has a 
+</span>    <span class=comment>// totally new set of vertices.  This will be used in the next animation tutorial.
+</span>    currentObject.pVertices                = <span class=keyword>new</span> CVector3[currentObject.numOfVertices * meshHeader.numOfMeshFrames];
+    currentObject.pTexVertices            = <span class=keyword>new</span> CVector2[currentObject.numOfVertices];
+    currentObject.pFaces                = <span class=keyword>new</span> tFace[currentObject.numOfFaces];
+
+    <span class=comment>// Go through all of the vertices and assign them over to our structure
+</span>    <span class=keyword>for</span>(i = 0; i &lt; currentObject.numOfVertices * meshHeader.numOfMeshFrames; i++) {
+        <span class=comment>// For some reason, the ratio 64 is what we need to divide the vertices by,
+</span>        <span class=comment>// otherwise the model is gargantuanly huge!  If you use another ratio, it
+</span>        <span class=comment>// screws up the model's body part position.  I found this out by just
+</span>        <span class=comment>// testing different numbers, and I came up with 65.  I looked at someone
+</span>        <span class=comment>// else's code and noticed they had 64, so I changed it to that.  I have never
+</span>        <span class=comment>// read any documentation on the model format that justifies this number, but
+</span>        <span class=comment>// I can't get it to work without it.  Who knows....  Maybe it's different for
+</span>        <span class=comment>// 3D Studio Max files verses other software?  You be the judge.  I just work here.. :)
+</span>        currentObject.pVertices[i].x = m_pVertices[i].vertex[0] / 64.0f;
+        currentObject.pVertices[i].y = m_pVertices[i].vertex[1] / 64.0f;
+        currentObject.pVertices[i].z = m_pVertices[i].vertex[2] / 64.0f;
+    }
+
+    <span class=comment>// Go through all of the uv coords and assign them over to our structure
+</span>    <span class=keyword>for</span>(i = 0; i &lt; currentObject.numOfVertices; i++) {
+        <span class=comment>// Since I changed the images to bitmaps, we need to negate the V ( or y) value.
+</span>        <span class=comment>// This is because I believe that TARGA (.tga) files, which were originally used
+</span>        <span class=comment>// with this model, have the pixels flipped horizontally.  If you use other image
+</span>        <span class=comment>// files and your texture mapping is crazy looking, try deleting this negative.
+</span>        currentObject.pTexVertices[i].x = m_pTexCoords[i].texCoords[0];
+        currentObject.pTexVertices[i].y = -m_pTexCoords[i].texCoords[1];
+    }
+
+    <span class=comment>// Go through all of the face data and assign it over to OUR structure
+</span>    <span class=keyword>for</span>(i = 0; i &lt; currentObject.numOfFaces; i++) {
+
+        <span class=comment>// Assign the vertex indices to our face data
+</span>        currentObject.pFaces[i].vertexIndex[0] = m_pFaces[i].vertexIndexes[0];
+        currentObject.pFaces[i].vertexIndex[1] = m_pFaces[i].vertexIndexes[1];
+        currentObject.pFaces[i].vertexIndex[2] = m_pFaces[i].vertexIndexes[2];
+
+        <span class=comment>// Assign the texture coord indices to our face data (same as the vertex indices)
+</span>        currentObject.pFaces[i].texCoordIndex[0] = m_pFaces[i].vertexIndexes[0];
+        currentObject.pFaces[i].texCoordIndex[1] = m_pFaces[i].vertexIndexes[1];
+        currentObject.pFaces[i].texCoordIndex[2] = m_pFaces[i].vertexIndexes[2];
+    }
+
+    <span class=comment>// Here we add the current object to our list object list
+</span>    pModel-&gt;pObjects.push_back(currentObject);
+}
+
+<span class=keyword>void</span> CMD3Loader::cleanUp() {
+
+    <span class=comment>// Since we free all of the member variable arrays in the same function as
+</span>    <span class=comment>// we allocate them, we don't need to do any other clean up other than
+</span>    <span class=comment>// closing the file pointer, which could probably also be done in the same
+</span>    <span class=comment>// function.  I left it here so you can add more of your cleanup if you add
+</span>    <span class=comment>// to this class. 
+</span>
+    <span class=comment>// Close the current file pointer
+</span>    fclose(mFilePointer);
+    mFilePointer = NULL;
+
+    <span class=comment>//fclose(mFileConsoleLog);
+</span>    <span class=comment>//mFileConsoleLog = NULL;
+</span>}
+
+<span class=keyword>void</span> CMD3Loader::logBonesInfo(tMD3Bone *pBones, <span class=keyword>int</span> MAX_FRAMES) {
+    log(&quot;\t\t/**************** BONE STRUCTURE ****************/ \r\n&quot;);
+
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; MAX_FRAMES; i++) {
+        log(&quot;\t\t\tBONE NO - %d of %d\r\n&quot;, i, MAX_FRAMES);
+
+        log(&quot;\t\t\t\tBounding Box Min.\t\t====&gt; mins[3]\t\t\t= %0.2f\t%0.2f\t%0.2f\r\n&quot;, pBones[i].mins[0], m_pBones[i].mins[1], m_pBones[i].mins[2]);
+        log(&quot;\t\t\t\tBounding Box Max.\t\t====&gt; maxs[3]\t\t\t= %0.2f\t%0.2f\t%0.2f\r\n&quot;, m_pBones[i].maxs[0], m_pBones[i].maxs[1], m_pBones[i].maxs[2]);
+        log(&quot;\t\t\t\tLocal Origin\t\t\t====&gt; position[3]\t\t= %0.2f\t%0.2f\t%0.2f\r\n&quot;, m_pBones[i].position[0], m_pBones[i].position[1], m_pBones[i].position[2]);
+        log(&quot;\t\t\t\tBounding Sphere Radius\t\t====&gt; scale\t\t\t= %0.2f\r\n&quot;, m_pBones[i].scale);
+        log(&quot;\t\t\t\tCreator\t\t\t\t====&gt; creator[16]\t\t= %s\r\n&quot;, m_pBones[i].creator);
+    }
+
+    log(&quot;\t\t/**************** END BONE STRUCTURE ****************/ \r\n\r\n&quot;);
+
+
+}
+
+<span class=keyword>void</span> CMD3Loader::logTagsInfo(tMD3Tag *pTags, <span class=keyword>int</span> NO_OF_TAGS, <span class=keyword>int</span> MAX_FRAMES) {
+    log(&quot;\t\t/**************** TAGS STRUCTURE ****************/ \r\n&quot;);
+
+    <span class=keyword>for</span>(<span class=keyword>int</span> x = 0; x &lt; NO_OF_TAGS; x++) {
+        <span class=comment>//log(&quot;\t\t\t\t FRAME NO - %d\r\n&quot;, i);
+</span>        log(&quot;\t\t\tTAG_NO = %d of %d\r\n&quot;, x, NO_OF_TAGS);
+
+        <span class=keyword>for</span>(<span class=keyword>int</span> y = 0; y &lt; MAX_FRAMES; y++) {
+            log(&quot;\t\t\t\tFRAME_NO = %d of %d\r\n&quot;, y, MAX_FRAMES);
+
+            log(&quot;\t\t\t\t\tpTags-&gt;tagName\t\t\t= %s\r\n&quot;, pTags[x*y].tagName);
+            log(&quot;\t\t\t\t\tpTags-&gt;vTranslatePosition\t= %0.2f\t%0.2f\t%0.2f\r\n&quot;, pTags[x*y].vTranslatePosition.x, pTags[x*y].vTranslatePosition.y, pTags[x*y].vTranslatePosition.z);
+
+            <span class=comment>//log(&quot;\t\t\t\t\tpTags-&gt;rotationMatrix[3][3]\t= ???\r\n&quot;);
+</span>            <span class=keyword>for</span>(<span class=keyword>int</span> m = 0; m &lt; 3; m++) {
+                log(&quot;\t\t\t\t\tpTags-&gt;rotationMatrix[%d][3]\t= %0.2f \t%0.2f \t%0.2f\r\n&quot;, m, pTags[x*y].rotationMatrix[m][0], pTags[x*y].rotationMatrix[m][1], pTags[x*y].rotationMatrix[m][2]);
+            }
+        }
+    }
+    log(&quot;\t\t/**************** END OF TAGS STRUCTURE ****************/ \r\n\r\n&quot;);
+
+
+}
+
+<span class=keyword>void</span> CMD3Loader::logMeshesInfo(tMD3MeshInfo *meshHeader) {
+    log(&quot;\t\t\t/**************** MESHES INFO ****************/ \r\n&quot;);
+
+    log(&quot;\t\t\t\t meshID[4]\t\t\t= %s\r\n&quot;,                meshHeader-&gt;meshID);
+    log(&quot;\t\t\t\t meshName[68]\t\t\t= %s\r\n&quot;,            meshHeader-&gt;meshName);
+    log(&quot;\t\t\t\t numOfMeshFrames\t\t= %d\r\n&quot;,            meshHeader-&gt;numOfMeshFrames);
+    log(&quot;\t\t\t\t numOfSkins\t\t\t= %d\r\n&quot;,            meshHeader-&gt;numOfSkins);
+    log(&quot;\t\t\t\t numOfVertices\t\t\t= %d\r\n&quot;,            meshHeader-&gt;numOfVertices);
+    log(&quot;\t\t\t\t numOfTriangles\t\t\t= %d\r\n&quot;,        meshHeader-&gt;numOfTriangles);
+    log(&quot;\t\t\t\t offsetTriangleStart\t\t= %d\r\n&quot;,        meshHeader-&gt;offsetTriangleStart);
+    log(&quot;\t\t\t\t headerSize\t\t\t= %d\r\n&quot;,            meshHeader-&gt;headerSize);
+    log(&quot;\t\t\t\t offsetUVStart\t\t\t= %d\r\n&quot;,            meshHeader-&gt;offsetUVStart);
+    log(&quot;\t\t\t\t offsetVertexStart\t\t= %d\r\n&quot;,        meshHeader-&gt;offsetVertexStart);
+    log(&quot;\t\t\t\t meshSize\t\t\t= %d\r\n&quot;,                meshHeader-&gt;meshSize);
+
+    log(&quot;\t\t\t/**************** END OF MESHES INFO ****************/ \r\n\r\n&quot;);
+}
+<span class=keyword>void</span> CMD3Loader::logSkinsInfo(tMD3Skin *pSkins, <span class=keyword>int</span> MAX_SKINS) {
+    log(&quot;\t\t\t/**************** SKINS INFO ****************/ \r\n&quot;);
+    
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; MAX_SKINS; i++) {
+        log(&quot;\t\t\t\t SKIN - %d of %d\r\n&quot;, i, MAX_SKINS);
+        log(&quot;\t\t\t\t\t skinName[68] = %s\r\n&quot;, pSkins[i].skinName);
+    }
+
+    log(&quot;\t\t\t/**************** END OF SKINS INFO ****************/ \r\n\r\n&quot;);
+}
+
+<span class=keyword>void</span> CMD3Loader::logFacesInfo(tMD3Face *pFaces, <span class=keyword>int</span> MAX_FACES) {
+    log(&quot;\t\t\t/**************** FACE INFO ****************/ \r\n&quot;);
+    
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; MAX_FACES; i++) {
+        log(&quot;\t\t\t\t FACE - %d of %d ====&gt; vertexIndexes[3] 0 1 2 =\t%d\t%d\t%d\r\n&quot;, i, MAX_FACES, pFaces[i].vertexIndexes[0], pFaces[i].vertexIndexes[1], pFaces[i].vertexIndexes[2]);
+    }
+
+    log(&quot;\t\t\t/**************** END OF FACE INFO ****************/ \r\n\r\n&quot;);
+}
+
+<span class=keyword>void</span> CMD3Loader::logTextureCoordsInfo(tMD3TexCoord *pTexCoords, <span class=keyword>int</span> MAX_VERTICES) {
+    log(&quot;\t\t\t/**************** TEXTURE COORDINATE INDEX INFO ****************/ \r\n&quot;);
+    
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; MAX_VERTICES; i++) {
+        log(&quot;\t\t\t\t TEXTURE INDEX - %d of %d ====&gt; texCoords[2] u v =\t%0.2f\t%0.2f\r\n&quot;, i, MAX_VERTICES, pTexCoords[i].texCoords[0], -pTexCoords[i].texCoords[1]);
+    }
+
+    log(&quot;\t\t\t/**************** END OF TEXTURE COORDINATE INDEX INFO ****************/ \r\n\r\n&quot;);
+}
+
+<span class=keyword>void</span> CMD3Loader::logVerticesInfo(tMD3Triangle *pTriangles, <span class=keyword>int</span> MAX_FRAMES, <span class=keyword>int</span> MAX_VERTICES) {
+    log(&quot;\t\t\t/**************** VERTICES LIST ****************/ \r\n&quot;);
+    
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; MAX_FRAMES; i++) {
+        log(&quot;\t\t\t\t FRAME NO - %d\r\n&quot;, i);
+
+        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; MAX_VERTICES; j++) {
+            log(&quot;\t\t\t\t\t VERTEX NO - %d of %d \r\n&quot;, j, MAX_VERTICES);
+            log(&quot;\t\t\t\t\t\t Vertex - x y z\t=\t%0.2f\t%0.2f\t%0.2f\r\n&quot;,    pTriangles[j].vertex[0]/64.0f, 
+                                                                        pTriangles[j].vertex[1]/64.0f, 
+                                                                        pTriangles[j].vertex[2]/64.0f
+                                                                    );
+            log(&quot;\t\t\t\t\t\t Normal - x y\t=\t%d\t%d\r\n&quot;, pTriangles[j].normal[0], pTriangles[j].normal[1]);
+        }
+    }
+
+    log(&quot;\t\t\t/**************** END OF VERTICES LIST ****************/ \r\n\r\n&quot;);
+}
+
+
+</pre></body>
+</html>

@@ -1,0 +1,54 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=pp>#include</span> &lt;gl\glut.h&gt;        <span class=comment>// Need to include it here because the GL* types are required
+</span><span class=pp>#define</span> PI 3.1415265359
+<span class=pp>#define</span> PIdiv180 3.1415265359/180.0
+
+<span class=comment>/////////////////////////////////
+</span><span class=comment>//Note: All angles in degrees  //
+</span><span class=comment>/////////////////////////////////
+</span>
+<span class=keyword>struct</span> SF3dVector  <span class=comment>//Float 3d-vect, normally used
+</span>{
+    GL<span class=keyword>float</span> x,y,z;
+};
+<span class=keyword>struct</span> SF2dVector
+{
+    GL<span class=keyword>float</span> x,y;
+};
+
+<span class=keyword>class</span> CCamera
+{
+<span class=keyword>private</span>:
+    SF3dVector Position;
+    SF3dVector ViewDir;        <span class=comment>/*Not used for rendering the camera, but for &quot;moveforwards&quot;
+                            So it is not necessary to &quot;actualize&quot; it always. It is only
+                            actualized when ViewDirChanged is true and moveforwards is called*/</span>
+    <span class=keyword>bool</span> ViewDirChanged;
+    GL<span class=keyword>float</span> RotatedX, RotatedY, RotatedZ;    
+    <span class=keyword>void</span> GetViewDir ( <span class=keyword>void</span> );
+<span class=keyword>public</span>:
+    CCamera();                <span class=comment>//inits the values (Position: (0|0|0) Target: (0|0|-1) )
+</span>    <span class=keyword>void</span> Render ( <span class=keyword>void</span> );    <span class=comment>//executes some glRotates and a glTranslate command
+</span>                            <span class=comment>//Note: You should call glLoadIdentity before using Render
+</span>    <span class=keyword>void</span> Move ( SF3dVector Direction );
+    <span class=keyword>void</span> RotateX ( GL<span class=keyword>float</span> Angle );
+    <span class=keyword>void</span> RotateY ( GL<span class=keyword>float</span> Angle );
+    <span class=keyword>void</span> RotateZ ( GL<span class=keyword>float</span> Angle );
+    <span class=keyword>void</span> RotateXYZ ( SF3dVector Angles );
+    <span class=keyword>void</span> MoveForwards ( GL<span class=keyword>float</span> Distance );
+    <span class=keyword>void</span> StrafeRight ( GL<span class=keyword>float</span> Distance );
+};
+
+
+SF3dVector F3dVector ( GL<span class=keyword>float</span> x, GL<span class=keyword>float</span> y, GL<span class=keyword>float</span> z );
+SF3dVector AddF3dVectors ( SF3dVector * u, SF3dVector * v);
+<span class=keyword>void</span> AddF3dVectorToVector ( SF3dVector * Dst, SF3dVector * V2);
+</pre></body>
+</html>

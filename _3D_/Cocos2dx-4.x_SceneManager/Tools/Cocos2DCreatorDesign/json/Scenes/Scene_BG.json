@@ -1,0 +1,758 @@
+{
+	"version": "0.4.0",
+	"root": {
+		"object": {
+			"node": {
+				"contentSize": {
+					"w": 0,
+					"h": 0
+				},
+				"enabled": true,
+				"anchorPoint": {
+					"x": 0,
+					"y": 0
+				},
+				"cascadeOpacityEnabled": true,
+				"color": {
+					"r": 255,
+					"g": 255,
+					"b": 255
+				},
+				"globalZOrder": 0,
+				"localZOrder": 0,
+				"opacity": 255,
+				"opacityModifyRGB": false,
+				"tag": -1,
+				"groupIndex": 0,
+				"colliders": []
+			}
+		},
+		"object_type": "Scene",
+		"children": [
+			{
+				"object": {
+					"contentSize": {
+						"w": 640,
+						"h": 960
+					},
+					"enabled": true,
+					"name": "SceneBG",
+					"anchorPoint": {
+						"x": 0.5,
+						"y": 0.5
+					},
+					"cascadeOpacityEnabled": true,
+					"color": {
+						"r": 255,
+						"g": 255,
+						"b": 255
+					},
+					"globalZOrder": 0,
+					"localZOrder": 0,
+					"opacity": 255,
+					"opacityModifyRGB": false,
+					"position": {
+						"x": 320,
+						"y": 480
+					},
+					"rotationSkewX": 0,
+					"rotationSkewY": 0,
+					"scaleX": 1,
+					"scaleY": 1,
+					"skewX": 0,
+					"skewY": 0,
+					"tag": -1,
+					"groupIndex": 0,
+					"anim": {
+						"playOnLoad": false,
+						"clips": [
+							{
+								"name": "animation_Battles_In",
+								"duration": 1,
+								"sample": 60,
+								"speed": 1,
+								"wrapMode": 1,
+								"curveData": [
+									{
+										"path": "RootNode/Image_Battles_BG",
+										"props": {
+											"opacity": [
+												{
+													"frame": 0,
+													"value": 0
+												},
+												{
+													"frame": 1,
+													"value": 255
+												}
+											]
+										}
+									}
+								]
+							},
+							{
+								"name": "animation_Battles_Out",
+								"duration": 0.3333333333333333,
+								"sample": 60,
+								"speed": 1,
+								"wrapMode": 1,
+								"curveData": [
+									{
+										"path": "RootNode/Image_Battles_BG",
+										"props": {
+											"opacity": [
+												{
+													"frame": 0,
+													"value": 255
+												},
+												{
+													"frame": 0.3333333333333333,
+													"value": 0
+												}
+											]
+										}
+									}
+								]
+							}
+						]
+					},
+					"colliders": []
+				},
+				"object_type": "Node",
+				"children": [
+					{
+						"object": {
+							"contentSize": {
+								"w": 0,
+								"h": 0
+							},
+							"enabled": true,
+							"name": "RootNode",
+							"anchorPoint": {
+								"x": 0.5,
+								"y": 0.5
+							},
+							"cascadeOpacityEnabled": true,
+							"color": {
+								"r": 255,
+								"g": 255,
+								"b": 255
+							},
+							"globalZOrder": 0,
+							"localZOrder": 0,
+							"opacity": 255,
+							"opacityModifyRGB": false,
+							"position": {
+								"x": 0,
+								"y": 0
+							},
+							"rotationSkewX": 0,
+							"rotationSkewY": 0,
+							"scaleX": 1,
+							"scaleY": 1,
+							"skewX": 0,
+							"skewY": 0,
+							"tag": -1,
+							"groupIndex": 0,
+							"colliders": []
+						},
+						"object_type": "Node",
+						"children": [
+							{
+								"object": {
+									"node": {
+										"contentSize": {
+											"w": 640,
+											"h": 960
+										},
+										"enabled": true,
+										"name": "Image_BG",
+										"anchorPoint": {
+											"x": 0.5,
+											"y": 0.5
+										},
+										"cascadeOpacityEnabled": true,
+										"color": {
+											"r": 255,
+											"g": 255,
+											"b": 255
+										},
+										"globalZOrder": 0,
+										"localZOrder": 0,
+										"opacity": 255,
+										"opacityModifyRGB": false,
+										"position": {
+											"x": 0,
+											"y": 0
+										},
+										"rotationSkewX": 0,
+										"rotationSkewY": 0,
+										"scaleX": 1,
+										"scaleY": 1,
+										"skewX": 0,
+										"skewY": 0,
+										"tag": -1,
+										"groupIndex": 0,
+										"colliders": []
+									},
+									"spriteFrameName": "Common/BG_SinglePlayer.png",
+									"spriteType": "Sliced",
+									"srcBlend": 770,
+									"dstBlend": 771,
+									"trimEnabled": true,
+									"sizeMode": "Custom"
+								},
+								"object_type": "Sprite",
+								"children": [
+									{
+										"object": {
+											"node": {
+												"contentSize": {
+													"w": 320,
+													"h": 960
+												},
+												"enabled": true,
+												"name": "Image_Left",
+												"anchorPoint": {
+													"x": 0.5,
+													"y": 0.5
+												},
+												"cascadeOpacityEnabled": true,
+												"color": {
+													"r": 255,
+													"g": 255,
+													"b": 255
+												},
+												"globalZOrder": 0,
+												"localZOrder": 0,
+												"opacity": 255,
+												"opacityModifyRGB": false,
+												"position": {
+													"x": -160,
+													"y": 0
+												},
+												"rotationSkewX": 0,
+												"rotationSkewY": 0,
+												"scaleX": 1,
+												"scaleY": 1,
+												"skewX": 0,
+												"skewY": 0,
+												"tag": -1,
+												"groupIndex": 0,
+												"colliders": []
+											},
+											"spriteFrameName": "Common/BG_SinglePlayer_2.png",
+											"spriteType": "Simple",
+											"srcBlend": 770,
+											"dstBlend": 771,
+											"trimEnabled": true,
+											"sizeMode": "Custom"
+										},
+										"object_type": "Sprite",
+										"children": []
+									},
+									{
+										"object": {
+											"node": {
+												"contentSize": {
+													"w": 320,
+													"h": 960
+												},
+												"enabled": true,
+												"name": "Image_Right",
+												"anchorPoint": {
+													"x": 0.5,
+													"y": 0.5
+												},
+												"cascadeOpacityEnabled": true,
+												"color": {
+													"r": 255,
+													"g": 255,
+													"b": 255
+												},
+												"globalZOrder": 0,
+												"localZOrder": 0,
+												"opacity": 255,
+												"opacityModifyRGB": false,
+												"position": {
+													"x": 160,
+													"y": 0
+												},
+												"rotationSkewX": 0,
+												"rotationSkewY": 0,
+												"scaleX": 1,
+												"scaleY": 1,
+												"skewX": 0,
+												"skewY": 0,
+												"tag": -1,
+												"groupIndex": 0,
+												"colliders": []
+											},
+											"spriteFrameName": "Common/BG_SinglePlayer_2.png",
+											"spriteType": "Simple",
+											"srcBlend": 770,
+											"dstBlend": 771,
+											"trimEnabled": true,
+											"sizeMode": "Custom"
+										},
+										"object_type": "Sprite",
+										"children": []
+									}
+								]
+							},
+							{
+								"object": {
+									"node": {
+										"contentSize": {
+											"w": 640,
+											"h": 960
+										},
+										"enabled": true,
+										"name": "Image_Tournament_BG",
+										"anchorPoint": {
+											"x": 0.5,
+											"y": 0.5
+										},
+										"cascadeOpacityEnabled": true,
+										"color": {
+											"r": 255,
+											"g": 255,
+											"b": 255
+										},
+										"globalZOrder": 0,
+										"localZOrder": 0,
+										"opacity": 255,
+										"opacityModifyRGB": false,
+										"position": {
+											"x": 0,
+											"y": 0
+										},
+										"rotationSkewX": 0,
+										"rotationSkewY": 0,
+										"scaleX": 1,
+										"scaleY": 1,
+										"skewX": 0,
+										"skewY": 0,
+										"tag": -1,
+										"groupIndex": 0,
+										"colliders": []
+									},
+									"spriteFrameName": "Common/BG_Tournament.png",
+									"spriteType": "Sliced",
+									"srcBlend": 770,
+									"dstBlend": 771,
+									"trimEnabled": true,
+									"sizeMode": "Custom"
+								},
+								"object_type": "Sprite",
+								"children": [
+									{
+										"object": {
+											"node": {
+												"contentSize": {
+													"w": 320,
+													"h": 960
+												},
+												"enabled": true,
+												"name": "Image_Left",
+												"anchorPoint": {
+													"x": 0.5,
+													"y": 0.5
+												},
+												"cascadeOpacityEnabled": true,
+												"color": {
+													"r": 255,
+													"g": 255,
+													"b": 255
+												},
+												"globalZOrder": 0,
+												"localZOrder": 0,
+												"opacity": 255,
+												"opacityModifyRGB": false,
+												"position": {
+													"x": -160,
+													"y": 0
+												},
+												"rotationSkewX": 0,
+												"rotationSkewY": 0,
+												"scaleX": 1,
+												"scaleY": 1,
+												"skewX": 0,
+												"skewY": 0,
+												"tag": -1,
+												"groupIndex": 0,
+												"colliders": []
+											},
+											"spriteFrameName": "Common/BG_Tournament_2.png",
+											"spriteType": "Simple",
+											"srcBlend": 770,
+											"dstBlend": 771,
+											"trimEnabled": true,
+											"sizeMode": "Custom"
+										},
+										"object_type": "Sprite",
+										"children": []
+									},
+									{
+										"object": {
+											"node": {
+												"contentSize": {
+													"w": 320,
+													"h": 960
+												},
+												"enabled": true,
+												"name": "Image_Right",
+												"anchorPoint": {
+													"x": 0.5,
+													"y": 0.5
+												},
+												"cascadeOpacityEnabled": true,
+												"color": {
+													"r": 255,
+													"g": 255,
+													"b": 255
+												},
+												"globalZOrder": 0,
+												"localZOrder": 0,
+												"opacity": 255,
+												"opacityModifyRGB": false,
+												"position": {
+													"x": 160,
+													"y": 0
+												},
+												"rotationSkewX": 0,
+												"rotationSkewY": 0,
+												"scaleX": 1,
+												"scaleY": 1,
+												"skewX": 0,
+												"skewY": 0,
+												"tag": -1,
+												"groupIndex": 0,
+												"colliders": []
+											},
+											"spriteFrameName": "Common/BG_Tournament_2.png",
+											"spriteType": "Simple",
+											"srcBlend": 770,
+											"dstBlend": 771,
+											"trimEnabled": true,
+											"sizeMode": "Custom"
+										},
+										"object_type": "Sprite",
+										"children": []
+									}
+								]
+							},
+							{
+								"object": {
+									"node": {
+										"contentSize": {
+											"w": 640,
+											"h": 960
+										},
+										"enabled": true,
+										"name": "Image_Battles_BG",
+										"anchorPoint": {
+											"x": 0.5,
+											"y": 0.5
+										},
+										"cascadeOpacityEnabled": true,
+										"color": {
+											"r": 255,
+											"g": 255,
+											"b": 255
+										},
+										"globalZOrder": 0,
+										"localZOrder": 0,
+										"opacity": 255,
+										"opacityModifyRGB": false,
+										"position": {
+											"x": 0,
+											"y": 0
+										},
+										"rotationSkewX": 0,
+										"rotationSkewY": 0,
+										"scaleX": 1,
+										"scaleY": 1,
+										"skewX": 0,
+										"skewY": 0,
+										"tag": -1,
+										"groupIndex": 0,
+										"colliders": []
+									},
+									"spriteFrameName": "Common/BG_Battle.png",
+									"spriteType": "Sliced",
+									"srcBlend": 770,
+									"dstBlend": 771,
+									"trimEnabled": true,
+									"sizeMode": "Custom"
+								},
+								"object_type": "Sprite",
+								"children": [
+									{
+										"object": {
+											"node": {
+												"contentSize": {
+													"w": 320,
+													"h": 960
+												},
+												"enabled": true,
+												"name": "Image_Left",
+												"anchorPoint": {
+													"x": 0.5,
+													"y": 0.5
+												},
+												"cascadeOpacityEnabled": true,
+												"color": {
+													"r": 255,
+													"g": 255,
+													"b": 255
+												},
+												"globalZOrder": 0,
+												"localZOrder": 0,
+												"opacity": 255,
+												"opacityModifyRGB": false,
+												"position": {
+													"x": -160,
+													"y": 0
+												},
+												"rotationSkewX": 0,
+												"rotationSkewY": 0,
+												"scaleX": 1,
+												"scaleY": 1,
+												"skewX": 0,
+												"skewY": 0,
+												"tag": -1,
+												"groupIndex": 0,
+												"colliders": []
+											},
+											"spriteFrameName": "Common/BG_Battle_2.png",
+											"spriteType": "Simple",
+											"srcBlend": 770,
+											"dstBlend": 771,
+											"trimEnabled": true,
+											"sizeMode": "Custom"
+										},
+										"object_type": "Sprite",
+										"children": []
+									},
+									{
+										"object": {
+											"node": {
+												"contentSize": {
+													"w": 320,
+													"h": 960
+												},
+												"enabled": true,
+												"name": "Image_Right",
+												"anchorPoint": {
+													"x": 0.5,
+													"y": 0.5
+												},
+												"cascadeOpacityEnabled": true,
+												"color": {
+													"r": 255,
+													"g": 255,
+													"b": 255
+												},
+												"globalZOrder": 0,
+												"localZOrder": 0,
+												"opacity": 255,
+												"opacityModifyRGB": false,
+												"position": {
+													"x": 160,
+													"y": 0
+												},
+												"rotationSkewX": 0,
+												"rotationSkewY": 0,
+												"scaleX": 1,
+												"scaleY": 1,
+												"skewX": 0,
+												"skewY": 0,
+												"tag": -1,
+												"groupIndex": 0,
+												"colliders": []
+											},
+											"spriteFrameName": "Common/BG_Battle_2.png",
+											"spriteType": "Simple",
+											"srcBlend": 770,
+											"dstBlend": 771,
+											"trimEnabled": true,
+											"sizeMode": "Custom"
+										},
+										"object_type": "Sprite",
+										"children": []
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"designResolution": {
+		"w": 640,
+		"h": 960
+	},
+	"resolutionFitWidth": true,
+	"resolutionFitHeight": true,
+	"spriteFrames": [
+		{
+			"name": "Common/BG_SinglePlayer_2.png",
+			"texturePath": "creator/Common/BG_SinglePlayer_2.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 160,
+				"h": 569
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 160,
+				"h": 569
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 160,
+				"h": 569
+			}
+		},
+		{
+			"name": "Common/BG_SinglePlayer.png",
+			"texturePath": "creator/Common/BG_SinglePlayer.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 1,
+				"h": 569
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 1,
+				"h": 569
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 1,
+				"h": 569
+			}
+		},
+		{
+			"name": "Common/BG_Tournament_2.png",
+			"texturePath": "creator/Common/BG_Tournament_2.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 160,
+				"h": 569
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 160,
+				"h": 569
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 160,
+				"h": 569
+			}
+		},
+		{
+			"name": "Common/BG_Tournament.png",
+			"texturePath": "creator/Common/BG_Tournament.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 1,
+				"h": 569
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 1,
+				"h": 569
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 1,
+				"h": 569
+			}
+		},
+		{
+			"name": "Common/BG_Battle_2.png",
+			"texturePath": "creator/Common/BG_Battle_2.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 160,
+				"h": 569
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 160,
+				"h": 569
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 160,
+				"h": 569
+			}
+		},
+		{
+			"name": "Common/BG_Battle.png",
+			"texturePath": "creator/Common/BG_Battle.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 1,
+				"h": 569
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 1,
+				"h": 569
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 1,
+				"h": 569
+			}
+		}
+	],
+	"collisionMatrix": [
+		{
+			"value": [
+				true
+			]
+		}
+	]
+}

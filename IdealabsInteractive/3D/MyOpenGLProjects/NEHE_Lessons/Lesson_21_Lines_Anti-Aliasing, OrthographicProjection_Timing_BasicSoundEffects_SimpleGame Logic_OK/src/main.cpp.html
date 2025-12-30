@@ -1,0 +1,400 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &lt;stdio.h&gt;                        <span class=comment>// Standard Input / Output
+</span><span class=pp>#include</span> &lt;stdarg.h&gt;                        <span class=comment>// Header File For Variable Argument Routines
+</span><span class=pp>#include</span> &lt;windows.h&gt;                    <span class=comment>// Header File For Windows
+</span><span class=pp>#include</span> &lt;gl\gl.h&gt;                        <span class=comment>// Header File For The OpenGL32 Library
+</span><span class=pp>#include</span> &lt;gl\glu.h&gt;                        <span class=comment>// Header File For The GLu32 Library
+</span>
+HDC            mHDC        = NULL;            <span class=comment>// Private GDI Device Context
+</span>HGLRC        mHRC        = NULL;            <span class=comment>// Permanent Rendering Context
+</span>HWND        mHWnd    = NULL;                <span class=comment>// Holds Our Window Handle
+</span>HINSTANCE    mHInstance;                    <span class=comment>// Holds The Instance Of The Application
+</span>
+<span class=keyword>bool</span>        mKeys[256];                    <span class=comment>// Array Used For The Keyboard Routine
+</span><span class=keyword>bool</span>        mActive = <span class=keyword>false</span>;            <span class=comment>// Window Active Flag
+</span><span class=keyword>bool</span>        mFULLSCREEN = <span class=keyword>true</span>;            <span class=comment>// Fullscreen Flag Set To TRUE By Default
+</span>
+<span class=keyword>bool</span>        vLine[11][10];                <span class=comment>// Keeps Track Of Verticle Lines
+</span><span class=keyword>bool</span>        hLine[10][11];                <span class=comment>// Keeps Track Of Horizontal Lines
+</span><span class=keyword>bool</span>        aPressed;                    <span class=comment>// 'A' Key Pressed?
+</span><span class=keyword>bool</span>        filled;                        <span class=comment>// Done Filling In The Grid?
+</span><span class=keyword>bool</span>        gameOver;                    <span class=comment>// Is The Game Over?
+</span><span class=keyword>bool</span>        anti = <span class=keyword>true</span>;                <span class=comment>// Antialiasing?
+</span>
+<span class=keyword>int</span>        loop1;                                <span class=comment>// Generic Loop1
+</span><span class=keyword>int</span>        loop2;                                <span class=comment>// Generic Loop2
+</span><span class=keyword>int</span>        delay;                                <span class=comment>// Enemy Delay
+</span><span class=keyword>int</span>        adjust=3;                            <span class=comment>// Speed Adjustment For Really Slow Video Cards
+</span><span class=keyword>int</span>        lives=5;                            <span class=comment>// Player Lives
+</span><span class=keyword>int</span>        level=1;                            <span class=comment>// Internal Game Level
+</span><span class=keyword>int</span>        level2=level;                            <span class=comment>// Displayed Game Level
+</span><span class=keyword>int</span>        stage=1;                            <span class=comment>// Game Stage
+</span>
+<span class=keyword>struct</span> object                                <span class=comment>// Create A Structure For Our Player
+</span>{
+    <span class=keyword>int</span>    fx, fy;                                <span class=comment>// Fine Movement Position
+</span>    <span class=keyword>int</span>    x, y;                                <span class=comment>// Current Player Position
+</span>    <span class=keyword>float</span>    spin;                            <span class=comment>// Spin Direction
+</span>};
+
+<span class=keyword>struct</span>    object    player;                                <span class=comment>// Player Information
+</span><span class=keyword>struct</span>    object    enemy[9];                            <span class=comment>// Enemy Information
+</span><span class=keyword>struct</span>    object    hourglass;                            <span class=comment>// Hourglass Information
+</span>
+<span class=keyword>struct</span>                                         <span class=comment>// Create A Structure For The Timer Information
+</span>{
+  __int64       frequency;                            <span class=comment>// Timer Frequency
+</span>  <span class=keyword>float</span>         resolution;                            <span class=comment>// Timer Resolution
+</span>  <span class=keyword>unsigned</span> <span class=keyword>long</span> mm_timer_start;                            <span class=comment>// Multimedia Timer Start Value
+</span>  <span class=keyword>unsigned</span> <span class=keyword>long</span> mm_timer_elapsed;                        <span class=comment>// Multimedia Timer Elapsed Time
+</span>  <span class=keyword>bool</span>        performance_timer;                        <span class=comment>// Using The Performance Timer?
+</span>  __int64       performance_timer_start;                    <span class=comment>// Performance Timer Start Value
+</span>  __int64       performance_timer_elapsed;                    <span class=comment>// Performance Timer Elapsed Time
+</span>} timer;                                    <span class=comment>// Structure Is Named timer
+</span>
+<span class=keyword>int</span>        steps[6]={ 1, 2, 4, 5, 10, 20 };                <span class=comment>// Stepping Values For Slow Video Adjustment
+</span>
+GLuint    texture[2];
+GLuint    base;
+
+<span class=keyword>void</span> TimerInit() {
+    memset(&amp;timer, 0, <span class=keyword>sizeof</span>(timer));
+
+    <span class=keyword>if</span>(!QueryPerformanceFrequency((LARGE_INTEGER *) &amp;timer.frequency)) {
+        <span class=comment>// No Performace Counter Available
+</span>        timer.performance_timer    = FALSE;                <span class=comment>// Set Performance Timer To FALSE
+</span>        timer.mm_timer_start    = timeGetTime();            <span class=comment>// Use timeGetTime() To Get Current Time
+</span>        timer.resolution    = 1.0f/1000.0f;                <span class=comment>// Set Our Timer Resolution To .001f
+</span>        timer.frequency        = 1000;                    <span class=comment>// Set Our Timer Frequency To 1000
+</span>        timer.mm_timer_elapsed    = timer.mm_timer_start;            <span class=comment>// Set The Elapsed Time To The Current Time
+</span>    }
+    <span class=keyword>else</span> {
+            
+    }
+}
+
+
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+GL<span class=keyword>void</span>    resizeGLScene(GLsizei width, GLsizei height);
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>);
+<span class=keyword>int</span> drawGLScene(GL<span class=keyword>void</span>);
+GL<span class=keyword>void</span> killGLWindow(GL<span class=keyword>void</span>);
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen);
+
+
+<span class=keyword>int</span> WINAPI WinMain(    HINSTANCE    hInstance, 
+                    HINSTANCE    hPrevInstance,
+                    LPSTR        lpCmdLine,
+                    <span class=keyword>int</span>            nCmdShow
+) {
+    MSG        msg;
+    <span class=keyword>bool</span>    done = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(MessageBox(NULL, &quot;Would you like to run in FULLSCREEN mode?&quot;, &quot;Start FullScreen&quot;, MB_YESNO) == IDNO)
+        mFULLSCREEN = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(!createGLWindow(&quot;openGL Window...Press F1 to toogle between windowed &amp; Fullscreen Mode.&quot;, 640, 480, 16, mFULLSCREEN))
+        <span class=keyword>return</span> 0;
+
+    <span class=keyword>while</span>(!done) {
+        <span class=keyword>if</span>(PeekMessage(&amp;msg, NULL, 0, 0, PM_REMOVE)) {
+            <span class=keyword>if</span>(msg.message == WM_QUIT)
+                done = <span class=keyword>true</span>;
+            <span class=keyword>else</span>  {
+                TranslateMessage(&amp;msg);
+                DispatchMessage(&amp;msg);
+            }
+        }
+        <span class=keyword>else</span> {
+            <span class=keyword>if</span>(mActive) {
+                <span class=keyword>if</span>(mKeys[VK_ESCAPE])
+                    done = <span class=keyword>true</span>;
+                <span class=keyword>else</span> {
+                    drawGLScene();
+                    SwapBuffers(mHDC);
+                }
+            }
+
+            <span class=keyword>if</span>(mKeys[VK_F1]) {
+                mKeys[VK_F1] = <span class=keyword>false</span>;
+                killGLWindow();
+                mFULLSCREEN = !mFULLSCREEN;
+                <span class=keyword>if</span>(!createGLWindow(&quot;openGL window&quot;, 640, 480, 16, mFULLSCREEN)) {
+                    <span class=keyword>return</span> 0;
+                }
+            }
+        }
+    }
+
+    killGLWindow();
+    <span class=keyword>return</span> msg.wParam;
+}
+
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen) {
+    <span class=keyword>int</span>            iPixelFormat;
+    WNDCLASS    wc;
+    DWORD        dwExStyle;
+    DWORD        dwStyle;
+    RECT        windowRect;
+
+    windowRect.left        = (<span class=keyword>long</span>)0;
+    windowRect.right    = (<span class=keyword>long</span>)width;
+    windowRect.top        = (<span class=keyword>long</span>)0;
+    windowRect.bottom    = (<span class=keyword>long</span>)height;
+
+    mFULLSCREEN = isFullScreen;
+
+    mHInstance            = GetModuleHandle(NULL);
+    
+    wc.cbClsExtra        = 0;
+    wc.cbWndExtra        = 0;
+    wc.hbrBackground    = NULL;
+    wc.hCursor            = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon            = LoadIcon(NULL, IDI_WINLOGO);
+    wc.hInstance        = mHInstance;
+    wc.lpfnWndProc        = (WNDPROC) WndProc;
+    wc.lpszClassName    = &quot;OpenGL&quot;;
+    wc.lpszMenuName        = NULL;
+    wc.style            = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    
+    <span class=keyword>if</span>(!RegisterClass(&amp;wc)) {
+        MessageBox(NULL, &quot;Failed to Register the Window Class.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        DEVMODE    dmScreenSettings;
+        memset(&amp;dmScreenSettings, 0, <span class=keyword>sizeof</span>(dmScreenSettings));
+        dmScreenSettings.dmSize            = <span class=keyword>sizeof</span>(dmScreenSettings);
+        dmScreenSettings.dmPelsWidth    = width;
+        dmScreenSettings.dmPelsHeight    = height;
+        dmScreenSettings.dmBitsPerPel    = bits;
+        dmScreenSettings.dmFields        = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+
+        <span class=keyword>if</span>(ChangeDisplaySettings(&amp;dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            <span class=keyword>if</span>(MessageBox(NULL, &quot;The requested FullScreen Mode is not supported\n by your Video Card. Use Windowed Mode instead?&quot;, &quot;Error&quot;, MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+                mFULLSCREEN = <span class=keyword>false</span>;
+            <span class=keyword>else</span> {
+                MessageBox(NULL, &quot;Program will now close.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONSTOP);
+                <span class=keyword>return</span> <span class=keyword>false</span>;
+            }
+        }
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        dwExStyle    = WS_EX_APPWINDOW;
+        dwStyle        = WS_POPUP;
+        ShowCursor(<span class=keyword>false</span>);
+    }
+    <span class=keyword>else</span> {
+        dwExStyle    = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+        dwStyle        = WS_OVERLAPPEDWINDOW;
+    }
+
+    AdjustWindowRectEx(&amp;windowRect, dwStyle, <span class=keyword>false</span>, dwExStyle);
+
+    <span class=keyword>if</span>(!(mHWnd = CreateWindowEx(    dwExStyle,
+                                &quot;OpenGL&quot;,
+                                title,
+                                dwStyle | 
+                                WS_CLIPSIBLINGS |
+                                WS_CLIPCHILDREN,
+                                0, 0,
+                                windowRect.right - windowRect.left,
+                                windowRect.bottom - windowRect.top,
+                                NULL,
+                                NULL,
+                                mHInstance,
+                                NULL))
+    ) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHDC = GetDC(mHWnd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to get Device Context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>static</span> PIXELFORMATDESCRIPTOR pfd = 
+    {
+        <span class=keyword>sizeof</span>(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW |
+        PFD_SUPPORT_OPENGL |
+        PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        bits,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        16,
+        0,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    <span class=keyword>if</span>(!(iPixelFormat = ChoosePixelFormat(mHDC, &amp;pfd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to choose Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!SetPixelFormat(mHDC, iPixelFormat, &amp;pfd)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to set Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHRC = wglCreateContext(mHDC))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to create wgl context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!wglMakeCurrent(mHDC, mHRC)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to make wgl context&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+                                
+    ShowWindow(mHWnd, <span class=keyword>true</span>);
+    SetForegroundWindow(mHWnd);
+    SetFocus(mHWnd);
+
+    resizeGLScene(width, height);
+
+    <span class=keyword>if</span>(!initGL()) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> resizeGLScene(GLsizei width, GLsizei height) {
+    <span class=keyword>if</span>(height == 0)
+        height = 1;
+
+    glViewport(0, 0, width, height);
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(45.0f, (GL<span class=keyword>float</span>)width/(GL<span class=keyword>float</span>)height, 0.1f, 100.0f);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>) {
+    glShadeModel(GL_SMOOTH);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    glClearDepth(1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> killGLWindow() {
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        ChangeDisplaySettings(NULL, 0);
+        ShowCursor(<span class=keyword>true</span>);
+    }
+
+    <span class=keyword>if</span>(mHRC) {
+        <span class=keyword>if</span>(!wglMakeCurrent(NULL, NULL))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        <span class=keyword>if</span>(!wglDeleteContext(mHRC))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        mHRC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHDC &amp;&amp; !ReleaseDC(mHWnd, mHDC)) {
+        MessageBox(NULL, &quot;Release of Device Context failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHDC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHWnd &amp;&amp; !DestroyWindow(mHWnd)) {
+        MessageBox(NULL, &quot;Release of mHWnd failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHWnd = NULL;
+    }
+
+    <span class=keyword>if</span>(!UnregisterClass(&quot;OpenGL&quot;, mHInstance)) {
+        MessageBox(NULL, &quot;UnRegisterClass failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHInstance = NULL;
+    }
+}
+
+<span class=keyword>int</span> drawGLScene() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    <span class=keyword>switch</span>(uMsg) {
+        <span class=keyword>case</span> WM_ACTIVATE:
+        {
+            <span class=keyword>if</span>(!HIWORD(wParam))
+                mActive = <span class=keyword>true</span>;
+            <span class=keyword>else</span>
+                mActive = <span class=keyword>false</span>;
+
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SYSCOMMAND:
+        {
+            <span class=keyword>switch</span>(wParam) {
+                <span class=keyword>case</span> SC_SCREENSAVE:
+                <span class=keyword>case</span> SC_MONITORPOWER:
+                    <span class=keyword>return</span> 0;
+            }
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYDOWN:
+        {
+            mKeys[wParam] = <span class=keyword>true</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYUP:
+        {
+            mKeys[wParam] = <span class=keyword>false</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SIZE:
+        {
+            resizeGLScene(LOWORD(lParam), HIWORD(lParam));
+            <span class=keyword>return</span> 0;
+        }
+    }
+
+    <span class=keyword>return</span> DefWindowProc(hWnd, uMsg, wParam, lParam);
+}</pre></body>
+</html>

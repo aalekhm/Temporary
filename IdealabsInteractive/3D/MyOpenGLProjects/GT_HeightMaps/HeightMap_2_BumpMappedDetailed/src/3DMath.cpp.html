@@ -1,0 +1,792 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=comment>//***********************************************************************//
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        - &quot;Talk to me like I'm a 3 year old!&quot; Programming Lessons -         //
+</span><span class=comment>//                                                                       //
+</span><span class=comment>//        $Author:        DigiBen            DigiBen@GameTutorials.com         //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        $Program:        SpherePolygonCollision                             //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        $Description:    This demonstrates sphere and polygon collision.     //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//        $Date:            1/23/02                                             //
+</span><span class=comment>//                                                                         //
+</span><span class=comment>//***********************************************************************//
+</span>
+<span class=pp>#include</span> &quot;main.h&quot;
+<span class=pp>#include</span> &lt;math.h&gt;    <span class=comment>// We include math.h so we can use the sqrt() function
+</span><span class=pp>#include</span> &lt;<span class=keyword>float</span>.h&gt;    <span class=comment>// This is so we can use _isnan() for acos()
+</span>
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// This file was build from the Ray Plane Collision tutorial.
+</span><span class=comment>// We added 4 new functions to this math file:  
+</span><span class=comment>//
+</span><span class=comment>// This returns the absolute value of the number passed in
+</span><span class=comment>// float absolute(float num);
+</span><span class=comment>//
+</span><span class=comment>// This tells us if the sphere is in FRONT, BEHIND, or INTERSECTS the plane passed in
+</span><span class=comment>// int classifySphere(CVector3 &amp;vCenter, 
+</span><span class=comment>//                      CVector3 &amp;vNormal, CVector3 &amp;vPoint, float radius, float &amp;distance);
+</span><span class=comment>//
+</span><span class=comment>// This returns true if the sphere intersects the edge line segments of the polygon
+</span><span class=comment>// bool edgeSphereCollision(CVector3 &amp;vPosition, 
+</span><span class=comment>//                            CVector3 vPolygon[], int vertexCount, float radius);
+</span><span class=comment>//
+</span><span class=comment>// This returns true if our sphere collides with the polygon passed in (Client function)
+</span><span class=comment>// bool spherePolygonCollision(CVector3 vPolygon[], CVector3 &amp;vCenter, float radius);
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// These functions will enable us to check if we intersect a polygon's plane, and then
+</span><span class=comment>// more importantly, the polygon itself.  Look down near the bottom of this file to 
+</span><span class=comment>// see these functions and their explanations.  It's pretty intimidating to look at all
+</span><span class=comment>// this code and think that every function is used and needed to perform sphere collision
+</span><span class=comment>// isn't it?  It is a really bad idea to just copy and paste these functions into your
+</span><span class=comment>// own code and never understand what they all do and why.  It is imperative that you
+</span><span class=comment>// know what EACH one of these functions does.  If you want to do 3D graphics, you will
+</span><span class=comment>// have pretty poor games if you don't have decent collision detection and know how
+</span><span class=comment>// to adapt it to your needs.  
+</span><span class=comment>//
+</span><span class=comment>//
+</span>
+
+<span class=comment>/////////////////////////////////////// ABSOLUTE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns the absolute value of the number passed in
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////////// ABSOLUTE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>float</span> absolute(<span class=keyword>float</span> num)
+{
+    <span class=comment>// If num is less than zero, we want to return the absolute value of num.
+</span>    <span class=comment>// This is simple, either we times num by -1 or subtract it from 0.
+</span>    <span class=keyword>if</span>(num &lt; 0)
+        <span class=keyword>return</span> (0 - num);
+
+    <span class=comment>// Return the original number because it was already positive
+</span>    <span class=keyword>return</span> num;
+}
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+
+<span class=comment>/////////////////////////////////////// CROSS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns a perpendicular vector from 2 given vectors by taking the cross product.
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////////// CROSS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>                                                
+CVector3 cross(CVector3 vVector1, CVector3 vVector2)
+{
+    CVector3 vNormal;                                    <span class=comment>// The vector to hold the cross product
+</span>
+    <span class=comment>// The X value for the vector is:  (V1.y * V2.z) - (V1.z * V2.y)                                                    // Get the X value
+</span>    vNormal.x = ((vVector1.y * vVector2.z) - (vVector1.z * vVector2.y));
+                                                        
+    <span class=comment>// The Y value for the vector is:  (V1.z * V2.x) - (V1.x * V2.z)
+</span>    vNormal.y = ((vVector1.z * vVector2.x) - (vVector1.x * vVector2.z));
+                                                        
+    <span class=comment>// The Z value for the vector is:  (V1.x * V2.y) - (V1.y * V2.x)
+</span>    vNormal.z = ((vVector1.x * vVector2.y) - (vVector1.y * vVector2.x));
+
+    <span class=keyword>return</span> vNormal;                                        <span class=comment>// Return the cross product (Direction the polygon is facing - Normal)
+</span>}
+
+
+<span class=comment>/////////////////////////////////////// MAGNITUDE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns the magnitude of a normal (or any other vector)
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////////// MAGNITUDE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>float</span> getMagnitude(CVector3 vNormal)
+{
+    <span class=comment>// This will give us the magnitude or &quot;Norm&quot; as some say, of our normal.
+</span>    <span class=comment>// Here is the equation:  magnitude = sqrt(V.x^2 + V.y^2 + V.z^2)  Where V is the vector
+</span>
+    <span class=keyword>return</span> (<span class=keyword>float</span>)sqrt( (vNormal.x * vNormal.x) + (vNormal.y * vNormal.y) + (vNormal.z * vNormal.z) );
+}
+
+
+<span class=comment>/////////////////////////////////////// NORMALIZE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns a normalize vector (A vector exactly of length 1)
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////////// NORMALIZE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+CVector3 normalize(CVector3 vNormal)
+{
+    <span class=keyword>float</span> magnitude = getMagnitude(vNormal);                <span class=comment>// Get the magnitude of our normal
+</span>
+    <span class=comment>// Now that we have the magnitude, we can divide our normal by that magnitude.
+</span>    <span class=comment>// That will make our normal a total length of 1.  This makes it easier to work with too.
+</span>
+    vNormal.x /= magnitude;                                <span class=comment>// Divide the X value of our normal by it's magnitude
+</span>    vNormal.y /= magnitude;                                <span class=comment>// Divide the Y value of our normal by it's magnitude
+</span>    vNormal.z /= magnitude;                                <span class=comment>// Divide the Z value of our normal by it's magnitude
+</span>
+    <span class=comment>// Finally, return our normalized normal.
+</span>
+    <span class=keyword>return</span> vNormal;                                        <span class=comment>// Return the new normal of length 1.
+</span>}
+
+
+<span class=comment>/////////////////////////////////////// NORMAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns the normal of a polygon (The direction the polygon is facing)
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////////// NORMAL \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+CVector3 normal(CVector3 vPolygon[])                    
+{                                                        <span class=comment>// Get 2 vectors from the polygon (2 sides), Remember the order!
+</span>    CVector3 vVector1 = vPolygon[2] - vPolygon[0];
+    CVector3 vVector2 = vPolygon[1] - vPolygon[0];
+
+    CVector3 vNormal = cross(vVector1, vVector2);        <span class=comment>// Take the cross product of our 2 vectors to get a perpendicular vector
+</span>
+    <span class=comment>// Now we have a normal, but it's at a strange length, so let's make it length 1.
+</span>
+    vNormal = normalize(vNormal);                        <span class=comment>// Use our function we created to normalize the normal (Makes it a length of one)
+</span>
+    <span class=keyword>return</span> vNormal;                                        <span class=comment>// Return our normal at our desired length
+</span>}
+
+
+<span class=comment>/////////////////////////////////// PLANE DISTANCE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns the distance between a plane and the origin
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// PLANE DISTANCE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>                                    
+<span class=keyword>float</span> planeDistance(CVector3 Normal, CVector3 Point)
+{    
+    <span class=keyword>float</span> distance = 0;                                    <span class=comment>// This variable holds the distance from the plane tot he origin
+</span>
+    <span class=comment>// Use the plane equation to find the distance (Ax + By + Cz + D = 0)  We want to find D.
+</span>    <span class=comment>// So, we come up with D = -(Ax + By + Cz)
+</span>                                                        <span class=comment>// Basically, the negated dot product of the normal of the plane and the point. (More about the dot product in another tutorial)
+</span>    distance = - ((Normal.x * Point.x) + (Normal.y * Point.y) + (Normal.z * Point.z));
+
+    <span class=keyword>return</span> distance;                                    <span class=comment>// Return the distance
+</span>}
+
+
+<span class=comment>/////////////////////////////////// INTERSECTED PLANE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This checks to see if a line intersects a plane
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// INTERSECTED PLANE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>                                            
+<span class=keyword>bool</span> intersectedPlane(CVector3 vPoly[], CVector3 vLine[], CVector3 &amp;vNormal, <span class=keyword>float</span> &amp;originDistance)
+{
+    <span class=keyword>float</span> distance1=0, distance2=0;                        <span class=comment>// The distances from the 2 points of the line from the plane
+</span>            
+    vNormal = normal(vPoly);                            <span class=comment>// We need to get the normal of our plane to go any further
+</span>
+    <span class=comment>// Let's find the distance our plane is from the origin.  We can find this value
+</span>    <span class=comment>// from the normal to the plane (polygon) and any point that lies on that plane (Any vertex)
+</span>    originDistance = planeDistance(vNormal, vPoly[0]);
+
+    <span class=comment>// Get the distance from point1 from the plane using: Ax + By + Cz + D = (The distance from the plane)
+</span>
+    distance1 = ((vNormal.x * vLine[0].x)  +                    <span class=comment>// Ax +
+</span>                 (vNormal.y * vLine[0].y)  +                    <span class=comment>// Bx +
+</span>                 (vNormal.z * vLine[0].z)) + originDistance;    <span class=comment>// Cz + D
+</span>    
+    <span class=comment>// Get the distance from point2 from the plane using Ax + By + Cz + D = (The distance from the plane)
+</span>    
+    distance2 = ((vNormal.x * vLine[1].x)  +                    <span class=comment>// Ax +
+</span>                 (vNormal.y * vLine[1].y)  +                    <span class=comment>// Bx +
+</span>                 (vNormal.z * vLine[1].z)) + originDistance;    <span class=comment>// Cz + D
+</span>
+    <span class=comment>// Now that we have 2 distances from the plane, if we times them together we either
+</span>    <span class=comment>// get a positive or negative number.  If it's a negative number, that means we collided!
+</span>    <span class=comment>// This is because the 2 points must be on either side of the plane (IE. -1 * 1 = -1).
+</span>
+    <span class=keyword>if</span>(distance1 * distance2 &gt;= 0)            <span class=comment>// Check to see if both point's distances are both negative or both positive
+</span>       <span class=keyword>return</span> <span class=keyword>false</span>;                        <span class=comment>// Return false if each point has the same sign.  -1 and 1 would mean each point is on either side of the plane.  -1 -2 or 3 4 wouldn't...
+</span>                    
+    <span class=keyword>return</span> <span class=keyword>true</span>;                            <span class=comment>// The line intersected the plane, Return TRUE
+</span>}
+
+
+<span class=comment>/////////////////////////////////// DOT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This computers the dot product of 2 vectors
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// DOT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>float</span> dot(CVector3 vVector1, CVector3 vVector2) 
+{
+    <span class=comment>// The dot product is this equation: V1.V2 = (V1.x * V2.x  +  V1.y * V2.y  +  V1.z * V2.z)
+</span>    <span class=comment>// In math terms, it looks like this:  V1.V2 = ||V1|| ||V2|| cos(theta)
+</span>    
+             <span class=comment>//    (V1.x * V2.x        +        V1.y * V2.y        +        V1.z * V2.z)
+</span>    <span class=keyword>return</span> ( (vVector1.x * vVector2.x) + (vVector1.y * vVector2.y) + (vVector1.z * vVector2.z) );
+}
+
+
+<span class=comment>/////////////////////////////////// ANGLE BETWEEN VECTORS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This checks to see if a point is inside the ranges of a polygon
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// ANGLE BETWEEN VECTORS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>double</span> angleBetweenVectors(CVector3 Vector1, CVector3 Vector2)
+{                            
+    <span class=comment>// Get the dot product of the vectors
+</span>    <span class=keyword>double</span> dotProduct = dot(Vector1, Vector2);                
+
+    <span class=comment>// Get the product of both of the vectors magnitudes
+</span>    <span class=keyword>double</span> vectorsMagnitude = getMagnitude(Vector1) * getMagnitude(Vector2) ;
+
+    <span class=comment>// Get the angle in radians between the 2 vectors
+</span>    <span class=keyword>double</span> angle = acos( dotProduct / vectorsMagnitude );
+
+    <span class=comment>// Here we make sure that the angle is not a -1.#IND0000000 number, which means indefinate
+</span>    <span class=keyword>if</span>(_isnan(angle))
+        <span class=keyword>return</span> 0;
+    
+    <span class=comment>// Return the angle in radians
+</span>    <span class=keyword>return</span>( angle );
+}
+
+
+<span class=comment>/////////////////////////////////// INTERSECTION POINT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns the intersection point of the line that intersects the plane
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// INTERSECTION POINT \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>                                            
+CVector3 intersectionPoint(CVector3 vNormal, CVector3 vLine[], <span class=keyword>double</span> distance)
+{
+    CVector3 vPoint, vLineDir;                    <span class=comment>// Variables to hold the point and the line's direction
+</span>    <span class=keyword>double</span> Numerator = 0.0, Denominator = 0.0, dist = 0.0;
+
+    <span class=comment>// 1)  First we need to get the vector of our line, Then normalize it so it's a length of 1
+</span>    vLineDir = vLine[1] - vLine[0];        <span class=comment>// Get the Vector of the line
+</span>    vLineDir = normalize(vLineDir);                <span class=comment>// Normalize the lines vector
+</span>
+
+    <span class=comment>// 2) Use the plane equation (distance = Ax + By + Cz + D) to find the 
+</span>    <span class=comment>// distance from one of our points to the plane.
+</span>    Numerator = - (vNormal.x * vLine[0].x +        <span class=comment>// Use the plane equation with the normal and the line
+</span>                   vNormal.y * vLine[0].y +
+                   vNormal.z * vLine[0].z + distance);
+
+    <span class=comment>// 3) If we take the dot product between our line vector and the normal of the polygon,
+</span>    Denominator = dot(vNormal, vLineDir);        <span class=comment>// Get the dot product of the line's vector and the normal of the plane
+</span>                  
+    <span class=comment>// Since we are using division, we need to make sure we don't get a divide by zero error
+</span>    <span class=comment>// If we do get a 0, that means that there are INFINATE points because the the line is
+</span>    <span class=comment>// on the plane (the normal is perpendicular to the line - (Normal.Vector = 0)).  
+</span>    <span class=comment>// In this case, we should just return any point on the line.
+</span>
+    <span class=keyword>if</span>( Denominator == 0.0)                        <span class=comment>// Check so we don't divide by zero
+</span>        <span class=keyword>return</span> vLine[0];                        <span class=comment>// Return an arbitrary point on the line
+</span>
+    dist = Numerator / Denominator;                <span class=comment>// Divide to get the multiplying (percentage) factor
+</span>    
+    <span class=comment>// Now, like we said above, we times the dist by the vector, then add our arbitrary point.
+</span>    vPoint.x = (<span class=keyword>float</span>)(vLine[0].x + (vLineDir.x * dist));
+    vPoint.y = (<span class=keyword>float</span>)(vLine[0].y + (vLineDir.y * dist));
+    vPoint.z = (<span class=keyword>float</span>)(vLine[0].z + (vLineDir.z * dist));
+
+    <span class=keyword>return</span> vPoint;                                <span class=comment>// Return the intersection point
+</span>}
+
+
+<span class=comment>/////////////////////////////////// INSIDE POLYGON \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This checks to see if a point is inside the ranges of a polygon
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// INSIDE POLYGON \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>bool</span> insidePolygon(CVector3 vIntersection, CVector3 Poly[], <span class=keyword>long</span> verticeCount)
+{
+    <span class=keyword>const</span> <span class=keyword>double</span> MATCH_FACTOR = 0.99;        <span class=comment>// Used to cover up the error in floating point
+</span>    <span class=keyword>double</span> Angle = 0.0;                        <span class=comment>// Initialize the angle
+</span>    CVector3 vA, vB;                        <span class=comment>// Create temp vectors
+</span>    
+    <span class=keyword>for</span> (<span class=keyword>int</span> i = 0; i &lt; verticeCount; i++)        <span class=comment>// Go in a circle to each vertex and get the angle between
+</span>    {    
+        vA = Poly[i] - vIntersection;            <span class=comment>// Subtract the intersection point from the current vertex
+</span>                                                <span class=comment>// Subtract the point from the next vertex
+</span>        vB = Poly[(i + 1) % verticeCount] - vIntersection;
+                                                
+        Angle += angleBetweenVectors(vA, vB);    <span class=comment>// Find the angle between the 2 vectors and add them all up as we go along
+</span>    }
+                                            
+    <span class=keyword>if</span>(Angle &gt;= (MATCH_FACTOR * (2.0 * PI)) )    <span class=comment>// If the angle is greater than 2 PI, (360 degrees)
+</span>        <span class=keyword>return</span> <span class=keyword>true</span>;                            <span class=comment>// The point is inside of the polygon
+</span>        
+    <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// If you get here, it obviously wasn't inside the polygon, so Return FALSE
+</span>}
+
+
+<span class=comment>/////////////////////////////////// INTERSECTED POLYGON \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This checks if a line is intersecting a polygon
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// INTERSECTED POLYGON \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>bool</span> intersectedPolygon(CVector3 vPoly[], CVector3 vLine[], <span class=keyword>int</span> verticeCount)
+{
+    CVector3 vNormal;
+    <span class=keyword>float</span> originDistance = 0;
+
+    <span class=comment>// First, make sure our line intersects the plane
+</span>                                     <span class=comment>// Reference   // Reference
+</span>    <span class=keyword>if</span>(!intersectedPlane(vPoly, vLine,   vNormal,   originDistance))
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// Now that we have our normal and distance passed back from intersectedPlane(), 
+</span>    <span class=comment>// we can use it to calculate the intersection point.  
+</span>    CVector3 vIntersection = intersectionPoint(vNormal, vLine, originDistance);
+
+    <span class=comment>// Now that we have the intersection point, we need to test if it's inside the polygon.
+</span>    <span class=keyword>if</span>(insidePolygon(vIntersection, vPoly, verticeCount))
+        <span class=keyword>return</span> <span class=keyword>true</span>;                            <span class=comment>// We collided!      Return success
+</span>
+    <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// There was no collision, so return false
+</span>}
+
+
+<span class=comment>/////////////////////////////////// DISTANCE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns the distance between 2 3D points
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////// DISTANCE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>float</span> getDistance(CVector3 vPoint1, CVector3 vPoint2)
+{
+    <span class=comment>// This is the classic formula used in beginning algebra to return the
+</span>    <span class=comment>// distance between 2 points.  Since it's 3D, we just add the z dimension:
+</span>    <span class=comment>// 
+</span>    <span class=comment>// Distance = sqrt(  (P2.x - P1.x)^2 + (P2.y - P1.y)^2 + (P2.z - P1.z)^2 )
+</span>    <span class=comment>//
+</span>    <span class=keyword>double</span> distance = sqrt( (vPoint2.x - vPoint1.x) * (vPoint2.x - vPoint1.x) +
+                            (vPoint2.y - vPoint1.y) * (vPoint2.y - vPoint1.y) +
+                            (vPoint2.z - vPoint1.z) * (vPoint2.z - vPoint1.z) );
+
+    <span class=comment>// Return the distance between the 2 points
+</span>    <span class=keyword>return</span> (<span class=keyword>float</span>)distance;
+}
+
+
+<span class=comment>////////////////////////////// CLOSEST POINT ON LINE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns the point on the line vA_vB that is closest to the point vPoint
+</span><span class=comment>/////
+</span><span class=comment>////////////////////////////// CLOSEST POINT ON LINE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+CVector3 closestPointOnLine(CVector3 vA, CVector3 vB, CVector3 vPoint)
+{
+    <span class=comment>// Create the vector from end point vA to our point vPoint.
+</span>    CVector3 vVector1 = vPoint - vA;
+
+    <span class=comment>// Create a normalized direction vector from end point vA to end point vB
+</span>    CVector3 vVector2 = normalize(vB - vA);
+
+    <span class=comment>// Use the distance formula to find the distance of the line segment (or magnitude)
+</span>    <span class=keyword>float</span> d = getDistance(vA, vB);
+
+    <span class=comment>// Using the dot product, we project the vVector1 onto the vector vVector2.
+</span>    <span class=comment>// This essentially gives us the distance from our projected vector from vA.
+</span>    <span class=keyword>float</span> t = dot(vVector2, vVector1);
+
+    <span class=comment>// If our projected distance from vA, &quot;t&quot;, is less than or equal to 0, it must
+</span>    <span class=comment>// be closest to the end point vA.  We want to return this end point.
+</span>    <span class=keyword>if</span> (t &lt;= 0) 
+        <span class=keyword>return</span> vA;
+
+    <span class=comment>// If our projected distance from vA, &quot;t&quot;, is greater than or equal to the magnitude
+</span>    <span class=comment>// or distance of the line segment, it must be closest to the end point vB.  So, return vB.
+</span>    <span class=keyword>if</span> (t &gt;= d) 
+        <span class=keyword>return</span> vB;
+ 
+    <span class=comment>// Here we create a vector that is of length t and in the direction of vVector2
+</span>    CVector3 vVector3 = vVector2 * t;
+
+    <span class=comment>// To find the closest point on the line segment, we just add vVector3 to the original
+</span>    <span class=comment>// end point vA.  
+</span>    CVector3 vClosestPoint = vA + vVector3;
+
+    <span class=comment>// Return the closest point on the line segment
+</span>    <span class=keyword>return</span> vClosestPoint;
+}
+
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>////////////////////////////// SPHERE POLYGON COLLISION \\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns true if our sphere collides with the polygon passed in
+</span><span class=comment>/////
+</span><span class=comment>////////////////////////////// SPHERE POLYGON COLLISION \\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>bool</span> spherePolygonCollision(CVector3 vPolygon[], 
+                            CVector3 &amp;vSphereCenter, <span class=keyword>int</span> vertexCount, <span class=keyword>float</span> sphereRadius)
+{
+    <span class=comment>// This function is the only function we need to call for testing if a sphere
+</span>    <span class=comment>// collides with a polygon.  The rest are just helper functions called within here.
+</span>    <span class=comment>// The theory is actually quite difficult to understand, especially if you are
+</span>    <span class=comment>// a beginner to collision detection and are following the tutorials in order, but
+</span>    <span class=comment>// I will try to be as gentle and descriptive as possible.  Let go!
+</span>    <span class=comment>// Basically, here is the overview:  
+</span>    <span class=comment>//
+</span>    <span class=comment>// 1) First you want to check if the sphere collides with the polygon's plane.
+</span>    <span class=comment>//    Remember, that planes are infinite and you could be 500 units from the
+</span>    <span class=comment>//    polygon and it's still going to trigger this first test.  We want to 
+</span>    <span class=comment>//    write a function that classifies the sphere.  Either it's completely 
+</span>    <span class=comment>//    in front of the plane (the side the normal is on), intersecting the
+</span>    <span class=comment>//    plane or completely behind the plane.  Got it so far?  We created a 
+</span>    <span class=comment>//    function called ClassifySphere() that returns BEHIND, FRONT or INTERSECTS.
+</span>    <span class=comment>//    If ClassifySphere() returns INTERSECTS, then we move on to step 2, otherwise
+</span>    <span class=comment>//    we did not collide with the polygon.
+</span>    <span class=comment>// 
+</span>    <span class=comment>// 2) The second step is to get an intersection point right in front of the sphere.
+</span>    <span class=comment>//    This one of the tricky parts.  We know that once we have an intersection point
+</span>    <span class=comment>//    on the plane of the polygon, we just need to use the InsidePolygon() function
+</span>    <span class=comment>//    to see if that point is inside the dimensions of the polygon, just like we
+</span>    <span class=comment>//    did with the Ray to Polygon Collision tutorial.  So, how do we get the point
+</span>    <span class=comment>//    of intersection?  It's not as simple as it might sound.  Since a sphere infinite
+</span>    <span class=comment>//    points, there would be a million points that it collided at.  You can't just
+</span>    <span class=comment>//    draw a ray in the direction the sphere was moving because it could have just
+</span>    <span class=comment>//    nicked the bottom of the polygon and your ray would find an intersection
+</span>    <span class=comment>//    point that is outside of the polygon.  Well, it turns out that we need to
+</span>    <span class=comment>//    first try and give it a shot.  We will try the first attempt a different way though.
+</span>    <span class=comment>//    We know that we can find the normal vector of the polygon, which in essence
+</span>    <span class=comment>//    tells us the direction that the polygon is facing.  From ClassifyPoly(),
+</span>    <span class=comment>//      it also returns the distance the center our sphere is from the plane.  That
+</span>    <span class=comment>//    means we have a distance our sphere center is from the plane, and the normal
+</span>    <span class=comment>//    tells us the direction the plane is in.  If we multiply the normal by the
+</span>    <span class=comment>//    distance from the plane we get an offset.  This offset can then be subtracted
+</span>    <span class=comment>//    from the center of the sphere.  Believe it or not, but we now have a position
+</span>    <span class=comment>//    on the plane in the direction of the plane.  Usually, this intersection points
+</span>    <span class=comment>//    works fine, but if we get around the edges of the polygon, this does not work.
+</span>    <span class=comment>//    What we just did is also called &quot;projecting the center of the sphere onto the plane&quot;.
+</span>    <span class=comment>//    Another way to do this is to shoot out a ray from the center of the sphere in
+</span>    <span class=comment>//    the opposite direction of the normal, then we find the intersection of that line
+</span>    <span class=comment>//    and the plane.  My way just takes 3 multiplies and a subtraction.  You choose.
+</span>    <span class=comment>//
+</span>    <span class=comment>// 3) Once we have our psuedo intersection point, we just pass it into InsidePolygon(),
+</span>    <span class=comment>//    along with the polygon vertices and the vertex count.  This will then return
+</span>    <span class=comment>//    true if the intersection point was inside of the polygon, otherwise false.
+</span>    <span class=comment>//    Remember, just because this returns false doesn't mean we stop there!  If
+</span>    <span class=comment>//    we didn't collide yet, we need to skip to step 4.
+</span>    <span class=comment>//
+</span>    <span class=comment>// 4) If we get here, it's assumed that we tried our intersection point and it
+</span>    <span class=comment>//    wasn't in the polygon's perimeter.  No fear!  There is hope!  If we get to step
+</span>    <span class=comment>//    4, that's means that our center point is outside of the polygon's perimeter. Since
+</span>    <span class=comment>//    we are dealing with a sphere, we could still be colliding because of the sphere's radius.
+</span>    <span class=comment>//      This last check requires us to find the point on each of the polygon's edges that
+</span>    <span class=comment>//    is closest to the sphere's center.  We have a tutorial on finding this, so make sure
+</span>    <span class=comment>//    you have read it or are comfortable with the concept.  If we are dealing with a
+</span>    <span class=comment>//    triangle, we go through every side and get an edge vector, and calculate the closest
+</span>    <span class=comment>//    point on those lines to our sphere's center.  After getting each closest point, we
+</span>    <span class=comment>//    calculate the distance that point is from our sphere center.  If the distance is
+</span>    <span class=comment>//    less than the radius of the sphere, there was a collision.  This way is pretty fast.  
+</span>    <span class=comment>//    You don't need to calculate all three sides evey time, since the first closest point's 
+</span>    <span class=comment>//    distance could be less than the radius and you return &quot;true&quot;.
+</span>    <span class=comment>//
+</span>    <span class=comment>// That's the overview, *phew!*.  I bet you are reading this just wanting to cry because
+</span>    <span class=comment>// that seems like so much math and theory to digest, so the code must be atrocious!
+</span>    <span class=comment>// Well, you are partially right :)  It's not that bad actually, quite straight forward.
+</span>    <span class=comment>// I will label the steps in the code so you can go back and forth to the overview and code.
+</span>    <span class=comment>// I might mention that by having our CVector3 class operator overloaded it cuts down the 
+</span>    <span class=comment>// code tremendously.  If you are confused with this concept of C++, just create functions
+</span>    <span class=comment>// to add, subtract and multiply vectors or scalars together.
+</span>    <span class=comment>//
+</span>
+    <span class=comment>// 1) STEP ONE - Finding the sphere's classification
+</span>    
+    <span class=comment>// Let's use our Normal() function to return us the normal to this polygon
+</span>    CVector3 vNormal = normal(vPolygon);
+
+    <span class=comment>// This will store the distance our sphere is from the plane
+</span>    <span class=keyword>float</span> distance = 0.0f;
+
+    <span class=comment>// This is where we determine if the sphere is in FRONT, BEHIND, or INTERSECTS the plane
+</span>    <span class=comment>// of the polygon.  We pass is our sphere center, the polygon's normal, a point on
+</span>    <span class=comment>// the plane (vertex), the sphere's radius and an empty float to fill the distance with.
+</span>    <span class=keyword>int</span> CLASSIFICATION = classifySphere(    vSphereCenter,
+                                            vNormal,
+                                            vPolygon[0],
+                                            sphereRadius,
+                                            distance
+                                        );
+
+    <span class=comment>// If the sphere intersects the polygon's plane, then we need to check further,
+</span>    <span class=comment>// otherwise the sphere did NOT intersect the polygon.  Pretty fast so far huh?
+</span>    <span class=keyword>if</span>(CLASSIFICATION == INTERSECTS) {
+        <span class=comment>// 2) STEP TWO - Finding the psuedo intersection point on the plane
+</span>
+        <span class=comment>// Now we want to project the sphere's center onto the polygon's plane,
+</span>        <span class=comment>// in the direction of the normal.  This is done by multiplying the &quot;normal&quot;
+</span>        <span class=comment>// by the &quot;distance&quot; the sphere center is from the plane.  We got the distance
+</span>        <span class=comment>// from the ClassifySphere() function call up above.  2 return values were given
+</span>        <span class=comment>// through the &quot;distance&quot; variable being passed in as a reference.  If projecting
+</span>        <span class=comment>// is confusing to you, just think of it as this: &quot;I am starting at the center
+</span>        <span class=comment>// of the sphere and I am going to just run into the plane.  I will move in the 
+</span>        <span class=comment>// direction that is reverse from the normal.  When do I know when to stop?  Well,
+</span>        <span class=comment>// I just go in that direction until my distance from the center is the same as
+</span>        <span class=comment>// the distance the center of the sphere is from the plane.&quot;  By doing this
+</span>        <span class=comment>// we get an offset to subtract from the center of the sphere.
+</span>        CVector3 vOffset = vNormal * distance;
+
+        <span class=comment>// Once we have the offset to the plane, we just subtract it from the center
+</span>        <span class=comment>// of the sphere.  &quot;vPosition&quot; now a point that lies on the plane of the polygon.
+</span>        <span class=comment>// Whether it is inside the polygon's perimeter is another story.  Usually it
+</span>        <span class=comment>// is though, unless we get near the edges of the polygon.
+</span>        CVector3 vPosition = vSphereCenter - vOffset;
+
+        <span class=comment>// 3) STEP THREE - Check if the intersection point is inside the polygons perimeter
+</span>
+        <span class=comment>// This is the same function used in our previous tutorial on Ray to Polygon Collision.
+</span>        <span class=comment>// If the intersection point is inside the perimeter of the polygon, it returns true.
+</span>        <span class=comment>// We pass in the intersection point, the list of vertices and vertex count of the poly.
+</span>
+        <span class=keyword>if</span>(insidePolygon(vPosition, vPolygon, vertexCount)) {
+            <span class=keyword>return</span> <span class=keyword>true</span>;    <span class=comment>// We collided!
+</span>        }
+        <span class=keyword>else</span> {
+            <span class=comment>// 4) STEP FOUR - Check the sphere to see if it intersects the polygon edges
+</span>
+            <span class=comment>// If we get here, we didn't find an intersection point in the perimeter.
+</span>            <span class=comment>// There is still one more chance to redeem our sphere that it can hit the mark.
+</span>            <span class=comment>// If any part of the sphere intersects the edges of the polygon, we collided.  
+</span>            <span class=comment>// This is only checked if the sphere's center point is outside the edges of the
+</span>            <span class=comment>// polygon. We pass in the center of the sphere, the list of verts, the polygon 
+</span>            <span class=comment>// vertex count and the sphere's radius.  If this returns true we have a collision.
+</span>            <span class=keyword>if</span>(edgeSphereCollision(vSphereCenter, vPolygon, vertexCount, sphereRadius)) {
+
+                <span class=keyword>return</span> <span class=keyword>true</span>;    <span class=comment>// We collided! &quot;And you doubted me...&quot; - Sphere
+</span>            }
+        }
+    }
+
+    <span class=comment>// If we get here, there is obviously no collision happening up in this crib
+</span>    <span class=keyword>return</span> <span class=keyword>false</span>;
+}
+
+
+<span class=comment>///////////////////////////////// CLASSIFY SPHERE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This tells if a sphere is BEHIND, in FRONT, or INTERSECTS a plane, also it's distance
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// CLASSIFY SPHERE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>int</span> classifySphere(    CVector3 &amp;vSphereCenter, 
+                    CVector3 &amp;vPlaneNormal, 
+                    CVector3 &amp;vPointOnPlane, 
+                    <span class=keyword>float</span> sphereRadius, 
+                    <span class=keyword>float</span> &amp;plane2SphereCenterDistance
+) {
+
+    <span class=comment>// First we need to find the distance our polygon plane is from the origin.
+</span>    <span class=comment>// We need this for the distance formula below.
+</span>    <span class=keyword>float</span> d = (<span class=keyword>float</span>)planeDistance(vPlaneNormal, vPointOnPlane);
+
+    <span class=comment>// Here we use the famous distance formula to find the distance the center point
+</span>    <span class=comment>// of the sphere is from the polygon's plane.  
+</span>    <span class=comment>// Remember that the formula is Ax + By + Cz + d = 0 with ABC = Normal, xyz = Point
+</span>    plane2SphereCenterDistance =    (vPlaneNormal.x * vSphereCenter.x) + 
+                                    (vPlaneNormal.y * vSphereCenter.y) + 
+                                    (vPlaneNormal.z * vSphereCenter.z) + d;
+<span class=keyword>char</span> logText[255] = {0};
+sprintf(logText, &quot;vPointOnPlane = %0.2f %0.2f %0.2f&quot;, vPointOnPlane.x, vPointOnPlane.y, vPointOnPlane.z);
+<span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>
+    <span class=comment>// Now we query the information just gathered.  Here is how Sphere Plane Collision works:
+</span>    <span class=comment>// If the distance the center is from the plane is less than the radius of the sphere,
+</span>    <span class=comment>// we know that it must be intersecting the plane.  We take the absolute value of the
+</span>    <span class=comment>// distance when we do this check because once the center of the sphere goes behind
+</span>    <span class=comment>// the polygon, the distance turns into negative numbers (with 0 being that the center
+</span>    <span class=comment>// is exactly on the plane).  What do I mean when I say &quot;behind&quot; the polygon?  How do
+</span>    <span class=comment>// we know which side is the front or back side?  Well, the side with the normal pointing
+</span>    <span class=comment>// out from it is the front side, the other side is the back side.  This is all dependant
+</span>    <span class=comment>// on the direction the vertices stored.  I recommend drawing them counter-clockwise.
+</span>    <span class=comment>// if you go clockwise the normal with then point the opposite way and will screw up
+</span>    <span class=comment>// everything.
+</span>    <span class=comment>// So, if we want to find if the sphere is in front of the plane, we just make sure
+</span>    <span class=comment>// the distance is greater than or equal to the radius.  let's say we have a radius
+</span>    <span class=comment>// of 5, and the distance the center is from the plane is 6; it's obvious that the
+</span>    <span class=comment>// sphere is 1 unit away from the plane.
+</span>    <span class=comment>// If the sphere isn't intersecting or in front of the plane, it HAS to be BEHIND it.
+</span>
+    <span class=comment>// If the absolute value of the distance we just found is less than the radius, 
+</span>    <span class=comment>// the sphere intersected the plane.
+</span>    <span class=keyword>if</span>(absolute(plane2SphereCenterDistance) &lt; sphereRadius)
+        <span class=keyword>return</span> INTERSECTS;
+    <span class=comment>// Else, if the distance is greater than or equal to the radius, the sphere is
+</span>    <span class=comment>// completely in FRONT of the plane.
+</span>    <span class=keyword>else</span>
+    <span class=keyword>if</span>(plane2SphereCenterDistance &gt; sphereRadius)
+        <span class=keyword>return</span> FRONT;
+
+    <span class=keyword>return</span> BEHIND;
+}
+
+
+<span class=comment>///////////////////////////////// EDGE SPHERE COLLSIION \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns true if the sphere is intersecting any of the edges of the polygon
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// EDGE SPHERE COLLSIION \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>bool</span> edgeSphereCollision(    CVector3 &amp;vSphereCenter, 
+                            CVector3 vPolygon[], 
+                            <span class=keyword>int</span> vertexCount, 
+                            <span class=keyword>float</span> sphereRadius
+) {
+    
+    CVector3 vPoint;
+
+    <span class=comment>// This function takes in the sphere's center, the polygon's vertices, the vertex count
+</span>    <span class=comment>// and the radius of the sphere.  We will return true from this function if the sphere
+</span>    <span class=comment>// is intersecting any of the edges of the polygon.  How it works is, every edge line
+</span>    <span class=comment>// segment finds the closest point on that line to the center of the sphere.  If the
+</span>    <span class=comment>// distance from that closest point is less than the radius of the sphere, there was
+</span>    <span class=comment>// a collision.  Otherwise, we are definately out of reach of the polygon.  This works
+</span>    <span class=comment>// for triangles, quads, and any other convex polygons.
+</span>
+    <span class=comment>// Go through all of the vertices in the polygon
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; vertexCount; i++) {
+
+        <span class=comment>// This returns the closest point on the current edge to the center of the sphere.
+</span>        <span class=comment>// Notice that we mod the second point of the edge by our vertex count.  This is
+</span>        <span class=comment>// so that when we get to the last edge of the polygon, the second vertex of the
+</span>        <span class=comment>// edge is the first vertex that we starting with.  
+</span>        
+        vPoint = closestPointOnLine(vPolygon[i], vPolygon[ (i + 1) % vertexCount ], vSphereCenter);
+
+        <span class=comment>// Now, we want to calculate the distance between the closest point and the center
+</span>        <span class=keyword>float</span> distance = getDistance(vPoint, vSphereCenter);
+
+        <span class=comment>// If the distance is less than the radius, there must be a collision so return true
+</span>        <span class=keyword>if</span>(distance &lt; sphereRadius)
+            <span class=keyword>return</span> <span class=keyword>true</span>;
+
+    }
+    
+    <span class=comment>// The was no intersection of the sphere and the edges of the polygon
+</span>    <span class=keyword>return</span> <span class=keyword>false</span>;
+}
+
+<span class=comment>// This returns the offset to move the center of the sphere off the collided polygon
+</span>CVector3 getCollisionOffset(CVector3 &amp;vNormal, <span class=keyword>float</span> radius, <span class=keyword>float</span> distance) {
+    CVector3 vOffset = CVector3(0, 0, 0);
+
+    <span class=comment>// Once we find if a collision has taken place, we need make sure the sphere
+</span>    <span class=comment>// doesn't move into the wall.  In our app, the position will actually move into
+</span>    <span class=comment>// the wall, but we check our collision detection before we render the scene, which
+</span>    <span class=comment>// eliminates the bounce back effect it would cause.  The question is, how do we
+</span>    <span class=comment>// know which direction to move the sphere back?  In our collision detection, we
+</span>    <span class=comment>// account for collisions on both sides of the polygon.  Usually, you just need
+</span>    <span class=comment>// to worry about the side with the normal vector and positive distance.  If 
+</span>    <span class=comment>// you don't want to back face cull and have 2 sided planes, I check for both sides.
+</span>    <span class=comment>//
+</span>    <span class=comment>// Let me explain the math that is going on here.  First, we have the normal to
+</span>    <span class=comment>// the plane, the radius of the sphere, as well as the distance the center of the
+</span>    <span class=comment>// sphere is from the plane.  In the case of the sphere colliding in the front of
+</span>    <span class=comment>// the polygon, we can just subtract the distance from the radius, then multiply
+</span>    <span class=comment>// that new distance by the normal of the plane.  This projects that leftover
+</span>    <span class=comment>// distance along the normal vector.  For instance, say we have these values:
+</span>    <span class=comment>//
+</span>    <span class=comment>//    vNormal = (1, 0, 0)        radius = 5        distance = 3
+</span>    <span class=comment>//
+</span>    <span class=comment>// If we subtract the distance from the radius we get: (5 - 3 = 2)
+</span>    <span class=comment>// The number 2 tells us that our sphere is over the plane by a distance of 2.
+</span>    <span class=comment>// So basically, we need to move the sphere back 2 units.  How do we know which
+</span>    <span class=comment>// direction though?  This part is easy, we have a normal vector that tells us the
+</span>    <span class=comment>// direction of the plane.  
+</span>    <span class=comment>// If we multiply the normal by the left over distance we get:  (2, 0, 0)
+</span>    <span class=comment>// This new offset vectors tells us which direction and how much to move back.
+</span>    <span class=comment>// We then subtract this offset from the sphere's position, giving is the new
+</span>    <span class=comment>// position that is lying right on top of the plane.  Ba da bing!
+</span>    <span class=comment>// If we are colliding from behind the polygon (not usual), we do the opposite
+</span>    <span class=comment>// signs as seen below:
+</span>    
+    <span class=comment>// If our distance is greater than zero, we are in front of the polygon
+</span>    <span class=keyword>if</span>(distance &gt; 0)
+    {
+        <span class=comment>// Find the distance that our sphere is overlapping the plane, then
+</span>        <span class=comment>// find the direction vector to move our sphere.
+</span>        <span class=keyword>float</span> distanceOver = radius - distance;
+        vOffset = vNormal * distanceOver;
+    }
+    <span class=keyword>else</span> <span class=comment>// Else colliding from behind the polygon
+</span>    {
+        <span class=comment>// Find the distance that our sphere is overlapping the plane, then
+</span>        <span class=comment>// find the direction vector to move our sphere.
+</span>        <span class=keyword>float</span> distanceOver = radius + distance;
+        vOffset = vNormal * -distanceOver;
+    }
+
+    <span class=comment>// There is one problem with check for collisions behind the polygon, and that
+</span>    <span class=comment>// is if you are moving really fast and your center goes past the front of the
+</span>    <span class=comment>// polygon, it will then assume you were colliding from behind and not let
+</span>    <span class=comment>// you back in.  Most likely you will take out the if / else check, but I
+</span>    <span class=comment>// figured I would show both ways in case someone didn't want to back face cull.
+</span>
+    <span class=comment>// Return the offset we need to move back to not be intersecting the polygon.
+</span>    <span class=keyword>return</span> vOffset;
+}
+
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// If you haven't wrapped yourself around the porcelain god from all of the math,
+</span><span class=comment>// you are still reading this and passed!  Okay, so maybe it's a overstatement of
+</span><span class=comment>// all the math, but I thought I would make the weenies feel like I identify with
+</span><span class=comment>// them..... uh..... just kidding :)  But seriously, this isn't easy stuff to swallow.
+</span><span class=comment>//
+</span><span class=comment>// I won't attempt to explain everything again because it's taken too many hours to
+</span><span class=comment>// comment this baby, but I will go over the steps again:
+</span><span class=comment>//
+</span><span class=comment>//    1) STEP ONE - Finding the sphere's classification
+</span><span class=comment>//
+</span><span class=comment>//    2) STEP TWO - Finding the psuedo intersection point on the plane
+</span><span class=comment>//
+</span><span class=comment>//    3) STEP THREE - Check if the intersection point is inside the polygons perimeter
+</span><span class=comment>//
+</span><span class=comment>//    4) STEP FOUR - Check the sphere to see if it intersects the polygon edges
+</span><span class=comment>//
+</span><span class=comment>// It should be quite apparent while looking through this tutorial that there can be
+</span><span class=comment>// a bunch of optimizations.  For instance, we tend to calculate the normal and plane
+</span><span class=comment>// distances every frame, and also sometimes many times during that same frame.  We
+</span><span class=comment>// could precompute this useful information in the beginning of the program
+</span><span class=comment>// and pass in more data from our polygon.  It might even be good to create a polygon
+</span><span class=comment>// class that has a constructor that computes all this data and store it in the member variables.
+</span><span class=comment>// When dealing with thousands of polygons, every little bit helps.  Also, be sure you
+</span><span class=comment>// understand that you would not calculate this for every polygon in your world, only
+</span><span class=comment>// the polygons near you.  How you find these polygons is your problem :)  I suggest 
+</span><span class=comment>// an octree or BSP tree, depending on your level/world/scene.
+</span><span class=comment>//
+</span><span class=comment>// Once again, the next tutorial will demonstrate how to hook this up to our camera
+</span><span class=comment>// class and collide and slide against walls in a world.  
+</span><span class=comment>//
+</span><span class=comment>// Let us know at www.GameTutorials.com if this was helpful to you.  
+</span><span class=comment>// Any feedback is welcome .
+</span><span class=comment>// 
+</span><span class=comment>// 
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span><span class=comment>//
+</span></pre></body>
+</html>

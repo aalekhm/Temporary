@@ -1,0 +1,568 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;OBJ.h&quot;
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=keyword>char</span> logText[255];
+FILE *mFileConsoleLog;
+
+<span class=keyword>void</span> log(<span class=keyword>const</span> <span class=keyword>char</span> *format, ...) {
+    va_list        ap;                        <span class=comment>// Pointer To List Of Arguments
+</span>
+    va_start(ap, format);                    <span class=comment>// Parses The String For Variables
+</span>        vsprintf(logText, format, ap);    <span class=comment>// And Converts Symbols To Actual Numbers
+</span>    va_end(ap);                            <span class=comment>// Results Are Stored In Text
+</span>    
+    fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+}
+
+CObjLoader::CObjLoader() {
+    <span class=comment>// Here we initialize all our mesh structures for the character
+</span>    
+    m_bObjectHasUV = <span class=keyword>false</span>;
+    m_bObjectHasNormals = <span class=keyword>false</span>;
+    m_bJustReadAFace = <span class=keyword>false</span>;
+}
+
+CObjLoader::~CObjLoader() {
+    <span class=comment>// Here we free all of the meshes in our model
+</span>    
+}
+
+<span class=comment>//This function loads a .obj file into a specified model by a .obj file name
+</span><span class=keyword>bool</span> CObjLoader::importObj(t3DModel *pGame3DModel, <span class=keyword>char</span>* strFileName) {
+
+    <span class=comment>// Make sure we have a valid model and file name
+</span>    <span class=keyword>if</span>(!pGame3DModel || !strFileName)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// Here we open the desired file for read only and return the file pointer
+</span>    
+    mFilePointer = fopen(strFileName, &quot;rb&quot;);
+    mFileConsoleLog = fopen(&quot;console.log&quot;, &quot;wb&quot;);
+
+    <span class=comment>// Check to make sure we have a valid file pointer
+</span>    <span class=keyword>if</span>(!mFilePointer) {
+        <span class=comment>// Create an error message for the attempted file
+</span>        log(&quot;Unable to find or open the file: %s&quot;, strFileName);
+        sprintf(logText, &quot;Unable to find or open the file: %s&quot;, strFileName);
+        MessageBox(NULL, logText, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// Now that we have a valid file and it's open, let's read in the info!
+</span>    readObjFile(pGame3DModel);
+
+    <span class=comment>// Now that we have the file read in, let's compute the vertex normals for lighting
+</span>    computeNormals(pGame3DModel);
+
+    <span class=comment>// Close the .obj file that we opened
+</span>    fclose(mFilePointer);
+    
+    <span class=comment>// Return a success!
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This function is the main loop for reading in the .obj file
+</span><span class=keyword>void</span> CObjLoader::readObjFile(t3DModel *pModel) {
+
+    <span class=keyword>char</span> strLine[255] = {0};
+    <span class=keyword>char</span> ch = 0;
+
+    <span class=keyword>while</span>(!feof(mFilePointer)) {
+        
+        <span class=keyword>float</span> x = 0.0f, y = 0.0f, z = 0.0f;
+
+        <span class=comment>// Get the beginning character of the current line in the .obj file
+</span>        ch = fgetc(mFilePointer);
+
+        <span class=keyword>switch</span>(ch) {
+            <span class=comment>// Check if we just read in a 'v' (Could be a vertice/normal/textureCoord)
+</span>            <span class=keyword>case</span> 'v':
+                
+                <span class=keyword>if</span>(m_bJustReadAFace) {
+
+                    <span class=comment>// Save the last object's info into our model structure
+</span>                    fillInObjectInfo(pModel);
+                }
+                
+                <span class=comment>// Decipher this line to see if it's a vertex (&quot;v&quot;), normal (&quot;vn&quot;), or UV coordinate (&quot;vt&quot;)
+</span>                readVertexInfo();
+            <span class=keyword>break</span>;
+
+            <span class=comment>// Check if we just read in a face header ('f')
+</span>            <span class=keyword>case</span> 'f':
+
+                <span class=comment>// If we get here we then we need to read in the face information.
+</span>                <span class=comment>// The face line holds the vertex indices into our vertex array, or if
+</span>                <span class=comment>// the object has texture coordinates then it holds those too.
+</span>                
+                readFaceInfo();
+            <span class=keyword>break</span>;
+            
+            <span class=keyword>case</span> '\n':
+                <span class=comment>// If we read in a newline character, we've encountered a blank line in
+</span>                <span class=comment>// the .obj file.  We don't want to do the default case and skip another
+</span>                <span class=comment>// line, so we just break and do nothing.
+</span>            <span class=keyword>break</span>;
+
+            <span class=keyword>default</span>:
+                
+                <span class=comment>// If we get here then we don't care about the line being read, so read past it.
+</span>                fgets(strLine, 100, mFilePointer);
+            <span class=keyword>break</span>;
+        }
+    }
+
+    <span class=comment>// Now that we are done reading in the file, we have need to save the last object read.
+</span>    fillInObjectInfo(pModel);
+}
+
+<span class=comment>// This function reads in the vertex information (&quot;v&quot; vertex : &quot;vt&quot; UVCoord)
+</span><span class=keyword>void</span> CObjLoader::readVertexInfo() {
+    CVector3 vNewVector        = {0};
+    CVector2 vNewTexCoord    = {0};
+    <span class=keyword>char</span> strLine[255] = {0};
+    <span class=keyword>char</span> ch = 0;
+
+    <span class=comment>// Read the next character in the file to see if it's a vertice/normal/UVCoord
+</span>    ch = fgetc(mFilePointer);
+    
+    <span class=comment>// If we get a space it must have been a vertex (&quot;v&quot;)
+</span>    <span class=keyword>if</span>(ch == ' ') {
+
+        <span class=comment>// Here we read in a vertice.  The format is &quot;v x y z&quot;
+</span>        fscanf(mFilePointer, &quot;%f %f %f&quot;, &amp;vNewVector.x, &amp;vNewVector.y, &amp;vNewVector.z);
+
+        <span class=comment>// Read the rest of the line so the file pointer returns to the next line.
+</span>        fgets(strLine, 100, mFilePointer);
+
+        <span class=comment>// Add a new vertice to our list
+</span>        m_pVertices.push_back(vNewVector);
+
+        log(&quot;VERTEX = %0.2f\t%0.2f\t%0.2f\r\n&quot;, vNewVector.x, vNewVector.y, vNewVector.z);
+    }
+    <span class=keyword>else</span>
+    <span class=comment>// If we get a 't' then it must be a texture coordinate (&quot;vt&quot;)
+</span>    <span class=keyword>if</span>(ch == 't') {
+
+        <span class=comment>// Here we read in a texture coordinate.  The format is &quot;vt u v&quot;
+</span>        fscanf(mFilePointer, &quot;%f %f&quot;, &amp;vNewTexCoord.x, &amp;vNewTexCoord.y);
+
+        <span class=comment>// Read the rest of the line so the file pointer returns to the next line.
+</span>        fgets(strLine, 100, mFilePointer);
+
+        <span class=comment>// Add a new vertice to our list
+</span>        m_pTextureCoords.push_back(vNewTexCoord);
+
+        <span class=comment>// Set the flag that tells us this object has texture coordinates.
+</span>        <span class=comment>// Now we know that the face information will list the vertice AND UV index.
+</span>        <span class=comment>// For example, (&quot;f 1 3 2&quot; verses &quot;f 1/1 2/2 3/3&quot;)
+</span>        m_bObjectHasUV = <span class=keyword>true</span>;
+
+        log(&quot;TEXTURE COORDINATES = %0.2f\t%0.2f\r\n&quot;, vNewTexCoord.x, vNewTexCoord.y);
+    }
+    <span class=keyword>else</span>
+    <span class=comment>// If we get a 'n' then it must be a normal (&quot;vn&quot;)
+</span>    <span class=keyword>if</span>(ch == 'n') {
+        m_bObjectHasNormals = <span class=keyword>true</span>;
+        fgets(strLine, 100, mFilePointer);
+    }
+    <span class=comment>// Ignore the line
+</span>    <span class=keyword>else</span> {
+
+        <span class=comment>// We calculate our own normals at the end so we read past them.
+</span>        fgets(strLine, 100, mFilePointer);
+    }
+}
+
+<span class=comment>// This is called in ReadObjFile() if we find a line starting with 'f'
+</span><span class=keyword>void</span> CObjLoader::readFaceInfo() {
+
+    tFace newFace = {0};
+    <span class=keyword>char</span> strLine[255] = {0};
+
+    <span class=comment>// This function reads in the face information of the object.
+</span>    <span class=comment>// A face is a polygon (a triangle in this case) that has information about it.
+</span>    <span class=comment>// It has the 3D points that make up the polygon and may also have texture coordinates.
+</span>    <span class=comment>// When reading in an .obj, objects don't have to have UV texture coordinates so we
+</span>    <span class=comment>// need to read in the face information differently in that case.  If the object does have
+</span>    <span class=comment>// UV coordinates, then the format will look like this:
+</span>    <span class=comment>// &quot;f vertexIndex1/coordIndex1 vertexIndex2/coordIndex2 vertexIndex3/coordIndex3&quot;
+</span>    <span class=comment>// otherwise the format will look like this:&quot;f vertexIndex1 vertexIndex2 vertexIndex3&quot;
+</span>    <span class=comment>// The index values index into our vertice and texture coordinate arrays.  More explained in RenderScene().
+</span>    <span class=comment>// *Note* Make sure if you cut this code out for your own use you minus 1 from the indices.
+</span>    <span class=comment>// This is because arrays are zero based and the .obj indices start at 1.  Look at FillInObjectInfo().
+</span>
+    <span class=comment>// Check if this object has texture coordinates before reading in the values
+</span>    <span class=keyword>if</span>(m_bObjectHasUV) {
+
+        <span class=comment>// Here we read in the object's vertex and texture coordinate indices.
+</span>        <span class=comment>// Here is the format: &quot;f vertexIndex1/coordIndex1 vertexIndex2/coordIndex2 vertexIndex3/coordIndex3&quot;
+</span>        
+        <span class=keyword>if</span>(!m_bObjectHasNormals)
+            fscanf(mFilePointer, &quot;%d/%d %d/%d %d/%d&quot;,    &amp;newFace.vertexIndex[0], &amp;newFace.texCoordIndex[0], 
+                                                        &amp;newFace.vertexIndex[1], &amp;newFace.texCoordIndex[1], 
+                                                        &amp;newFace.vertexIndex[2], &amp;newFace.texCoordIndex[2]
+                                                    );
+        <span class=keyword>else</span> {
+            <span class=keyword>int</span> dummyNormal[3];
+<span class=comment>//MessageBox(NULL, &quot;sssssssssss&quot;, &quot;ddd&quot;, MB_OK);
+</span>            fscanf(mFilePointer, &quot;%d/%d/%d %d/%d/%d %d/%d/%d&quot;,    &amp;newFace.vertexIndex[0], &amp;newFace.texCoordIndex[0], &amp;dummyNormal[0],
+                                                                &amp;newFace.vertexIndex[1], &amp;newFace.texCoordIndex[1], &amp;dummyNormal[1],
+                                                                &amp;newFace.vertexIndex[2], &amp;newFace.texCoordIndex[2], &amp;dummyNormal[2]
+                                                            );
+        }
+    }
+    <span class=comment>// The object does NOT have texture coordinates
+</span>    <span class=keyword>else</span> {
+        <span class=comment>// Here we read in just the object's vertex indices.
+</span>        <span class=comment>// Here is the format: &quot;f vertexIndex1 vertexIndex2 vertexIndex3&quot;
+</span>        fscanf(mFilePointer, &quot;%d %d %d&quot;, &amp;newFace.vertexIndex[0], &amp;newFace.vertexIndex[1], &amp;newFace.vertexIndex[2]);
+    }
+
+    <span class=comment>// Read the rest of the line so the file pointer returns to the next line.
+</span>    fgets(strLine, 100, mFilePointer);
+
+    <span class=comment>// Add the new face to our face list
+</span>    m_pFaces.push_back(newFace);
+
+    <span class=comment>// We set this flag to TRUE so we know that we just read in some face information.
+</span>    <span class=comment>// Since face information is the last thing we read in for an object we will check
+</span>    <span class=comment>// this flag when we read in a vertice.  If it's true, then we just finished reading
+</span>    <span class=comment>// in an object and we need to save off the information before going to the next object.
+</span>    <span class=comment>// Since there is no standard header for objects in a .obj file we do it this way.
+</span>    m_bJustReadAFace = <span class=keyword>true</span>;
+}
+
+<span class=comment>//This function is called after an object is read in to fill in the model structure
+</span><span class=keyword>void</span> CObjLoader::fillInObjectInfo(t3DModel *pModel) {
+    
+    t3DObject newObject = {0};
+    <span class=keyword>int</span> textureOffset = 0, vertexOffset = 0;
+    <span class=keyword>int</span> i = 0;
+
+    <span class=comment>// If we get here then we just finished reading in an object
+</span>    <span class=comment>// and need to increase the object count.
+</span>    pModel-&gt;numOfObjects++;
+
+    <span class=comment>// Add a new object to the list of objects in our model
+</span>    pModel-&gt;pObjects.push_back(newObject);
+
+    <span class=comment>// Get a pointer to the current object so our code is easier to read
+</span>    t3DObject *pObject = &amp;(pModel-&gt;pObjects[pModel-&gt;numOfObjects - 1]);
+
+    <span class=comment>// Now that we have our list's full of information, we can get the size
+</span>    <span class=comment>// of these lists by calling size() from our vectors.  That is one of the
+</span>    <span class=comment>// wonderful things that the Standard Template Library offers us.  Now you
+</span>    <span class=comment>// never need to write a link list or constantly call malloc()/new.
+</span>
+    <span class=comment>// Here we get the number of faces, vertices and texture coordinates
+</span>    pObject-&gt;numOfFaces                = m_pFaces.size();
+    pObject-&gt;numOfVertices            = m_pVertices.size();
+    pObject-&gt;numOfTextureVertices    = m_pTextureCoords.size();
+
+    <span class=comment>// If we read in any faces for this object (required)
+</span>    <span class=keyword>if</span>(pObject-&gt;numOfFaces) {
+
+        <span class=comment>// Allocate enough memory to store all the faces in our object
+</span>        pObject-&gt;pFaces = <span class=keyword>new</span> tFace[pObject-&gt;numOfFaces];
+    }
+
+    <span class=comment>// If we read in any vertices for this object (required)
+</span>    <span class=keyword>if</span>(pObject-&gt;numOfVertices) {
+
+        <span class=comment>// Allocate enough memory to store all the vertices in our object
+</span>        pObject-&gt;pVertices = <span class=keyword>new</span> CVector3[pObject-&gt;numOfVertices];
+    }
+
+    <span class=comment>// If we read in any texture coordinates for this object (optional)
+</span>    <span class=keyword>if</span>(pObject-&gt;numOfTextureVertices) {
+        
+        pObject-&gt;pTexVertices    = <span class=keyword>new</span> CVector2[pObject-&gt;numOfTextureVertices];
+        pObject-&gt;bHasTexture = <span class=keyword>true</span>;
+    }
+
+    <span class=comment>// Go through all of the faces in the object
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pObject-&gt;numOfFaces; i++) {
+
+        <span class=comment>// Copy the current face from the temporary list to our Model list
+</span>        pObject-&gt;pFaces[i] = m_pFaces[i];
+
+        <span class=comment>// Because of the problem with .obj files not being very object friendly,
+</span>        <span class=comment>// if a new object is found in the file, the face and texture indices start
+</span>        <span class=comment>// from the last index that was used in the last object.  That means that if
+</span>        <span class=comment>// the last one was 8, it would then go to 9 for the next object.  We need to
+</span>        <span class=comment>// bring that back down to 1, so we just create an offset that we subtract from
+</span>        <span class=comment>// the vertex and UV indices.
+</span>
+        <span class=comment>// Check if this is the first face of the object
+</span>        <span class=keyword>if</span>(i == 0) {
+
+            <span class=comment>// If the first index is NOT 1, then we must be past the first object
+</span>            <span class=keyword>if</span>(pObject-&gt;pFaces[0].vertexIndex[0] != 1) {
+                
+                <span class=comment>// To create the offset we take the current starting point and then minus 1.
+</span>                <span class=comment>// Lets say the last object ended at 8.  Well we would then have 9 here.
+</span>                <span class=comment>// We want to then subtract 8 from the 9 to get back to 1.
+</span>                vertexOffset = pObject-&gt;pFaces[0].vertexIndex[0] -1;
+
+                <span class=comment>// The same goes for texture coordinates, if we have them do the same
+</span>                <span class=keyword>if</span>(pObject-&gt;numOfTextureVertices &gt; 0) {
+                    
+                    <span class=comment>// Take the current index and minus 1 from it
+</span>                    textureOffset = pObject-&gt;pFaces[0].texCoordIndex[0] - 1;
+                }
+            }
+        }
+
+        <span class=comment>// Because the face indices start at 1, we need to minus 1 from them due
+</span>        <span class=comment>// to arrays being zero based.  This is VERY important!
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; 3; j++) {
+
+            <span class=comment>// For each index, minus 1 to conform with zero based arrays.
+</span>            <span class=comment>// We also need to add the vertex and texture offsets to subtract
+</span>            <span class=comment>// the total amount necessary for this to work.  The first object
+</span>            <span class=comment>// will have a offset of 0 for both since it starts at 1.
+</span>            pObject-&gt;pFaces[i].vertexIndex[j]    -= 1 + vertexOffset;
+            pObject-&gt;pFaces[i].texCoordIndex[j] -= 1 + textureOffset;
+        }
+    }
+
+    <span class=comment>// Go through all the vertices in the object
+</span>    <span class=keyword>for</span>(i = 0; i &lt; pObject-&gt;numOfVertices; i++) {
+        
+        <span class=comment>// Copy the current vertice from the temporary list to our Model list
+</span>        pObject-&gt;pVertices[i] = m_pVertices[i];
+    }
+
+    <span class=comment>// Go through all of the texture coordinates in the object (if any)
+</span>    <span class=keyword>for</span>(i = 0; i &lt; pObject-&gt;numOfTextureVertices; i++) {
+        
+        <span class=comment>// Copy the current UV coordinate from the temporary list to our Model list
+</span>        pObject-&gt;pTexVertices[i] = m_pTextureCoords[i];
+    }
+
+    <span class=comment>// Since .OBJ files don't have materials, we set the material ID to -1.
+</span>    <span class=comment>// We need to manually give it a material using AddMaterial().
+</span>    pObject-&gt;materialID = -1;
+
+    <span class=comment>// Now that we have all the information from out list's, we need to clear them
+</span>    <span class=comment>// so we can be ready for the next object that we read in.
+</span>    m_pVertices.clear();
+    m_pFaces.clear();
+    m_pTextureCoords.clear();
+
+    <span class=comment>// Reset these booleans to be prepared for the next object
+</span>    m_bObjectHasUV   = <span class=keyword>false</span>;
+    m_bJustReadAFace = <span class=keyword>false</span>;
+}
+
+<span class=comment>//This function assigns a material to a specific object in our array of objects
+</span><span class=keyword>void</span> CObjLoader::setObjectMaterial(t3DModel *pModel, <span class=keyword>int</span> whichObject, <span class=keyword>int</span> materialID) {
+    <span class=comment>// Make sure we have a valid model or else quit the function
+</span>    <span class=keyword>if</span>(!pModel) <span class=keyword>return</span>;
+
+    <span class=comment>// Make sure we don't index over the array of objects
+</span>    <span class=keyword>if</span>(whichObject &gt;= pModel-&gt;numOfObjects) <span class=keyword>return</span>;
+
+    <span class=comment>// Here we set the material ID assigned to this object
+</span>    pModel-&gt;pObjects[whichObject].materialID = materialID;
+}
+
+<span class=comment>//This function adds a material to our model manually since .obj has no such info
+</span><span class=keyword>void</span> CObjLoader::addMaterial(t3DModel *pModel, <span class=keyword>char</span> *strMaterialName, <span class=keyword>char</span> *strMaterialFileName, <span class=keyword>int</span> r, <span class=keyword>int</span> g, <span class=keyword>int</span> b) {
+    tMaterial newMaterial = {0};
+
+    <span class=comment>// Set the RGB value for this material [0 - RED        1 - GREEN    2 - BLUE]
+</span>    newMaterial.colour[0] = r; newMaterial.colour[1] = g; newMaterial.colour[2] = b;
+
+    <span class=comment>// If we have a file name passed in, let's copy it to our material structure
+</span>    <span class=keyword>if</span>(strMaterialFileName) {
+        strcpy(newMaterial.textureFileName, strMaterialFileName);
+    }
+
+    <span class=comment>// If we have a material name passed in, let's copy it to our material structure
+</span>    <span class=keyword>if</span>(strMaterialName) {
+        strcpy(newMaterial.materialName, strMaterialName);
+    }
+
+    <span class=comment>// Now we add this material to model's list.  Once again we use the incredibly
+</span>    <span class=comment>// helpfull STL vector functions for allocating dynamic memory.
+</span>    pModel-&gt;pMaterials.push_back(newMaterial);
+
+    <span class=comment>// Increase the material count
+</span>    pModel-&gt;numOfMaterials++;
+}
+
+<span class=comment>// Below are some math functions for calculating vertex normals.  We want vertex normals
+</span><span class=comment>// because it makes the lighting look really smooth and life like.  You probably already
+</span><span class=comment>// have these functions in the rest of your engine, so you can delete these and call
+</span><span class=comment>// your own.  I wanted to add them so I could show how to calculate vertex normals.
+</span>
+<span class=comment>//////////////////////////////    Math Functions  ////////////////////////////////*
+</span><span class=comment>// This computes the magnitude of a normal.   (magnitude = sqrt(x^2 + y^2 + z^2)
+</span><span class=pp>#define</span> Mag(Normal) (sqrt(Normal.x*Normal.x + Normal.y*Normal.y + Normal.z*Normal.z))
+<span class=comment>// This calculates a vector between 2 points and returns the result
+</span>CVector3 Vector(CVector3 vPoint1, CVector3 vPoint2)
+{
+    CVector3 vVector;                            <span class=comment>// The variable to hold the resultant vector
+</span>
+    vVector.x = vPoint1.x - vPoint2.x;            <span class=comment>// Subtract point1 and point2 x's
+</span>    vVector.y = vPoint1.y - vPoint2.y;            <span class=comment>// Subtract point1 and point2 y's
+</span>    vVector.z = vPoint1.z - vPoint2.z;            <span class=comment>// Subtract point1 and point2 z's
+</span>
+    <span class=keyword>return</span> vVector;                                <span class=comment>// Return the resultant vector
+</span>}
+
+<span class=comment>// This adds 2 vectors together and returns the result
+</span>CVector3 AddVector(CVector3 vVector1, CVector3 vVector2)
+{
+    CVector3 vResult;                            <span class=comment>// The variable to hold the resultant vector
+</span>    
+    vResult.x = vVector2.x + vVector1.x;        <span class=comment>// Add Vector1 and Vector2 x's
+</span>    vResult.y = vVector2.y + vVector1.y;        <span class=comment>// Add Vector1 and Vector2 y's
+</span>    vResult.z = vVector2.z + vVector1.z;        <span class=comment>// Add Vector1 and Vector2 z's
+</span>
+    <span class=keyword>return</span> vResult;                                <span class=comment>// Return the resultant vector
+</span>}
+
+<span class=comment>// This divides a vector by a single number (scalar) and returns the result
+</span>CVector3 DivideVectorByScaler(CVector3 vVector1, <span class=keyword>float</span> Scaler)
+{
+    CVector3 vResult;                            <span class=comment>// The variable to hold the resultant vector
+</span>    
+    vResult.x = vVector1.x / Scaler;            <span class=comment>// Divide Vector1's x value by the scaler
+</span>    vResult.y = vVector1.y / Scaler;            <span class=comment>// Divide Vector1's y value by the scaler
+</span>    vResult.z = vVector1.z / Scaler;            <span class=comment>// Divide Vector1's z value by the scaler
+</span>
+    <span class=keyword>return</span> vResult;                                <span class=comment>// Return the resultant vector
+</span>}
+
+<span class=comment>// This returns the cross product between 2 vectors
+</span>CVector3 Cross(CVector3 vVector1, CVector3 vVector2)
+{
+    CVector3 vCross;                                <span class=comment>// The vector to hold the cross product
+</span>                                                <span class=comment>// Get the X value
+</span>    vCross.x = ((vVector1.y * vVector2.z) - (vVector1.z * vVector2.y));
+                                                <span class=comment>// Get the Y value
+</span>    vCross.y = ((vVector1.z * vVector2.x) - (vVector1.x * vVector2.z));
+                                                <span class=comment>// Get the Z value
+</span>    vCross.z = ((vVector1.x * vVector2.y) - (vVector1.y * vVector2.x));
+
+    <span class=keyword>return</span> vCross;                                <span class=comment>// Return the cross product
+</span>}
+
+<span class=comment>// This returns the normal of a vector
+</span>CVector3 Normalize(CVector3 vNormal)
+{
+    <span class=keyword>double</span> Magnitude;                            <span class=comment>// This holds the magnitude            
+</span>
+    Magnitude = Mag(vNormal);                    <span class=comment>// Get the magnitude
+</span>
+    vNormal.x /= (<span class=keyword>float</span>)Magnitude;                <span class=comment>// Divide the vector's X by the magnitude
+</span>    vNormal.y /= (<span class=keyword>float</span>)Magnitude;                <span class=comment>// Divide the vector's Y by the magnitude
+</span>    vNormal.z /= (<span class=keyword>float</span>)Magnitude;                <span class=comment>// Divide the vector's Z by the magnitude
+</span>
+    <span class=keyword>return</span> vNormal;                                <span class=comment>// Return the normal
+</span>}
+
+<span class=comment>///////////////////////////////// COMPUTER NORMALS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This function computes the normals and vertex normals of the objects
+</span><span class=comment>/////
+</span><span class=comment>///////////////////////////////// COMPUTER NORMALS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>
+<span class=keyword>void</span> CObjLoader::computeNormals(t3DModel *pModel) {
+
+    CVector3 vVector1, vVector2, vNormal, vPoly[3];
+
+    <span class=comment>// If there are no objects, we can skip this part
+</span>    <span class=keyword>if</span>(pModel-&gt;numOfObjects &lt;= 0)
+        <span class=keyword>return</span>;
+
+    <span class=comment>// What are vertex normals?  And how are they different from other normals?
+</span>    <span class=comment>// Well, if you find the normal to a triangle, you are finding a &quot;Face Normal&quot;.
+</span>    <span class=comment>// If you give OpenGL a face normal for lighting, it will make your object look
+</span>    <span class=comment>// really flat and not very round.  If we find the normal for each vertex, it makes
+</span>    <span class=comment>// the smooth lighting look.  This also covers up blocky looking objects and they appear
+</span>    <span class=comment>// to have more polygons than they do.    Basically, what you do is first
+</span>    <span class=comment>// calculate the face normals, then you take the average of all the normals around each
+</span>    <span class=comment>// vertex.  It's just averaging.  That way you get a better approximation for that vertex.
+</span>
+    <span class=comment>// Go through each of the objects to calculate their normals
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> index = 0; index &lt; pModel-&gt;numOfObjects; index++)
+    {
+        <span class=comment>// Get the current object
+</span>        t3DObject *pObject = &amp;(pModel-&gt;pObjects[index]);
+
+        <span class=comment>// Here we allocate all the memory we need to calculate the normals
+</span>        CVector3 *pNormals        = <span class=keyword>new</span> CVector3 [pObject-&gt;numOfFaces];
+        CVector3 *pTempNormals    = <span class=keyword>new</span> CVector3 [pObject-&gt;numOfFaces];
+        pObject-&gt;pNormals        = <span class=keyword>new</span> CVector3 [pObject-&gt;numOfVertices];
+
+        <span class=comment>// Go though all of the faces of this object
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> i=0; i &lt; pObject-&gt;numOfFaces; i++)
+        {                                                
+            <span class=comment>// To cut down LARGE code, we extract the 3 points of this face
+</span>            vPoly[0] = pObject-&gt;pVertices[pObject-&gt;pFaces[i].vertexIndex[0]];
+            vPoly[1] = pObject-&gt;pVertices[pObject-&gt;pFaces[i].vertexIndex[1]];
+            vPoly[2] = pObject-&gt;pVertices[pObject-&gt;pFaces[i].vertexIndex[2]];
+
+            <span class=comment>// Now let's calculate the face normals (Get 2 vectors and find the cross product of those 2)
+</span>
+            vVector1 = Vector(vPoly[0], vPoly[2]);        <span class=comment>// Get the vector of the polygon (we just need 2 sides for the normal)
+</span>            vVector2 = Vector(vPoly[2], vPoly[1]);        <span class=comment>// Get a second vector of the polygon
+</span>
+            vNormal  = Cross(vVector1, vVector2);        <span class=comment>// Return the cross product of the 2 vectors (normalize vector, but not a unit vector)
+</span>            pTempNormals[i] = vNormal;                    <span class=comment>// Save the un-normalized normal for the vertex normals
+</span>            vNormal  = Normalize(vNormal);                <span class=comment>// Normalize the cross product to give us the polygons normal
+</span>
+            pNormals[i] = vNormal;                        <span class=comment>// Assign the normal to the list of normals
+</span>        }
+
+        <span class=comment>//////////////// Now Get The Vertex Normals /////////////////
+</span>
+        CVector3 vSum = {0.0, 0.0, 0.0};
+        CVector3 vZero = vSum;
+        <span class=keyword>int</span> shared=0;
+
+        <span class=keyword>for</span> (<span class=keyword>int</span> i = 0; i &lt; pObject-&gt;numOfVertices; i++)            <span class=comment>// Go through all of the vertices
+</span>        {
+            <span class=keyword>for</span> (<span class=keyword>int</span> j = 0; j &lt; pObject-&gt;numOfFaces; j++)    <span class=comment>// Go through all of the triangles
+</span>            {                                                <span class=comment>// Check if the vertex is shared by another face
+</span>                <span class=keyword>if</span> (pObject-&gt;pFaces[j].vertexIndex[0] == i || 
+                    pObject-&gt;pFaces[j].vertexIndex[1] == i || 
+                    pObject-&gt;pFaces[j].vertexIndex[2] == i)
+                {
+                    vSum = AddVector(vSum, pTempNormals[j]);<span class=comment>// Add the un-normalized normal of the shared face
+</span>                    shared++;                                <span class=comment>// Increase the number of shared triangles
+</span>                }
+            }      
+            
+            <span class=comment>// Get the normal by dividing the sum by the shared.  We negate the shared so it has the normals pointing out.
+</span>            pObject-&gt;pNormals[i] = DivideVectorByScaler(vSum, <span class=keyword>float</span>(-shared));
+
+            <span class=comment>// Normalize the normal for the final vertex normal
+</span>            pObject-&gt;pNormals[i] = Normalize(pObject-&gt;pNormals[i]);    
+
+            vSum = vZero;                                    <span class=comment>// Reset the sum
+</span>            shared = 0;                                        <span class=comment>// Reset the shared
+</span>        }
+    
+        <span class=comment>// Free our memory and start over on the next object
+</span>        <span class=keyword>delete</span> [] pTempNormals;
+        <span class=keyword>delete</span> [] pNormals;
+    }
+}
+
+
+</pre></body>
+</html>

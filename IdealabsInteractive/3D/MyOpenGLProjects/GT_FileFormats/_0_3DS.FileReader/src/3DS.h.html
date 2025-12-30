@@ -1,0 +1,146 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _3DS_H_
+<span class=pp>#define</span> _3DS_H_
+
+<span class=pp>#include</span> &lt;windows.h&gt;
+<span class=pp>#include</span> &lt;stdio.h&gt;
+<span class=pp>#include</span> &lt;stdlib.h&gt;
+<span class=pp>#include</span> &lt;vector&gt;
+<span class=pp>#include</span> &lt;stdarg.h&gt;
+<span class=keyword>using</span> <span class=keyword>namespace</span> std;    <span class=comment>//for vector
+</span>
+<span class=comment>//Primary Chunk at the beginning of the file
+</span><span class=pp>#define</span> PRIMARY                    0x4D4D
+
+<span class=comment>//Main Chunks
+</span><span class=pp>#define</span> FILE_VERSION            0x0002        <span class=comment>//This gives the version of the .3ds file
+</span><span class=pp>#define</span>    OBJECT_INFO                0x3D3D        <span class=comment>//This has all the information about the Mesh
+</span><span class=pp>#define</span> EDIT_KEY_FRAME            0xB000        <span class=comment>//This gives the header for all key frame info
+</span>
+<span class=comment>//Sub Chunks for OBJECT_INFO
+</span><span class=pp>#define</span>    MESH_VERSION            0x3E3D        <span class=comment>//This gives the Mesh version and is found right before the material and object information
+</span><span class=pp>#define</span>    MATERIAL                0xAFFF        <span class=comment>//This stores the texture info
+</span><span class=pp>#define</span> OBJECT                    0x4000        <span class=comment>//This stores the faces, vertices, etc...
+</span>
+<span class=comment>//Sub Chunks for MATERIAL
+</span><span class=pp>#define</span>    MATERIAL_NAME            0xA000        <span class=comment>//This holds the Material Name
+</span><span class=pp>#define</span>    MATERIAL_DIFFUSE        0xA020        <span class=comment>//This holds the colour of the Object/Material
+</span><span class=pp>#define</span> MATERIAL_MAP            0xA200        <span class=comment>//This holds the header of a new Material
+</span><span class=pp>#define</span>    MATERIAL_MAP_FILENAME    0xA300        <span class=comment>//This holds the filename of the texture
+</span>
+<span class=pp>#define</span>    OBJECT_MESH                0x4100        <span class=comment>//This lets us know we are reading a new object
+</span>
+<span class=comment>//Sub Chunks for OBJECT_MESH
+</span><span class=pp>#define</span>    OBJECT_VERTICES            0x4110        <span class=comment>//The objects vertices
+</span><span class=pp>#define</span>    OBJECT_FACES            0x4120        <span class=comment>//The objects faces
+</span><span class=pp>#define</span>    OBJECT_MATERIAL            0x4130        <span class=comment>//This is found if the object has a material, either a colour or a texture map
+</span><span class=pp>#define</span>    OBJECT_UV                0x4140        <span class=comment>//The UV texture coordinates
+</span>
+<span class=comment>//This holds the Chunk info
+</span><span class=keyword>struct</span> tCHUNK {
+    <span class=keyword>unsigned</span> <span class=keyword>short</span> <span class=keyword>int</span>    chunkID;            <span class=comment>//The Chunks ID
+</span>    <span class=keyword>unsigned</span> <span class=keyword>int</span>        chunkLength;        <span class=comment>//The Chunks Length
+</span>    <span class=keyword>unsigned</span> <span class=keyword>int</span>        bytesRead;            <span class=comment>//Amount of bytes read within the Chunk
+</span>};
+
+<span class=comment>//This is a 3 point class, used to store the vertices of our Model.
+</span><span class=keyword>class</span> CVector3 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y, z;
+};
+
+<span class=comment>//This is a 2 point class, used to store the UV texture coordinates.
+</span><span class=keyword>class</span> CVector2 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y;
+};
+
+<span class=comment>// This is our face structure.  This is is used for indexing into the vertex 
+</span><span class=comment>// and texture coordinate arrays.  From this information we know which vertices
+</span><span class=comment>// from our vertex array go to which face, along with the correct texture coordinates.
+</span><span class=keyword>struct</span> tFace {
+    <span class=keyword>int</span> vertexIndex[3];        <span class=comment>//This stores the vertex indexes that make up this triangle face.
+</span>    <span class=keyword>int</span> coordIndex[3];        <span class=comment>//This stores the texture coordinate index to be applied to this face.
+</span>};
+
+<span class=comment>//This holds the material information. It may be a texture map or a colour.
+</span><span class=comment>// Some of these are not used, but I left them because you will want to eventually
+</span><span class=comment>// read in the UV tile ratio and the UV tile offset for some models.
+</span><span class=keyword>struct</span> tMaterial {
+    <span class=keyword>char</span> materialName[255];            <span class=comment>//The Material Name
+</span>    <span class=keyword>char</span> textureFileName[255];        <span class=comment>//The texture file name, if this is a texture map
+</span>    BYTE colour[3];                    <span class=comment>//The colour of the object (R, G, B)
+</span>    <span class=keyword>int</span> materialID;                    <span class=comment>//The texture ID
+</span>    <span class=keyword>float</span> uTile;                    <span class=comment>//U tiling of the texture
+</span>    <span class=keyword>float</span> vTile;                    <span class=comment>//V tiling of the texture
+</span>    <span class=keyword>float</span> uOffset;                    <span class=comment>//U tiling offset of the texture
+</span>    <span class=keyword>float</span> vOffset;                    <span class=comment>//V tiling offset of the texture
+</span>};
+
+<span class=comment>//This holds the information for a single OBJECT in our MODEL/SCENE.
+</span><span class=comment>//You should eventually turn into a robust class that 
+</span><span class=comment>//has loading/drawing/querying functions like:
+</span><span class=comment>//LoadModel(...); DrawObject(...); DrawModel(...); DestroyModel(...);
+</span><span class=keyword>struct</span> t3DObject {
+    <span class=keyword>char</span> objectName[255];            <span class=comment>//The name of the Object
+</span>        
+    <span class=keyword>int</span> numOfVertices;                <span class=comment>//The number of vertices in the MODEL
+</span>    <span class=keyword>int</span> numOfFaces;                    <span class=comment>//The number of faces in the MODEL
+</span>    <span class=keyword>int</span> numOfTextureVertex;            <span class=comment>//The number of texture Coordinates
+</span>            
+    <span class=keyword>bool</span> bHasTexture;                <span class=comment>//Does this object has a texture?
+</span>    <span class=keyword>int</span> materialID;                    <span class=comment>//If yes, this is the texture ID to use, which is the index to out texture array
+</span>    
+    tFace        *pFaces;            <span class=comment>//The objects faces
+</span>    CVector3    *pVertices;            <span class=comment>//The objects vertices
+</span>    CVector3    *pNormals;            <span class=comment>//The objects normals
+</span>    CVector2    *pTexVertices;        <span class=comment>//The objects texture`s UV coordinates
+</span>};
+
+<span class=comment>///This holds our MODEL/SCENE information.
+</span><span class=comment>//This should also turn into a robust class.
+</span><span class=comment>// We use STL's (Standard Template Library) vector class to ease our link list burdens. :)
+</span><span class=keyword>struct</span> t3DModel {
+    <span class=keyword>int</span> numOfObjects;                        <span class=comment>//The number of Objects in our MODEL/SCENE
+</span>    <span class=keyword>int</span> numOfMaterials;                        <span class=comment>//The number of materials used by the Objects in our MODEL/SCENE
+</span>    
+    vector&lt;t3DObject&gt;        pObjects;        <span class=comment>//List of the Objects
+</span>    vector&lt;tMaterial&gt;        pMaterials;    <span class=comment>//List of the Materials (textures &amp; colours).    
+</span>};
+
+
+<span class=keyword>class</span> CReader3DS {
+    <span class=keyword>public</span>:
+        FILE *mFilePointer;
+        
+        <span class=keyword>bool</span> import3DS(t3DModel *pGame3DModel, <span class=keyword>char</span>* fileName3DS);
+        <span class=keyword>void</span> readChunk(tCHUNK *pChunk);
+        <span class=keyword>void</span> processNextChunk(t3DModel *pModel, tCHUNK *pPreviousChunk);
+        <span class=keyword>void</span> processNextMaterial(t3DModel *pModel, tCHUNK *pPreviousChunk);
+        <span class=keyword>void</span> processNextObjectChunk(t3DModel *pModel, t3DObject *pObject, tCHUNK *pPreviousChunk);
+        
+        <span class=keyword>void</span> readColourChunk(tMaterial *pMaterial, tCHUNK *pChunk);
+        <span class=keyword>int</span> readString(<span class=keyword>char</span> *pBuffer);        <span class=comment>//returns number of bytes read.
+</span>
+        <span class=keyword>void</span> readObjectVertices(t3DObject *pObject, tCHUNK *pPreviousChunk);
+        <span class=keyword>void</span> readObjectFaceIndices(t3DObject *pObject, tCHUNK *currentChunk);
+        <span class=keyword>void</span> readObjectFaceMaterial(t3DModel *pModel, t3DObject *pObject, tCHUNK *pPreviousChunk);
+        <span class=keyword>void</span> readObjectUVCoordinates(t3DObject *pObject, tCHUNK *pPreviousChunk);
+        
+        <span class=keyword>void</span> cleanUp();
+
+        <span class=keyword>void</span> displayErrorMessage(<span class=keyword>const</span> <span class=keyword>char</span> *errMsg, ...);
+};
+
+<span class=comment>//This global buffer is used to read past unwanted data.
+</span>
+<span class=pp>#endif</span></pre></body>
+</html>

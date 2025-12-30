@@ -1,0 +1,226 @@
+MAX_TEXTURES 		11
+TEX_ID_FONT		1	data/FontBlack.bmp
+TEX_ID_WALL 		2	data/walls.bmp
+TEX_ID_FLOOR 		3	data/stonefloor.bmp
+TEX_ID_CEILING 		4	data/ceiling.bmp
+TEX_ID_ROOMWALL 	5	data/roomwall.bmp
+TEX_ID_ROOMFLOOR 	6	data/roomfloor.bmp
+TEX_ID_ROOMCEILING 	7	data/roomceiling.bmp
+TEX_ID_SOFA 		8	data/Sofa_Texture.bmp
+TEX_ID_SIDEBOARD 	9	data/Sideboard_Texture.bmp
+TEX_ID_TAB1_PLYWOOD 	10	data/Plywood2.bmp
+TEX_ID_COFFEE_TABLE	11	data/coffetable_wt_chair.bmp
+
+
+CAMERA_POSITION		-7.3	0.5	-2.6	-10.0	-45.0	0.0
+
+MODELS_TO_LOAD		10
+MODEL_ID_ARMCHAIR	0	TEX_ID_SOFA			8	data/Armchair_4.3ds		2600
+MODEL_ID_SOFA		1	TEX_ID_SOFA			8	data/Sofa_4.3ds			2500
+MODEL_ID_SIDEBOARD	2	TEX_ID_TAB1_PLYWOOD		10	data/Sideboard.3ds		200
+MODEL_ID_TABLE1		3	TEX_ID_TAB1_PLYWOOD 		10	data/table2.3DS			200
+MODEL_ID_TABLE2		4	TEX_ID_TAB1_PLYWOOD 		10	data/TB08.3DS			25
+MODEL_ID_TABLE3		5	TEX_ID_TAB1_PLYWOOD 		10	data/TB10.3DS			200
+MODEL_ID_TABLE3		6	TEX_ID_TAB1_PLYWOOD 		10	data/TB13.3DS			200
+MODEL_ID_COFFEE_TABLE	7	TEX_ID_COFFEE_TABLE 		11	data/coffetable_wt_chair.3ds	65
+MODEL_ID_BK		8	TEX_ID_TAB1_PLYWOOD 		10	data/BK03.3DS			135
+MODEL_ID_FIREPLACE	9	TEX_ID_TAB1_PLYWOOD 		10	data/FP01.3DS			450
+
+//MODEL_ID_FIREPLACE	3	TEX_ID_SOFA			8	data/Fireplace.3DS		1050
+//MODEL_ID_SCONCE		2	data/Sconce_2.3ds	100
+//MODEL_ID_COLLAGE	2	data/collage.3ds		100
+//MODEL_ID_3D_CHAIR	3	data/3d-chair-545.3DS		100
+////MODEL_ID_MOSQUE		4	data/84mosque-ciro.3DS		200
+////MODEL_ID_CATHEDRAL	5	data/75Cathedral-model.3DS	20
+
+MAX_MODELS_IN_SCENE	14
+MODEL_ID_ARMCHAIR	0	2.60	0.23	-0.50	0.0		-45.0		0.0	//Ok
+MODEL_ID_ARMCHAIR	0	-2.10	0.23	-4.50	0.0		0.0		0.0	//Ok
+MODEL_ID_ARMCHAIR	0	-7.00	0.23	 2.69	0.0		180.0		0.0	//Ok
+MODEL_ID_SOFA		1	 0.50	0.23	-0.40	0.0		90.0		0.0	//Ok
+MODEL_ID_SOFA		1	-7.30	0.23	-1.00	0.0		90.0		0.0	//Ok
+MODEL_ID_SOFA		1	-1.70	0.23	-0.50	0.0		-90.0		0.0	//Ok
+MODEL_ID_TABLE1		3	1.3	-0.0	-0.2	0.0		0.0		0.0	//Ok	//teapot
+MODEL_ID_TABLE3		5	2.6	0.1	1.1	0.0		0.0		0.0	//Ok	//corner wala
+MODEL_ID_TABLE4		6	2.7	-0.2	-2.75	0.0		0.0		0.0	//Ok	//Hanger
+MODEL_ID_COFFEE_TABLE	7	0.5	0.0	-2.5	0.0		90.0		0.0
+MODEL_ID_BK		8	2.8	0.0	 0.7	0.0		0.0		0.0
+MODEL_ID_FIREPLACE	9	1.3	0.0	 -2.8	0.0		0.0		0.0
+MODEL_ID_TABLE2		4	-7.0	0.0	-4.3	0.0		0.0		0.0		// Round table
+MODEL_ID_SIDEBOARD	2	-5.1	0.0	-3.1		0.0		00.0		0.0
+
+//MODEL_ID_FIREPLACE	3	-2.5	0.5		0.0		0.0		0.0		0.0
+
+
+
+MAX_VERTICES 	79
+-3.0 0.0 -3.0	//1
+-1.5 0.0 -5.0	//2
+ 0.0 0.0 -3.0	//3
+ 1.5 0.0 -3.0	//4
+ 3.0 0.0 -3.0	//5
+-3.0 0.0 -1.5	//6
+-1.5 0.0 -1.5	//7
+ 0.0 0.0 -1.5	//2
+ 1.5 0.0 -1.5	//9
+ 3.0 0.0 -3.0	//10
+-3.0 0.0 0.0	//11
+-1.5 0.0 0.0	//12
+ 0.0 0.0 0.0	//13
+ 1.5 0.0 0.0	//14
+ 3.0 0.0 0.0	//15
+-3.0 0.0 1.5	//16
+-1.5 0.0 1.5	//17
+ 0.0 0.0 1.5	//18
+ 1.5 0.0 1.5	//19
+ 3.0 0.0 1.5	//20
+-3.0 0.0 3.0	//21
+-1.5 0.0 3.0	//22
+ 0.0 0.0 3.0	//23
+ 1.5 0.0 3.0	//24
+ 3.0 0.0 3.0	//25
+-3.0 1.5 -3.0	//26
+-1.5 1.5 -5.0	//27
+ 0.0 1.5 -3.0	//28
+ 1.5 1.5 -3.0	//29
+ 3.0 1.5 -3.0	//30
+-3.0 1.5 -1.5	//31
+-1.5 1.5 -1.5	//32
+ 0.0 1.5 -1.5	//33
+ 1.5 1.5 -1.5	//34
+ 3.0 1.5 -1.5	//35
+-3.0 1.5 0.0	//36
+-1.5 1.5 0.0	//37
+ 0.0 1.5 0.0	//38
+ 1.5 1.5 0.0	//39
+ 3.0 1.5 0.0	//40
+-3.0 1.5 1.5	//41
+-1.5 1.5 1.5	//42
+ 0.0 1.5 1.5	//43
+ 1.5 1.5 1.5	//44
+ 3.0 1.5 1.5	//45
+-3.0 1.5 3.0	//46
+-1.5 1.5 3.0	//47
+ 0.0 1.5 3.0	//48
+ 1.5 1.5 3.0	//49
+ 0.0 1.5 1.5	//50
+ 1.5 1.5 1.5	//51
+ 3.0 1.5 1.5	//52
+-3.0 0.5 -3.0	//53
+-3.0 0.5 -2.0	//54
+ 1.5 0.5 -2.0	//55
+ 1.5 0.5 -3.0	//56
+ 1.5 0.0 -1.0	//57
+-3.0 0.0 -1.0	//58
+
+-7.5 0.0 -5.0	//59
+-7.5 1.5 -5.0	//60
+
+-5.5 0.0 -3.0	//61
+-5.5 1.5 -3.0	//62
+
+-5.5 1.5  1.5	//63
+-5.5 0.0  1.5	//64
+
+-7.5 0.0  3.0	//65
+-7.5 1.5  3.0	//66
+
+-3.0 0.0  1.5	//67
+-3.0 1.5  1.5	//68
+
+-5.5 0.0 -5.0	//69
+-1.5 0.0 -3.0	//70
+
+-5.5 0.0  3.0	//71
+-5.5 0.0  1.5	//72
+
+-1.5 1.5 -3.0	//73
+
+-1.5 1.5 -3.0	//74
+-5.5 1.5 -5.0	//75
+
+-5.5 1.5  3.0	//76
+-5.5 1.5  1.5	//77
+-3.0 1.5  1.5	//78
+-5.5 1.5  1.5	//79
+
+MAX_FACES		27
+////67 	1 	26 	68 	4 	1 	1	//WALL           // left hand passage
+////24 	65 	66 	49 	3 	1 	1	//WALL          // bottom wall
+////19 	24 	49 	44 	1 	1 	1	//WALL          // bottom right wall 
+////20 	19 	51 	52 	1 	1.5 	4	//ROOMWALL      // bottom room
+////44 	43 	50 	51 	1 	0.5 	4	//ROOMWALL      // bottom room above door
+////5 	20 	52 	30 	3 	1.5 	4	//ROOMWALL       // right room
+////3 	5 	30 	28 	2 	1.5 	4	//ROOMWALL        // top room
+////18 	3 	28 	50 	3 	1.5 	4	//ROOMWALL       // left room
+////17 	18 	43 	42 	1 	1 	1	//WALL       
+////2 	17 	42 	27 	3 	1 	1	//WALL           // right starting passage
+////21 	22 	70 	1 	1 	4 	2	//FLOOR
+////22 	24 	19 	17 	2 	1 	2	//FLOOR
+////18 	20 	5 	3 	6 	9 	5	//ROOMFLOOR
+////47 	46 	26 	73 	1 	4 	3	//CEILING
+////49 	47 	42 	44 	2 	1 	3	//CEILING
+////52 	50 	28 	30 	2 	3 	6	//ROOMCEILING
+////
+//////53 	54 	55 	56 	2 	3 	6	//TILT //Aa
+//////54 	58 	57 	55 	2 	3 	3	//TILT 
+////
+////
+////
+////59 	2 	27 	60 	4 	1 	1	//WALL
+////61 	1 	26 	62 	4 	1 	1	//WALL
+////
+////61 	64 	63 	62 	4 	1 	1	//WALL
+////65 	59 	60 	66 	4 	1 	1	//WALL
+////
+////64 	67 	68 	63 	4 	1 	1	//WALL
+////
+////61 	70 	2 	69 	4 	2 	2	//FLOOR
+////65 	71 	69 	59 	2 	4 	2	//FLOOR
+////
+////71 	21 	16 	72 	2 	4 	2	//FLOOR
+////
+////74 	27 	75 	62 	1 	4 	3	//CEILING
+////66 	76 	75 	60 	1 	4 	3	//CEILING
+////
+////76 	46 	78 	79 	1 	4 	3	//CEILING
+
+67 	1 	26 	68 	4 	1 	1	//WALL           // left hand passage
+24 	65 	66 	49 	3 	1 	1	//WALL          // bottom wall
+19 	24 	49 	44 	1 	1 	1	//WALL          // bottom right wall 
+20 	19 	51 	52 	1 	1  	1	//ROOMWALL      // bottom room
+44 	43 	50 	51 	1 	1 	1	//ROOMWALL      // bottom room above door
+5 	20 	52 	30 	3 	1  	1	//ROOMWALL       // right room
+3 	5 	30 	28 	2 	1  	1	//ROOMWALL        // top room
+18 	3 	28 	50 	3 	1  	1	//ROOMWALL       // left room
+17 	18 	43 	42 	1 	1 	1	//WALL       
+2 	17 	42 	27 	3 	1 	1	//WALL           // right starting passage
+21 	22 	70 	1 	1 	4 	2	//FLOOR
+22 	24 	19 	17 	2 	1 	2	//FLOOR
+18 	20 	5 	3 	2 	2 	5	//ROOMFLOOR
+47 	46 	26 	73 	1 	4 	3	//CEILING
+49 	47 	42 	44 	2 	1 	3	//CEILING
+52 	50 	28 	30 	2 	3 	6	//ROOMCEILING
+
+//53 	54 	55 	56 	2 	3 	6	//TILT //Aa
+//54 	58 	57 	55 	2 	3 	3	//TILT 
+
+
+
+59 	2 	27 	60 	4 	1 	1	//WALL
+61 	1 	26 	62 	4 	1 	1	//WALL
+
+61 	64 	63 	62 	4 	1 	1	//WALL
+65 	59 	60 	66 	4 	1 	1	//WALL
+
+64 	67 	68 	63 	4 	1 	1	//WALL
+
+61 	70 	2 	69 	1 	1 	2	//FLOOR
+65 	71 	69 	59 	1 	4 	2	//FLOOR
+
+71 	21 	16 	72 	1 	1 	2	//FLOOR
+
+74 	27 	75 	62 	1 	2 	3	//CEILING
+66 	76 	75 	60 	2 	6 	3	//CEILING
+
+76 	46 	78 	79 	2 	1 	3	//CEILING

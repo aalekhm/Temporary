@@ -1,0 +1,91 @@
+
+if(WINDOWS AND BUILD_SHARED_LIBS)
+  ADD_DEFINITIONS (-D_USRSTUDIODLL)
+endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
+
+set(COCOS_CS_SRC
+
+  CCActionFrame.cpp
+  CCActionFrameEasing.cpp
+  CCActionManagerEx.cpp
+  CCActionNode.cpp
+  CCActionObject.cpp
+  CCArmature.cpp
+  CCArmatureAnimation.cpp
+  CCArmatureDataManager.cpp
+  CCArmatureDefine.cpp
+  CCBatchNode.cpp
+  CCBone.cpp
+  CCColliderDetector.cpp
+  CCComAttribute.cpp
+  CCComAudio.cpp
+  CCComController.cpp
+  CCComRender.cpp
+  CCDataReaderHelper.cpp
+  CCDatas.cpp
+  CCDecorativeDisplay.cpp
+  CCDisplayFactory.cpp
+  CCDisplayManager.cpp
+  CCInputDelegate.cpp
+  CCProcessBase.cpp
+  CCSGUIReader.cpp
+  CCSSceneReader.cpp
+  CCSkin.cpp
+  CCSpriteFrameCacheHelper.cpp
+  CCTransformHelp.cpp
+  CCTween.cpp
+  CCUtilMath.cpp
+  CocoLoader.cpp
+  DictionaryHelper.cpp
+  LocalizationManager.cpp
+  TriggerBase.cpp
+  TriggerMng.cpp
+  TriggerObj.cpp
+  FlatBuffersSerialize.cpp
+  CCComExtensionData.cpp
+  CocoStudio.cpp
+  WidgetReader/NodeReader/NodeReader.cpp
+  WidgetReader/SingleNodeReader/SingleNodeReader.cpp
+  WidgetReader/SpriteReader/SpriteReader.cpp
+  WidgetReader/ParticleReader/ParticleReader.cpp
+  WidgetReader/GameMapReader/GameMapReader.cpp
+  WidgetReader/ProjectNodeReader/ProjectNodeReader.cpp
+  WidgetReader/ComAudioReader/ComAudioReader.cpp
+  WidgetReader/WidgetReader.cpp
+  WidgetReader/LoadingBarReader/LoadingBarReader.cpp
+  WidgetReader/ListViewReader/ListViewReader.cpp
+  WidgetReader/TextFieldReader/TextFieldReader.cpp
+  WidgetReader/WidgetReader.cpp
+  WidgetReader/CheckBoxReader/CheckBoxReader.cpp
+  WidgetReader/SliderReader/SliderReader.cpp
+  WidgetReader/PageViewReader/PageViewReader.cpp
+  WidgetReader/TextReader/TextReader.cpp
+  WidgetReader/Node3DReader/Node3DReader.cpp
+  WidgetReader/UserCameraReader/UserCameraReader.cpp
+  WidgetReader/Particle3DReader/Particle3DReader.cpp
+  WidgetReader/Sprite3DReader/Sprite3DReader.cpp
+  WidgetReader/SkeletonReader/BoneNodeReader.cpp
+  WidgetReader/SkeletonReader/SkeletonNodeReader.cpp
+  WidgetReader/TextAtlasReader/TextAtlasReader.cpp
+  WidgetReader/LayoutReader/LayoutReader.cpp
+  WidgetReader/TextBMFontReader/TextBMFontReader.cpp
+  WidgetReader/ImageViewReader/ImageViewReader.cpp
+  WidgetReader/ButtonReader/ButtonReader.cpp
+  WidgetReader/ScrollViewReader/ScrollViewReader.cpp
+  WidgetReader/GameNode3DReader/GameNode3DReader.cpp
+  WidgetReader/Light3DReader/Light3DReader.cpp
+  ActionTimeline/CCActionTimelineCache.cpp
+  ActionTimeline/CCActionTimeline.cpp
+  ActionTimeline/CCActionTimelineNode.cpp
+  ActionTimeline/CCFrame.cpp
+  ActionTimeline/CCTimeLine.cpp
+  ActionTimeline/CSLoader.cpp
+  ActionTimeline/CCBoneNode.cpp
+  ActionTimeline/CCSkeletonNode.cpp
+  ActionTimeline/CCSkinNode.cpp
+  FlatBuffersSerialize.cpp
+  WidgetReader/ArmatureNodeReader/ArmatureNodeReader.cpp
+  WidgetReader/TabControlReader/TabControlReader.cpp
+)

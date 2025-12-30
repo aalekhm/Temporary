@@ -1,0 +1,208 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=comment>//In this camera tutorial you will learn how to incorporate
+</span><span class=comment>//the mouse to move the camera like in a first person shooter,
+</span><span class=comment>//and how to implement the strafe (sideways step) you see in these
+</span><span class=comment>//games also.
+</span>
+<span class=comment>//To add the strafe we use:
+</span><span class=comment>//    if (key=='d')
+</span><span class=comment>//    {
+</span><span class=comment>//    float yrotrad;
+</span><span class=comment>//    yrotrad = (yrot / 180 * 3.141592654f);
+</span><span class=comment>//    xpos += float(cos(yrotrad)) * 0.2;
+</span><span class=comment>//    zpos += float(sin(yrotrad)) * 0.2;
+</span><span class=comment>//    }
+</span><span class=comment>//
+</span><span class=comment>//    if (key=='a')
+</span><span class=comment>//    {
+</span><span class=comment>//    float yrotrad;
+</span><span class=comment>//    yrotrad = (yrot / 180 * 3.141592654f);
+</span><span class=comment>//    xpos -= float(cos(yrotrad)) * 0.2;
+</span><span class=comment>//    zpos -= float(sin(yrotrad)) * 0.2;
+</span><span class=comment>//    }
+</span>
+<span class=comment>//You can see that I have simply flipped the cos and sin functions
+</span><span class=comment>//and set both the xpos and zpos to either a negative or a positive
+</span>
+<span class=comment>//Now the mouse is a little easier as it uses no trigonometry.
+</span>
+<span class=comment>//We have to add a function which I have called: mouseMovement
+</span><span class=comment>//void mouseMovement(int x, int y) {
+</span><span class=comment>//    int diffx=x-lastx; //check the difference between the current x and the last x position
+</span><span class=comment>//    int diffy=y-lasty; //check the difference between the current y and the last y position
+</span><span class=comment>//    lastx=x; //set lastx to the current x position
+</span><span class=comment>//    lasty=y; //set lasty to the current y position
+</span><span class=comment>//    xrot += (float) diffy; //set the xrot to xrot with the addition of the difference in the y position
+</span><span class=comment>//    yrot += (float) diffx;    //set the xrot to yrot with the addition of the difference in the x position
+</span><span class=comment>//}
+</span>
+<span class=comment>//To get GLUT to register the mouse movements, we call the line:
+</span><span class=comment>//glutPassiveMotionFunc(mouseMovement);
+</span><span class=comment>//to see where the mouse is when no mouse button is pressed and call
+</span><span class=comment>//any functions within our mouseMovement function.
+</span>
+<span class=comment>//And that does it...
+</span>
+<span class=comment>//You now know how to add a strafe movement and mouse view.
+</span><span class=comment>//The next camera tutorial will have lean, jump and duck effects.
+</span>
+<span class=comment>//#include &lt;GL/gl.h&gt;
+</span><span class=pp>#include</span> &lt;GL/glut.h&gt;
+<span class=pp>#include</span> &lt;stdlib.h&gt;
+<span class=pp>#include</span> &lt;math.h&gt;
+
+<span class=comment>//angle of rotation
+</span><span class=keyword>float</span> xpos = 0, ypos = 0, zpos = 0, xrot = 0, yrot = 0, angle=0.0;
+
+<span class=keyword>float</span> lastx, lasty;
+
+<span class=comment>//positions of the cubes
+</span><span class=keyword>float</span> positionz[10];
+<span class=keyword>float</span> positionx[10];
+
+<span class=keyword>void</span> cubepositions (<span class=keyword>void</span>) { <span class=comment>//set the positions of the cubes
+</span>    <span class=keyword>for</span> (<span class=keyword>int</span> i=0;i&lt;10;i++)
+    {
+    positionz[i] = rand()%5 + 5;
+    positionx[i] = rand()%5 + 5;
+    }
+}
+
+<span class=comment>//draw the cube
+</span><span class=keyword>void</span> cube (<span class=keyword>void</span>) {
+    <span class=keyword>for</span> (<span class=keyword>int</span> i=0;i&lt;10;i++)
+    {
+    glPushMatrix();
+    glTranslated(-positionx[i + 1] * 10, 0, -positionz[i + 1] * 10); <span class=comment>//translate the cube
+</span>    glutSolidCube(2); <span class=comment>//draw the cube
+</span>    glPopMatrix();
+    }
+}
+
+<span class=keyword>void</span> init (<span class=keyword>void</span>) {
+cubepositions();
+}
+
+<span class=keyword>void</span> enable (<span class=keyword>void</span>) {
+    glEnable (GL_DEPTH_TEST); <span class=comment>//enable the depth testing
+</span>    glEnable (GL_LIGHTING); <span class=comment>//enable the lighting
+</span>    glEnable (GL_LIGHT0); <span class=comment>//enable LIGHT0, our Diffuse Light
+</span>    glShadeModel (GL_SMOOTH); <span class=comment>//set the shader to smooth shader
+</span>}
+
+<span class=keyword>void</span> camera (<span class=keyword>void</span>) {
+    glRotatef(xrot,1.0,0.0,0.0);  <span class=comment>//rotate our camera on teh x-axis (left and right)
+</span>    glRotatef(yrot,0.0,1.0,0.0);  <span class=comment>//rotate our camera on the y-axis (up and down)
+</span>    glTranslated(-xpos,-ypos,-zpos); <span class=comment>//translate the screen to the position of our camera
+</span>}
+
+<span class=keyword>void</span> display (<span class=keyword>void</span>) {
+    glClearColor (0.0,0.0,0.0,1.0); <span class=comment>//clear the screen to black
+</span>    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); <span class=comment>//clear the color buffer and the depth buffer
+</span>    glLoadIdentity();  
+    camera();
+    enable();
+    cube(); <span class=comment>//call the cube drawing function
+</span>    glutSwapBuffers(); <span class=comment>//swap the buffers
+</span>    angle++; <span class=comment>//increase the angle
+</span>}
+
+<span class=keyword>void</span> reshape (<span class=keyword>int</span> w, <span class=keyword>int</span> h) {
+    glViewport (0, 0, (GLsizei)w, (GLsizei)h); <span class=comment>//set the viewport to the current window specifications
+</span>    glMatrixMode (GL_PROJECTION); <span class=comment>//set the matrix to projection
+</span>    glLoadIdentity ();
+    gluPerspective (60, (GL<span class=keyword>float</span>)w / (GL<span class=keyword>float</span>)h, 1.0, 1000.0); <span class=comment>//set the perspective (angle of sight, width, height, , depth)
+</span>    glMatrixMode (GL_MODELVIEW); <span class=comment>//set the matrix back to model
+</span>}
+
+<span class=keyword>void</span> keyboard (<span class=keyword>unsigned</span> <span class=keyword>char</span> key, <span class=keyword>int</span> x, <span class=keyword>int</span> y) {
+    <span class=keyword>if</span> (key=='q')
+    {
+    xrot += 1;
+    <span class=keyword>if</span> (xrot &gt;360) xrot -= 360;
+    }
+
+    <span class=keyword>if</span> (key=='z')
+    {
+    xrot -= 1;
+    <span class=keyword>if</span> (xrot &lt; -360) xrot += 360;
+    }
+
+    <span class=keyword>if</span> (key=='w')
+    {
+    <span class=keyword>float</span> xrotrad, yrotrad;
+    yrotrad = (yrot / 180 * 3.141592654f);
+    xrotrad = (xrot / 180 * 3.141592654f); 
+    xpos += <span class=keyword>float</span>(sin(yrotrad)) ;
+    zpos -= <span class=keyword>float</span>(cos(yrotrad)) ;
+    ypos -= <span class=keyword>float</span>(sin(xrotrad)) ;
+    }
+
+    <span class=keyword>if</span> (key=='s')
+    {
+    <span class=keyword>float</span> xrotrad, yrotrad;
+    yrotrad = (yrot / 180 * 3.141592654f);
+    xrotrad = (xrot / 180 * 3.141592654f); 
+    xpos -= <span class=keyword>float</span>(sin(yrotrad));
+    zpos += <span class=keyword>float</span>(cos(yrotrad)) ;
+    ypos += <span class=keyword>float</span>(sin(xrotrad));
+    }
+
+    <span class=keyword>if</span> (key=='d')
+    {
+    <span class=keyword>float</span> yrotrad;
+    yrotrad = (yrot / 180 * 3.141592654f);
+    xpos += <span class=keyword>float</span>(cos(yrotrad)) * 0.2;
+    zpos += <span class=keyword>float</span>(sin(yrotrad)) * 0.2;
+    }
+
+    <span class=keyword>if</span> (key=='a')
+    {
+    <span class=keyword>float</span> yrotrad;
+    yrotrad = (yrot / 180 * 3.141592654f);
+    xpos -= <span class=keyword>float</span>(cos(yrotrad)) * 0.2;
+    zpos -= <span class=keyword>float</span>(sin(yrotrad)) * 0.2;
+    }
+
+    <span class=keyword>if</span> (key==27)
+    {
+    exit(0);
+    }
+}
+
+<span class=keyword>void</span> mouseMovement(<span class=keyword>int</span> x, <span class=keyword>int</span> y) {
+    <span class=keyword>int</span> diffx=x-lastx; <span class=comment>//check the difference between the current x and the last x position
+</span>    <span class=keyword>int</span> diffy=y-lasty; <span class=comment>//check the difference between the current y and the last y position
+</span>    lastx=x; <span class=comment>//set lastx to the current x position
+</span>    lasty=y; <span class=comment>//set lasty to the current y position
+</span>    xrot += (<span class=keyword>float</span>) diffy; <span class=comment>//set the xrot to xrot with the addition of the difference in the y position
+</span>    yrot += (<span class=keyword>float</span>) diffx;    <span class=comment>//set the xrot to yrot with the addition of the difference in the x position
+</span>}
+
+<span class=keyword>int</span> main (<span class=keyword>int</span> argc, <span class=keyword>char</span> **argv) {
+    glutInit (&amp;argc, argv);
+    glutInitDisplayMode (GLUT_DOUBLE | GLUT_DEPTH); 
+    glutInitWindowSize (500, 500); 
+    glutInitWindowPosition (100, 100);
+    glutCreateWindow (&quot;A basic OpenGL Window&quot;); 
+    init (); 
+    glutDisplayFunc (display); 
+    glutIdleFunc (display); 
+    glutReshapeFunc (reshape); 
+
+    glutPassiveMotionFunc(mouseMovement); <span class=comment>//check for mouse movement
+</span>
+    glutKeyboardFunc (keyboard); 
+    glutMainLoop (); 
+    <span class=keyword>return</span> 0;
+}
+
+</pre></body>
+</html>

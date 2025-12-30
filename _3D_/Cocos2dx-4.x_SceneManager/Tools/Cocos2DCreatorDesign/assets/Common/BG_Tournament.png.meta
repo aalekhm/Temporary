@@ -1,0 +1,30 @@
+{
+  "ver": "1.0.0",
+  "uuid": "7b035fad-9d76-4f00-9c77-0bf502d2bb12",
+  "type": "sprite",
+  "wrapMode": "clamp",
+  "filterMode": "bilinear",
+  "subMetas": {
+    "BG_Tournament": {
+      "ver": "1.0.3",
+      "uuid": "69544f29-9579-4257-9b6f-f8986c0badfc",
+      "rawTextureUuid": "7b035fad-9d76-4f00-9c77-0bf502d2bb12",
+      "trimType": "auto",
+      "trimThreshold": 1,
+      "rotated": false,
+      "offsetX": 0,
+      "offsetY": 0,
+      "trimX": 0,
+      "trimY": 0,
+      "width": 1,
+      "height": 569,
+      "rawWidth": 1,
+      "rawHeight": 569,
+      "borderTop": 0,
+      "borderBottom": 0,
+      "borderLeft": 0,
+      "borderRight": 0,
+      "subMetas": {}
+    }
+  }
+}

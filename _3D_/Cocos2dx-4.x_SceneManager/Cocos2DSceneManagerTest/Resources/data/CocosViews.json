@@ -1,0 +1,72 @@
+{
+    "Version": "60000",
+    "Views": [
+		{
+            "viewName": "Background",
+			"designFilename": "Scene_BG.ccreator",
+			"SpriteSheetName": "Scene_BG.plist",
+            "animIN": "",
+            "animOUT": "",
+			"isPopup": false,
+			"loadOnDemand": true,
+            "unloadOnClose": true,
+			"zDepth": "Far"
+        },
+        {
+            "viewName": "MainMenu",
+			"designFilename": "Scene_MainMenu.ccreator",
+			"SpriteSheetName": "Scene_MainMenu.plist",
+            "animIN": "animationIn_SceneMainMenu",
+            "animOUT": "animationOut_SceneMainMenu",
+			"isPopup": false,
+			"hasBG": true,
+			"loadOnDemand": true,
+            "unloadOnClose": true
+        },
+		{
+            "viewName": "MainMenuNext",
+			"designFilename": "Scene_MainMenuNext.ccreator",
+			"SpriteSheetName": "Scene_MainMenuNext.plist",
+            "animIN": "animationIn_SceneMainMenuNext",
+            "animOUT": "animationOut_SceneMainMenuNext",
+			"isPopup": false,
+			"hasBG": true,
+			"loadOnDemand": true,
+            "unloadOnClose": true
+        },
+		{
+            "viewName": "CSBSceneBG",
+			"designFilename": "CSBSceneBG.csb",
+			"SpriteSheetName": "SceneBG.plist",
+            "animIN": "",
+            "animOUT": "",
+			"isPopup": false,
+			"hasBG": true,
+			"loadOnDemand": true,
+            "unloadOnClose": true,
+			"zDepth": "Far"
+        },
+        {
+            "viewName": "CSBSceneMainMenu",
+			"designFilename": "CSBSceneMainMenu.csb",
+			"SpriteSheetName": "Scene_MainMenu.plist",
+            "animIN": "animationIn",
+            "animOUT": "animationOut",
+			"isPopup": false,
+			"hasBG": true,
+			"loadOnDemand": true,
+            "unloadOnClose": true
+        },
+		{
+            "viewName": "CSBSceneMainMenuNext",
+			"designFilename": "CSBSceneMainMenuNext.csb",
+			"SpriteSheetName": "Scene_MainMenuNext.plist",
+            "animIN": "animationIn",
+            "animOUT": "animationOut",
+			"isPopup": false,
+			"hasBG": true,
+			"loadOnDemand": true,
+            "unloadOnClose": true
+        }
+	]
+}

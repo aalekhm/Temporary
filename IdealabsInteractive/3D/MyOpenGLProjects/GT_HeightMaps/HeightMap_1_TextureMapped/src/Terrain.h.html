@@ -1,0 +1,30 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _TERRAIN_H_
+<span class=pp>#define</span> _TERRAIN_H
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=pp>#define</span> MAP_SIZE        1024    <span class=comment>// This is the size of our .raw height map
+</span><span class=pp>#define</span> STEP_SIZE        16        <span class=comment>// This is width and height of each QUAD
+</span><span class=pp>#define</span> HEIGHT_RATIO    1.5f    <span class=comment>// This is the ratio that the Y is scaled according to the X and Z
+</span>
+<span class=comment>// This loads a .raw file of a certain size from the file
+</span><span class=keyword>void</span> loadRawHeightMap(LPSTR strName, <span class=keyword>int</span> nSize, BYTE* pHeightMap);
+
+<span class=comment>// This returns the height (0 to 255) from a heightmap given an X and Y
+</span><span class=keyword>int</span> getHeight(BYTE* pHeightMap, <span class=keyword>int</span> X, <span class=keyword>int</span> Y);
+
+<span class=comment>// This turns heightmap data into primitives and draws them to the screen
+</span><span class=keyword>void</span> renderHeightMap(BYTE* pHeightMap);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=pp>#endif</span></pre></body>
+</html>

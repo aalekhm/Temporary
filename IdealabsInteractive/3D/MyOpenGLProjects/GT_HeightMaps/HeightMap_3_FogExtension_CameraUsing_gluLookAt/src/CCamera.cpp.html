@@ -1,0 +1,343 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;CCamera.h&quot;
+
+<span class=keyword>void</span> CCamera::setPosition(CVector3 position) {
+    cameraPosition = position;
+}
+
+<span class=keyword>void</span> CCamera::rotateX(<span class=keyword>float</span> angle) {
+    <span class=comment>//Rotate viewdir around the right vector:
+</span>    viewVector = normalize(    viewVector*cos(angle * piOver180)
+                            + 
+                            upVector*sin(angle * piOver180)
+                        );
+
+    <span class=pp>#if</span> CAMERA_TYPE == CAMERA_AIRCRAFT
+        <span class=comment>//now compute the new UpVector (by cross product)
+</span>        upVector = cross(viewVector, rightVector)*-1;
+    <span class=pp>#endif</span>
+}
+
+<span class=keyword>void</span> CCamera::rotateY(<span class=keyword>float</span> angle) {
+    <span class=comment>//Rotate viewdir around the right vector:
+</span>    viewVector = normalize(    viewVector*cos(angle * piOver180)
+                            -
+                            rightVector*sin(angle * piOver180)
+                        );
+
+    <span class=comment>//now compute the new UpVector (by cross product)
+</span>    rightVector = cross(viewVector, upVector);
+}
+
+<span class=keyword>void</span> CCamera::rotateZ(<span class=keyword>float</span> angle) {
+    <span class=comment>//Rotate viewdir around the right vector:
+</span>    rightVector = normalize(    rightVector*cos(angle * piOver180)
+                                +
+                                upVector*sin(angle * piOver180)
+                            );
+
+    <span class=pp>#if</span> CAMERA_TYPE == CAMERA_AIRCRAFT
+        <span class=comment>//now compute the new UpVector (by cross product)
+</span>        upVector = cross(viewVector, rightVector)*-1;
+    <span class=pp>#endif</span>
+}
+
+<span class=keyword>void</span> CCamera::moveForward(<span class=keyword>float</span> distance) {
+    cameraPosition = cameraPosition + (viewVector*distance);
+}
+
+<span class=keyword>void</span> CCamera::strafeRight(<span class=keyword>float</span> distance) {
+    cameraPosition = cameraPosition + (rightVector*distance);
+}
+
+<span class=keyword>void</span> CCamera::moveUpward(<span class=keyword>float</span> distance) {
+    cameraPosition = cameraPosition + (upVector*distance);
+}
+
+<span class=comment>/*PITCH - Rotation around X - axis */</span>
+<span class=keyword>void</span> CCamera::cameraPitch(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 1.0f, 0.0f, 0.0f);
+}
+
+<span class=comment>/*YAW - Rotation around Y - axis */</span>
+<span class=keyword>void</span> CCamera::cameraYaw(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 0.0f, 1.0f, 0.0f);
+}
+
+<span class=comment>/*ROLL - Rotation around Z - axis */</span>
+<span class=keyword>void</span> CCamera::cameraRoll(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 0.0f, 0.0f, 1.0f);
+}
+
+<span class=keyword>void</span> CCamera::cameraMoveTo(CVector3 camPos) {
+    glTranslatef(-camPos.x, -camPos.y <span class=comment>/*+ CROUCH*0.25f*/</span>, -camPos.z);
+}
+
+<span class=keyword>void</span> CCamera::checkMouseMovementForGLULookAt() {
+    <span class=keyword>int</span> screenCenterX = SCREEN_WIDTH&gt;&gt;1;
+    <span class=keyword>int</span> screenCenterY = SCREEN_HEIGHT&gt;&gt;1;
+
+    POINT mousePos;
+    GetCursorPos(&amp;mousePos);
+    
+    <span class=comment>//Mouse not moved, hence return;
+</span>    <span class=keyword>if</span>(mousePos.x == screenCenterX &amp;&amp; mousePos.y == screenCenterY)
+        <span class=keyword>return</span>;
+
+    SetCursorPos(screenCenterX, screenCenterY);
+    
+    <span class=comment>//Move, Rotate as proportinal to the displacement
+</span>    <span class=keyword>float</span> deltaX = (mousePos.x - screenCenterX)/5.0f;
+    <span class=keyword>float</span> deltaY = (mousePos.y - screenCenterY)/5.0f;
+    <span class=comment>///*
+</span>    <span class=keyword>bool</span> yesRotateX = <span class=keyword>false</span>;
+    <span class=keyword>if</span>(deltaY &lt;= 0) {
+        <span class=keyword>if</span>(cameraRotation.x &lt; 80) {
+            yesRotateX = <span class=keyword>true</span>;
+        }
+    }
+    <span class=keyword>else</span> 
+    <span class=keyword>if</span>(deltaY &gt; 0) {
+        <span class=keyword>if</span>(cameraRotation.x &gt; -80) {
+            yesRotateX = <span class=keyword>true</span>;
+        }
+    }
+    <span class=comment>//*/
+</span>    <span class=keyword>if</span>(yesRotateX) {
+        cameraRotation.x -= deltaY;
+        rotateX(-deltaY);
+    }
+
+    cameraRotation.y -= deltaX;
+    rotateY(-deltaX);
+}
+
+<span class=keyword>void</span> CCamera::checkMouseMovementForTranslatef() {
+    <span class=keyword>int</span> screenCenterX = SCREEN_WIDTH&gt;&gt;1;
+    <span class=keyword>int</span> screenCenterY = SCREEN_HEIGHT&gt;&gt;1;
+
+    POINT mousePos;
+    GetCursorPos(&amp;mousePos);
+    
+    <span class=comment>//Mouse not moved, hence return;
+</span>    <span class=keyword>if</span>(mousePos.x == screenCenterX &amp;&amp; mousePos.y == screenCenterY)
+        <span class=keyword>return</span>;
+
+    SetCursorPos(screenCenterX, screenCenterY);
+    
+    <span class=comment>//Move, Rotate as proportinal to the displacement
+</span>    <span class=keyword>float</span> deltaX = (mousePos.x - screenCenterX)/5.0f;
+    <span class=keyword>float</span> deltaY = (mousePos.y - screenCenterY)/5.0f;
+
+    cameraRotation.x -= deltaY;
+    cameraRotation.y -= deltaX;
+}
+
+<span class=keyword>void</span> CCamera::checkKeyboardMovementForGLULookAt() {
+    <span class=keyword>bool</span> isWalking = <span class=keyword>false</span>;
+    <span class=keyword>if</span>(mKeys[VK_UP]) {
+        <span class=keyword>if</span>(cameraRotation.x &lt; 80) {
+            cameraRotation.x = ((<span class=keyword>int</span>)cameraRotation.x + 1) % 360;
+            rotateX(1.0);
+        }
+    }
+    <span class=keyword>if</span>(mKeys[VK_DOWN]) {
+        <span class=keyword>if</span>(cameraRotation.x &gt; -80) {
+            cameraRotation.x = ((<span class=keyword>int</span>)cameraRotation.x - 1) % 360;
+            rotateX(-1.0);
+        }
+    }
+    <span class=keyword>if</span>(mKeys['Q'] || mKeys[VK_LEFT]) {
+        cameraRotation.y = ((<span class=keyword>int</span>)cameraRotation.y + 1) % 360;
+        rotateY(1.0);
+    }
+    <span class=keyword>if</span>(mKeys['E'] || mKeys[VK_RIGHT]) {
+        cameraRotation.y = ((<span class=keyword>int</span>)cameraRotation.y - 1) % 360;
+        rotateY(-1.0);
+    }
+
+    <span class=pp>#if</span> CAMERA_TYPE == CAMERA_AIRCRAFT
+        <span class=keyword>if</span>(mKeys['Z']) {
+            cameraRotation.z = ((<span class=keyword>int</span>)cameraRotation.z + 1) % 360;
+            rotateZ(-1.0);
+        }
+        <span class=keyword>if</span>(mKeys['X']) {
+            cameraRotation.z = ((<span class=keyword>int</span>)cameraRotation.z - 1) % 360;
+            rotateZ(1.0);
+        }
+    <span class=pp>#endif</span>
+
+    <span class=keyword>if</span>(mKeys['W'] || L_MOUSE_DOWN) {
+        moveForward(WALK_SPEED + L_MOUSE_DOWN*WALK_SPEED);
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys['S'] || R_MOUSE_DOWN) {
+        moveForward(-(WALK_SPEED + R_MOUSE_DOWN*WALK_SPEED));
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys['A']) {
+        strafeRight(-WALK_SPEED);
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys['D']) {
+        strafeRight(WALK_SPEED);
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys[VK_PRIOR]) {
+        moveUpward(WALK_SPEED);
+    }
+    <span class=keyword>if</span>(mKeys[VK_NEXT]) {
+        moveUpward(-WALK_SPEED);
+    }
+
+    <span class=keyword>if</span>(isWalking)
+        PLAYER_STATE = PLAYER_WALK;
+}
+
+<span class=keyword>void</span> CCamera::checkKeyboardMovementForTranslatef() {
+    <span class=keyword>bool</span> isWalking = <span class=keyword>false</span>;
+    
+    <span class=keyword>float</span> sinTheta = sin( cameraRotation.y * piOver180 );
+    <span class=keyword>float</span> cosTheta = cos( cameraRotation.y * piOver180 );
+    <span class=keyword>float</span> SPEED = (WALK_SPEED + L_MOUSE_DOWN*WALK_SPEED);
+
+    <span class=keyword>if</span>(mKeys['Q'] || mKeys[VK_LEFT]) {
+        cameraRotation.y = ((<span class=keyword>int</span>)cameraRotation.y + 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys['E'] || mKeys[VK_RIGHT]) {
+        cameraRotation.y = ((<span class=keyword>int</span>)cameraRotation.y - 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys['W'] || L_MOUSE_DOWN) {
+        cameraPosition.x -= sinTheta * SPEED;
+        cameraPosition.z -= cosTheta * SPEED;
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys['S'] || R_MOUSE_DOWN) {
+        cameraPosition.x += sinTheta * SPEED;
+        cameraPosition.z += cosTheta * SPEED;
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys['A']) {
+        cameraPosition.x += -cosTheta * SPEED;
+        cameraPosition.z +=  sinTheta * SPEED;
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys['D']) {
+        cameraPosition.x -= -cosTheta * SPEED;
+        cameraPosition.z -=  sinTheta * SPEED;
+        isWalking = <span class=keyword>true</span>;
+    }
+    <span class=keyword>if</span>(mKeys[VK_UP]) {
+        cameraRotation.x = ((<span class=keyword>int</span>)cameraRotation.x + 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys[VK_DOWN]) {
+        cameraRotation.x = ((<span class=keyword>int</span>)cameraRotation.x - 1) % 360;
+    }
+
+    <span class=keyword>if</span>(isWalking)
+        PLAYER_STATE = PLAYER_WALK;
+}
+
+<span class=keyword>void</span> CCamera::updateCamera(<span class=keyword>void</span>) {
+    <span class=keyword>if</span>(CAMERA_HAS_GRAVITY) {
+            <span class=comment>//Constant free fall
+</span>            <span class=keyword>float</span> G = -GRAVITY;
+            <span class=keyword>float</span> Y = G;
+            <span class=keyword>if</span>(TRAMP &gt; 0) {
+                TRAMP += -GRAVITY;
+                Y = TRAMP;
+            }
+            <span class=keyword>else</span>
+                TRAMP = 0;
+            cameraPosition.y += Y;
+    }
+    
+    <span class=keyword>if</span>(mKeys['G']) {
+        <span class=keyword>if</span>(!mKeysPressed['G']) {
+            mKeysPressed['G'] = <span class=keyword>true</span>;
+            CAMERA_HAS_GRAVITY = !CAMERA_HAS_GRAVITY;
+        }
+    }
+    <span class=keyword>else</span>
+        mKeysPressed['G'] = <span class=keyword>false</span>;
+
+
+    <span class=keyword>if</span>(mKeys['C']) {
+        <span class=keyword>if</span>(!mKeysPressed['C']) {
+            mKeysPressed['C'] = <span class=keyword>true</span>;
+
+            CAMERA_HAS_COLLISIONS = !CAMERA_HAS_COLLISIONS;
+        }
+    }
+    <span class=keyword>else</span>
+        mKeysPressed['C'] = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(mKeys['I']) {
+        <span class=keyword>if</span>(!mKeysPressed['I']) {
+            mKeysPressed['I'] = <span class=keyword>true</span>;
+            CAMERA_IMPLEMENT_TYPE = (CAMERA_IMPLEMENT_TYPE == CAMERA_GLULOOKAT)?CAMERA_TRANSLATE:CAMERA_GLULOOKAT;
+        }
+    }
+    <span class=keyword>else</span> 
+        mKeysPressed['I'] = <span class=keyword>false</span>;
+
+
+    <span class=keyword>if</span>(CAMERA_IMPLEMENT_TYPE == CAMERA_GLULOOKAT) {
+        checkKeyboardMovementForGLULookAt();
+        checkMouseMovementForGLULookAt();
+    }
+    <span class=keyword>else</span> {
+        checkKeyboardMovementForTranslatef();
+        checkMouseMovementForTranslatef();
+    }
+}
+
+<span class=keyword>void</span> CCamera::moveCamera(<span class=keyword>void</span>) {
+    
+    <span class=keyword>if</span>(CAMERA_IMPLEMENT_TYPE == CAMERA_GLULOOKAT) {
+            CVector3 viewPoint = cameraPosition + viewVector;
+            gluLookAt(    cameraPosition.x,    cameraPosition.y,    cameraPosition.z,
+                        viewPoint.x,        viewPoint.y,        viewPoint.z,
+                        upVector.x,            upVector.y,            upVector.z
+                    );
+    }
+    <span class=keyword>else</span> 
+    <span class=keyword>if</span>(CAMERA_IMPLEMENT_TYPE == CAMERA_TRANSLATE) {
+        <span class=comment>//BUGGY
+</span>        <span class=comment>//Player Camera - Rotation
+</span>        cameraPitch(-cameraRotation.x);
+        cameraYaw(-cameraRotation.y);
+        cameraRoll(-cameraRotation.z);
+        
+        <span class=comment>//Player Camera - Translation
+</span>        cameraMoveTo(cameraPosition);
+    }
+}
+
+<span class=keyword>void</span> CCamera::cameraDebug() {
+    glPrint(SCREEN_WIDTH - 300, SCREEN_HEIGHT - 10, &quot;'G' GRAVITY - 'G' == %d&quot;, CAMERA_HAS_GRAVITY);
+    glPrint(SCREEN_WIDTH - 300, SCREEN_HEIGHT - 20, &quot;'C' CAMERA COLLISIONS == %d&quot;, CAMERA_HAS_COLLISIONS);
+    glPrint(SCREEN_WIDTH - 300, SCREEN_HEIGHT - 30, &quot;'I' CAMERA TYPE = %s&quot;,(CAMERA_IMPLEMENT_TYPE == CAMERA_GLULOOKAT)?&quot;CAMERA_GLULOOKAT&quot;:&quot;CAMERA_TRANSLATE&quot;);
+
+    glPrint(SCREEN_WIDTH - 300, 30, &quot;CAM POS : %0.2f %0.2f %0.2f&quot;, cameraPosition.x, cameraPosition.y, cameraPosition.z);
+    glPrint(SCREEN_WIDTH - 300, 20, &quot;CAM ROT : %0.2f %0.2f %0.2f&quot;, cameraRotation.x, cameraRotation.y, cameraRotation.z);
+    glPrint(SCREEN_WIDTH - 300, 10, &quot;VIEW VECT : %0.2f %0.2f %0.2f&quot;, viewVector.x, viewVector.y, viewVector.z);
+}
+
+<span class=keyword>void</span> CCamera::setGravity(<span class=keyword>bool</span> bHasGravity) {
+    CAMERA_HAS_GRAVITY = bHasGravity;
+}
+
+<span class=keyword>void</span> CCamera::setCollision(<span class=keyword>bool</span> bHasCollision) {
+    CAMERA_HAS_COLLISIONS = bHasCollision;
+}
+</pre></body>
+</html>

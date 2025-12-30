@@ -1,0 +1,90 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _MAIN_H_
+<span class=pp>#define</span> _MAIN_H_
+
+<span class=pp>#include</span> &lt;windows.h&gt;
+<span class=pp>#include</span> &lt;stdio.h&gt;
+<span class=pp>#include</span> &lt;stdlib.h&gt;
+<span class=pp>#include</span> &lt;math.h&gt;
+<span class=pp>#include</span> &lt;string&gt;
+<span class=pp>#include</span> &lt;fstream&gt;
+<span class=pp>#include</span> &lt;vector&gt;
+<span class=pp>#include</span> &lt;gl\gl.h&gt;                        <span class=comment>// Header File For The OpenGL32 Library
+</span><span class=pp>#include</span> &lt;gl\glu.h&gt;                        <span class=comment>// Header File For The GLu32 Library
+</span><span class=pp>#include</span> &lt;gl\glaux.h&gt;
+<span class=pp>#include</span> &lt;crtdbg.h&gt;
+<span class=pp>#include</span> &lt;stdarg.h&gt;                        <span class=comment>// Header File For Variable Argument Routines    ( ADD )
+</span><span class=pp>#include</span> &quot;3DMath.h&quot;
+
+<span class=pp>#include</span> &quot;Terrain.h&quot;                    <span class=comment>// Include our header file for our Terrain.cpp
+</span>
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>// We added a bunch of defines, function prototypes and externs for multitexturing
+</span>
+<span class=comment>// These are for our multitexture defines
+</span><span class=pp>#define</span> GL_TEXTURE0_ARB                    0x84C0
+<span class=pp>#define</span> GL_TEXTURE1_ARB                    0x84C1
+
+<span class=pp>#define</span> GL_COMBINE_ARB                    0x8570
+<span class=pp>#define</span>    GL_RGB_SCALE_ARB                0x8573
+
+<span class=comment>// Here are the multitexture function prototypes
+</span><span class=keyword>typedef</span> <span class=keyword>void</span> (APIENTRY * PFNGLMULTITEXCOORD2FARBPROC) (GL<span class=keyword>enum</span> target, GL<span class=keyword>float</span> s, GL<span class=keyword>float</span> t);
+<span class=keyword>typedef</span> <span class=keyword>void</span> (APIENTRY * PFNGLACTIVETEXTUREARBPROC)     (GL<span class=keyword>enum</span> target);
+
+<span class=comment>// Here we extern our function pointers for multitexturing capabilities
+</span><span class=keyword>extern</span> PFNGLMULTITEXCOORD2FARBPROC        glMultiTexCoord2fARB;
+<span class=keyword>extern</span> PFNGLACTIVETEXTUREARBPROC        glActiveTextureARB;
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=keyword>using</span> <span class=keyword>namespace</span> std;
+<span class=keyword>typedef</span> <span class=keyword>unsigned</span> <span class=keyword>char</span> byte;
+
+<span class=pp>#define</span> SCREEN_WIDTH    640
+<span class=pp>#define</span> SCREEN_HEIGHT    480
+<span class=pp>#define</span> SCREEN_BPP        16
+
+<span class=pp>#define</span> MAX_TEXTURES    100
+
+<span class=keyword>extern</span> GLuint* textures;
+
+<span class=pp>#define</span> TEX_ID_TERRAIN            0
+<span class=pp>#define</span> TEX_ID_DETAIL            1
+<span class=pp>#define</span> TEX_ID_SKYBOX_BACK        2
+<span class=pp>#define</span> TEX_ID_SKYBOX_BACK        3
+<span class=pp>#define</span> TEX_ID_SKYBOX_BACK        4
+<span class=pp>#define</span> TEX_ID_SKYBOX_BACK        5
+<span class=pp>#define</span> TEX_ID_SKYBOX_BACK        6
+<span class=pp>#define</span> TEX_ID_SKYBOX_BACK        7
+<span class=pp>#define</span> TEX_ID_WALL             8
+<span class=pp>#define</span> TEX_ID_FLOOR             9
+<span class=pp>#define</span> TEX_ID_CEILING             10
+<span class=pp>#define</span> TEX_ID_ROOMWALL         11
+<span class=pp>#define</span> TEX_ID_ROOMFLOOR         12
+<span class=pp>#define</span> TEX_ID_ROOMCEILING         13
+<span class=pp>#define</span> TEX_ID_FONT                14
+
+<span class=pp>#endif</span>
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// We added some variables and defines to allow multitexturing.
+</span><span class=comment>//  
+</span><span class=comment>//
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span><span class=comment>//
+</span></pre></body>
+</html>

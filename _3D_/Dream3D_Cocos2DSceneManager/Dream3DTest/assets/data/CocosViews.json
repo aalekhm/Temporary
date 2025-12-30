@@ -1,0 +1,36 @@
+{
+    "Version": "60000",
+    "Views": [
+		{
+            "viewName": "Background",
+			"csbFilename": "Scene_MainMenu/SceneBG.csb",
+			"SpriteSheetName": "Scene_MainMenu/SceneBG.plist",
+            "animIN": "",
+            "animOUT": "",
+			"isPopup": false,
+			"loadOnDemand": true,
+            "unloadOnClose": true,
+			"zDepth": "Far"
+        },
+        {
+            "viewName": "MainMenu",
+			"csbFilename": "Scene_MainMenu/SceneMainMenu.csb",
+			"SpriteSheetName": "Scene_MainMenu/SceneMainMenu.plist",
+            "animIN": "animationIn",
+            "animOUT": "animationOut",
+			"isPopup": false,
+			"loadOnDemand": true,
+            "unloadOnClose": true
+        },
+		{
+            "viewName": "MainMenuNext",
+			"csbFilename": "Scene_MainMenu/SceneMainMenuNext.csb",
+			"SpriteSheetName": "Scene_MainMenu/SceneMainMenuNext.plist",
+            "animIN": "animationIn",
+            "animOUT": "animationOut",
+			"isPopup": false,
+			"loadOnDemand": true,
+            "unloadOnClose": true
+        }
+	]
+}

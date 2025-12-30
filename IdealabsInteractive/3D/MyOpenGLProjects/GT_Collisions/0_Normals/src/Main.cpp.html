@@ -1,0 +1,686 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>// This part below is important.  We create an array of 3 CVector3's.
+</span><span class=comment>// We could have called it CPoint3 or CVertex3, but let's call it it CVector3.
+</span><span class=comment>// A CVector3 is a class that has 3 floats, x, y, and z.  We will need a class
+</span><span class=comment>// to hold 3D points from now on.  We chose to use a class instead of a structure
+</span><span class=comment>// because later we will add to this class and make it a robust vector class, but
+</span><span class=comment>// for now we just want 3 floats.  We will store our triangle points in this array below.
+</span><span class=comment>// We put a 'v' in front of 'Triangle' to show that it is of type CVector3.
+</span><span class=comment>// Notice that we initialize the triangle with the left point first, then right, then the top.
+</span><span class=comment>// This is important.  We need to stick to this order.  This is important.  I would recommend
+</span><span class=comment>// doing it this way, which is counter-clockwise (considering we are looking at (0, 0, 0) down
+</span><span class=comment>// the negative Z axis.  This will make sure that our normals are consistent.  When backface
+</span><span class=comment>// culling, the default order is counter-clockwise.  This was just picked as a standard.  
+</span><span class=comment>// You can change this in OpenGL if you want though.  Check our glFrontFace() and glCullFace()
+</span><span class=comment>// in MSDN for more information on back face culling and how to use it.
+</span><span class=comment>// I labeled the points below with an '*' to give you more of a visual understanding of the poly.
+</span>
+<span class=comment>//                                                   *
+</span><span class=comment>//                                *                                    *
+</span>
+CVector3 vTriangle[3] = {
+                            {-1, 0, 0},        <span class=comment>//Left
+</span>                            {1, 0, 0},        <span class=comment>//Right
+</span>                            {0, 1, 0}        <span class=comment>//Top
+</span>                        };
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+HDC            mHDC        = NULL;            <span class=comment>// Private GDI Device Context
+</span>HGLRC        mHRC        = NULL;            <span class=comment>// Permanent Rendering Context
+</span>HWND        mHWnd        = NULL;                <span class=comment>// Holds Our Window Handle
+</span>HINSTANCE    mHInstance;                    <span class=comment>// Holds The Instance Of The Application
+</span>
+<span class=keyword>bool</span>        mKeys[256];                    <span class=comment>// Array Used For The Keyboard Routine
+</span><span class=keyword>bool</span>        mActive = <span class=keyword>false</span>;            <span class=comment>// Window Active Flag
+</span><span class=keyword>bool</span>        mFULLSCREEN = <span class=keyword>true</span>;            <span class=comment>// Fullscreen Flag Set To TRUE By Default
+</span>
+<span class=keyword>int</span> cameraRotX, cameraRotY, cameraRotZ;
+<span class=keyword>float</span> cameraPosX, cameraPosY, cameraPosZ;
+<span class=keyword>const</span> <span class=keyword>float</span> piOver180 = 0.0174532925f;
+<span class=keyword>const</span> <span class=keyword>float</span> MOVE_SPEED = 0.15f;
+<span class=keyword>static</span> <span class=keyword>bool</span> L_MOUSE_DOWN = <span class=keyword>false</span>;
+
+GLuint *textures;
+
+<span class=keyword>int</span> glViewMode = GL_TRIANGLES;
+<span class=keyword>float</span> rotateFaceY = 0.0;
+<span class=keyword>int</span> CURRENT_FRAME_ID = 0;
+
+<span class=keyword>bool</span> g_RenderMode = <span class=keyword>false</span>;
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+GL<span class=keyword>void</span>    resizeGLScene(GLsizei width, GLsizei height);
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>);
+<span class=keyword>int</span> drawGLScene(GL<span class=keyword>void</span>);
+GL<span class=keyword>void</span> killGLWindow(GL<span class=keyword>void</span>);
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen);
+
+<span class=keyword>void</span> checkMouseMovement() {
+    <span class=keyword>if</span>(!L_MOUSE_DOWN)
+        <span class=keyword>return</span>;
+
+    <span class=keyword>int</span> screenCenterX = SCREEN_WIDTH&gt;&gt;1;
+    <span class=keyword>int</span> screenCenterY = SCREEN_HEIGHT&gt;&gt;1;
+
+    POINT mousePos;
+    GetCursorPos(&amp;mousePos);
+    
+    <span class=comment>//Mouse not moved, hence return;
+</span>    <span class=keyword>if</span>(mousePos.x == screenCenterX &amp;&amp; mousePos.y == screenCenterY)
+        <span class=keyword>return</span>;
+
+    SetCursorPos(screenCenterX, screenCenterY);
+    
+    <span class=comment>//Move, Rotate as proportinal to the displacement
+</span>    <span class=keyword>float</span> deltaX = (mousePos.x - screenCenterX)/5.0f;
+    <span class=keyword>float</span> deltaY = (mousePos.y - screenCenterY)/5.0f;
+    
+    cameraRotX -= deltaY;
+    cameraRotY -= deltaX;
+}
+
+<span class=keyword>void</span> checkKeyboardMovement() {
+    <span class=keyword>if</span>(mKeys['Q'] || mKeys[VK_LEFT]) {
+        cameraRotY = (cameraRotY + 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys['E'] || mKeys[VK_RIGHT]) {
+        cameraRotY = (cameraRotY - 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys['W']) {
+        cameraPosX -= sin( cameraRotY * piOver180 ) * MOVE_SPEED;
+        cameraPosZ -= cos( cameraRotY * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys['S']) {
+        cameraPosX += sin( cameraRotY * piOver180 ) * MOVE_SPEED;
+        cameraPosZ += cos( cameraRotY * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys['A']) {
+        cameraPosX += sin( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+        cameraPosZ += cos( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys['D']) {
+        cameraPosX -= sin( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+        cameraPosZ -= cos( (cameraRotY-90) * piOver180 ) * MOVE_SPEED;
+    }
+    <span class=keyword>if</span>(mKeys[VK_UP]) {
+        cameraRotX = (cameraRotX + 1) % 360;
+    }
+    <span class=keyword>if</span>(mKeys[VK_DOWN]) {
+        cameraRotX = (cameraRotX - 1) % 360;
+    }
+}
+
+<span class=keyword>void</span> updateCamera(<span class=keyword>void</span>) {
+    checkMouseMovement();
+    checkKeyboardMovement();
+}
+
+<span class=comment>/*PITCH - Rotation around X - axis */</span>
+<span class=keyword>void</span> cameraPitch(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 1.0f, 0.0f, 0.0f);
+}
+
+<span class=comment>/*YAW - Rotation around Y - axis */</span>
+<span class=keyword>void</span> cameraYaw(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 0.0f, 1.0f, 0.0f);
+}
+
+<span class=comment>/*ROLL - Rotation around Z - axis */</span>
+<span class=keyword>void</span> cameraRoll(<span class=keyword>float</span> rotation) {
+    glRotatef(rotation, 0.0f, 0.0f, 1.0f);
+}
+
+<span class=keyword>void</span> cameraMoveTo(<span class=keyword>float</span> xTranslate, <span class=keyword>float</span> yTranslate, <span class=keyword>float</span> zTranslate) {
+    glTranslatef(xTranslate, yTranslate, zTranslate);
+}
+
+<span class=keyword>void</span> moveCamera(<span class=keyword>void</span>) {
+    <span class=comment>//Player Camera - Rotation
+</span>    cameraPitch(-cameraRotX);
+    cameraYaw(-cameraRotY);
+    cameraRoll(-cameraRotZ);
+
+    <span class=comment>//Player Camera - Translation
+</span>    cameraMoveTo(-cameraPosX, -cameraPosY, -cameraPosZ);
+}
+
+<span class=keyword>void</span> handleKeyboard(<span class=keyword>void</span>) {
+    <span class=keyword>if</span>(mKeys[VK_F1]) {
+        mKeys[VK_F1] = <span class=keyword>false</span>;
+        killGLWindow();
+        mFULLSCREEN = !mFULLSCREEN;
+        <span class=keyword>if</span>(!createGLWindow(&quot;openGL window&quot;, 640, 480, 16, mFULLSCREEN)) {
+            <span class=keyword>return</span>;
+        }
+    }
+}
+
+<span class=keyword>bool</span> bitmapLoader(LPCSTR fileName, GLuint textureID) {
+    HBITMAP hBMP;
+    BITMAP BMP;
+
+    hBMP = (HBITMAP)LoadImage(GetModuleHandle(NULL), fileName, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION | LR_LOADFROMFILE);
+
+    <span class=keyword>if</span>(!hBMP)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    GetObject(hBMP, <span class=keyword>sizeof</span>(BMP), &amp;BMP);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, BMP.bmWidth, BMP.bmHeight, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, BMP.bmBits);
+<span class=comment>/*
+char sCurText[255];
+sprintf(sCurText, &quot;%s = %d x %d&quot;, fileName, BMP.bmWidth, BMP.bmHeight);
+MessageBox(NULL, sCurText, &quot;W x H&quot;, MB_OK);
+//*/</span>
+    DeleteObject(hBMP);
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=keyword>int</span> WINAPI WinMain(    HINSTANCE    hInstance, 
+                    HINSTANCE    hPrevInstance,
+                    LPSTR        lpCmdLine,
+                    <span class=keyword>int</span>            nCmdShow
+) {
+    MSG        msg;
+    <span class=keyword>bool</span>    done = <span class=keyword>false</span>;
+
+    <span class=comment>//if(MessageBox(NULL, &quot;Would you like to run in FULLSCREEN mode?&quot;, &quot;Start FullScreen&quot;, MB_YESNO) == IDNO)
+</span>        mFULLSCREEN = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(!createGLWindow(&quot;openGL Window...Press F1 to toogle between windowed &amp; Fullscreen Mode.&quot;, 640, 480, 16, mFULLSCREEN))
+        <span class=keyword>return</span> 0;
+
+    <span class=keyword>while</span>(!done) {
+        <span class=keyword>if</span>(PeekMessage(&amp;msg, NULL, 0, 0, PM_REMOVE)) {
+            <span class=keyword>if</span>(msg.message == WM_QUIT)
+                done = <span class=keyword>true</span>;
+            <span class=keyword>else</span>  {
+                TranslateMessage(&amp;msg);
+                DispatchMessage(&amp;msg);
+            }
+        }
+        <span class=keyword>else</span> {
+            <span class=keyword>if</span>(mActive) {
+                <span class=keyword>if</span>(mKeys[VK_ESCAPE])
+                    done = <span class=keyword>true</span>;
+                <span class=keyword>else</span> {
+                    drawGLScene();
+                    SwapBuffers(mHDC);
+                }
+            }
+
+            updateCamera();
+            handleKeyboard();
+        }
+    }
+
+    killGLWindow();
+    <span class=keyword>return</span> msg.wParam;
+}
+
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen) {
+    <span class=keyword>int</span>            iPixelFormat;
+    WNDCLASS    wc;
+    DWORD        dwExStyle;
+    DWORD        dwStyle;
+    RECT        windowRect;
+
+    windowRect.left        = (<span class=keyword>long</span>)0;
+    windowRect.right    = (<span class=keyword>long</span>)width;
+    windowRect.top        = (<span class=keyword>long</span>)0;
+    windowRect.bottom    = (<span class=keyword>long</span>)height;
+
+    mFULLSCREEN = isFullScreen;
+
+    mHInstance            = GetModuleHandle(NULL);
+    
+    wc.cbClsExtra        = 0;
+    wc.cbWndExtra        = 0;
+    wc.hbrBackground    = NULL;
+    wc.hCursor            = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon            = LoadIcon(NULL, IDI_WINLOGO);
+    wc.hInstance        = mHInstance;
+    wc.lpfnWndProc        = (WNDPROC) WndProc;
+    wc.lpszClassName    = &quot;OpenGL&quot;;
+    wc.lpszMenuName        = NULL;
+    wc.style            = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    
+    <span class=keyword>if</span>(!RegisterClass(&amp;wc)) {
+        MessageBox(NULL, &quot;Failed to Register the Window Class.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        DEVMODE    dmScreenSettings;
+        memset(&amp;dmScreenSettings, 0, <span class=keyword>sizeof</span>(dmScreenSettings));
+        dmScreenSettings.dmSize            = <span class=keyword>sizeof</span>(dmScreenSettings);
+        dmScreenSettings.dmPelsWidth    = width;
+        dmScreenSettings.dmPelsHeight    = height;
+        dmScreenSettings.dmBitsPerPel    = bits;
+        dmScreenSettings.dmFields        = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+
+        <span class=keyword>if</span>(ChangeDisplaySettings(&amp;dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            <span class=keyword>if</span>(MessageBox(NULL, &quot;The requested FullScreen Mode is not supported\n by your Video Card. Use Windowed Mode instead?&quot;, &quot;Error&quot;, MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+                mFULLSCREEN = <span class=keyword>false</span>;
+            <span class=keyword>else</span> {
+                MessageBox(NULL, &quot;Program will now close.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONSTOP);
+                <span class=keyword>return</span> <span class=keyword>false</span>;
+            }
+        }
+    }
+    
+    ShowCursor(!<span class=keyword>false</span>);
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        dwExStyle    = WS_EX_APPWINDOW;
+        dwStyle        = WS_POPUP;
+    }
+    <span class=keyword>else</span> {
+        dwExStyle    = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+        dwStyle        = WS_OVERLAPPEDWINDOW;
+    }
+
+    AdjustWindowRectEx(&amp;windowRect, dwStyle, <span class=keyword>false</span>, dwExStyle);
+
+    <span class=keyword>if</span>(!(mHWnd = CreateWindowEx(    dwExStyle,
+                                &quot;OpenGL&quot;,
+                                title,
+                                dwStyle | 
+                                WS_CLIPSIBLINGS |
+                                WS_CLIPCHILDREN,
+                                0, 0,
+                                windowRect.right - windowRect.left,
+                                windowRect.bottom - windowRect.top,
+                                NULL,
+                                NULL,
+                                mHInstance,
+                                NULL))
+    ) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHDC = GetDC(mHWnd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to get Device Context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>static</span> PIXELFORMATDESCRIPTOR pfd = 
+    {
+        <span class=keyword>sizeof</span>(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW |
+        PFD_SUPPORT_OPENGL |
+        PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        bits,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        16,
+        0,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    <span class=keyword>if</span>(!(iPixelFormat = ChoosePixelFormat(mHDC, &amp;pfd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to choose Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!SetPixelFormat(mHDC, iPixelFormat, &amp;pfd)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to set Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHRC = wglCreateContext(mHDC))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to create wgl context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!wglMakeCurrent(mHDC, mHRC)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to make wgl context&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+                                
+    ShowWindow(mHWnd, <span class=keyword>true</span>);
+    SetForegroundWindow(mHWnd);
+    SetFocus(mHWnd);
+
+    resizeGLScene(width, height);
+
+    <span class=keyword>if</span>(!initGL()) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> resizeGLScene(GLsizei width, GLsizei height) {
+    <span class=keyword>if</span>(height == 0)
+        height = 1;
+
+    glViewport(0, 0, width, height);
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(45.0f, (GL<span class=keyword>float</span>)width/(GL<span class=keyword>float</span>)height, 0.1f, 150.0f);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>) {
+    textures = <span class=keyword>new</span> GLuint[MAX_TEXTURES];
+    glGenTextures(MAX_TEXTURES, &amp;textures[0]);
+
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_COLOR_MATERIAL);                        <span class=comment>// Allow color
+</span>    
+    <span class=comment>///////////////////////////////////
+</span>    glShadeModel(GL_SMOOTH);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    glClearDepth(1.0f);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    <span class=comment>//glEnable(GL_CULL_FACE);                                // Turn culling on
+</span>    <span class=comment>//glCullFace(GL_FRONT);                                // Quake2 uses front face culling apparently
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> killGLWindow() {
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        ChangeDisplaySettings(NULL, 0);
+        ShowCursor(<span class=keyword>true</span>);
+    }
+
+    <span class=keyword>if</span>(mHRC) {
+        <span class=keyword>if</span>(!wglMakeCurrent(NULL, NULL))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        <span class=keyword>if</span>(!wglDeleteContext(mHRC))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        mHRC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHDC &amp;&amp; !ReleaseDC(mHWnd, mHDC)) {
+        MessageBox(NULL, &quot;Release of Device Context failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHDC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHWnd &amp;&amp; !DestroyWindow(mHWnd)) {
+        MessageBox(NULL, &quot;Release of mHWnd failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHWnd = NULL;
+    }
+
+    <span class=keyword>if</span>(!UnregisterClass(&quot;OpenGL&quot;, mHInstance)) {
+        MessageBox(NULL, &quot;UnRegisterClass failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHInstance = NULL;
+    }
+}
+
+<span class=keyword>int</span> drawGLScene() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+
+    moveCamera();
+
+    glTranslatef(0.0, -0.0, -5.0f);
+    <span class=comment>//glRotatef(rotateFaceY, 0.0, 1.0, 0.0);
+</span>
+    <span class=comment>// Below we draw the triangle like normal, except we pass in our vTriangle structure.
+</span>    <span class=comment>// This is so we can move the triangle around and now just have it constant.
+</span>    <span class=comment>// As we move the triangle around, the &quot;normal&quot; will follow it perfectly.
+</span>    <span class=comment>///*
+</span>    glBegin(GL_TRIANGLES);
+        
+        glColor3ub(255, 0, 0);
+        glVertex3f(    vTriangle[0].x, vTriangle[0].y, vTriangle[0].z);
+
+        glColor3ub(0, 255, 0);
+        glVertex3f(    vTriangle[1].x, vTriangle[1].y, vTriangle[1].z);
+
+        glColor3ub(0, 0, 255);
+        glVertex3f(    vTriangle[2].x, vTriangle[2].y, vTriangle[2].z);
+
+    glEnd();
+    <span class=comment>//*/
+</span>    <span class=comment>// Now that we displayed the triangle, let's display a line coming from the
+</span>    <span class=comment>// triangle to show you visually what the normal looks like.  Remember, the
+</span>    <span class=comment>// normal does NOT have a position, just a direction, but just to help us visualize it,
+</span>    <span class=comment>// we will draw the normal coming from the middle of the triangle.
+</span>
+    <span class=comment>// Get the normal of our triangle by passing in our array or points.
+</span>    CVector3 vNormal = normal(vTriangle);
+
+    <span class=comment>// Now, just for show, let's find the center of the triangle.
+</span>    <span class=comment>// We know that the middle X is zero, so we don't need to calculate the X value.
+</span>    CVector3 vCenter = {0};
+
+    <span class=comment>// To get the Y value, we just divide the top point's Y value by 2, since we start at 0.
+</span>    <span class=comment>// Do the same thing for the Z value, just divide the Z value of the top point by 2
+</span>    <span class=comment>// because we start out at 0 on the Z axis, so only the top of the triangle will be moving.
+</span>    <span class=comment>// If we weren't so conveniently positioned we would have to do something more modular.
+</span>    <span class=comment>// To find the center of an object you just add up all the X Y and Z values singularly,
+</span>    <span class=comment>// then divide each one by the number of vertices, and that gives you the center.
+</span>    <span class=comment>// IE, after you get the total:  total.x /= totalVertices;  total.y /= totalVertices; total.z /= totalVertices;
+</span>    <span class=comment>// I decided not to make another function for this for simplicity reasons, but you should :)
+</span>    
+    vCenter.y = vTriangle[2].y/2;        <span class=comment>// Get the Y value for the center of the triangle
+</span>    vCenter.z = vTriangle[2].z/2;        <span class=comment>// Get the Z value for the center of the triangle
+</span>
+    <span class=comment>// Now let's draw the line coming from the center of our triangle.
+</span>    <span class=comment>// The first point will be the center point of the triangle that we just calculated.
+</span>    <span class=comment>// The next point will be the center point + the normal of the triangle.
+</span>
+    glBegin(GL_LINES);
+        glColor3ub(255, 255, 0);                        <span class=comment>// Make the normal line YELLOW
+</span>        glVertex3f(vCenter.x, vCenter.y, vCenter.z);    <span class=comment>// Let's draw the normal centered on the triangle
+</span>        
+        <span class=comment>//glVertex3f(0.0, 0.0, 0.0);    // Let's draw the normal centered on the triangle
+</span>
+        glVertex3f(    vCenter.x + vNormal.x,                <span class=comment>// Draw the normal of the polygon from the center of the polygon to better see it
+</span>                    vCenter.y + vNormal.y,
+                    vCenter.z + vNormal.z
+                );
+
+
+    glEnd();
+<span class=comment>//char logText[255] = {0};
+</span><span class=comment>//sprintf(logText, &quot;vNormal = %f %f %f&quot;, vNormal.x, vNormal.y, vNormal.z);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>
+
+    <span class=comment>//rotateFaceY = (float)(((UINT)rotateFaceY + 1) % 360);
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    <span class=keyword>switch</span>(uMsg) {
+        <span class=keyword>case</span> WM_CREATE:
+        {
+            SetCursorPos(SCREEN_WIDTH&gt;&gt;1, SCREEN_HEIGHT&gt;&gt;1);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_ACTIVATE:
+        {
+            <span class=keyword>if</span>(!HIWORD(wParam))
+                mActive = <span class=keyword>true</span>;
+            <span class=keyword>else</span>
+                mActive = <span class=keyword>false</span>;
+
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SYSCOMMAND:
+        {
+            <span class=keyword>switch</span>(wParam) {
+                <span class=keyword>case</span> SC_SCREENSAVE:
+                <span class=keyword>case</span> SC_MONITORPOWER:
+                    <span class=keyword>return</span> 0;
+            }
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYDOWN:
+        {
+            mKeys[wParam] = <span class=keyword>true</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYUP:
+        {
+            mKeys[wParam] = <span class=keyword>false</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SIZE:
+        {
+            resizeGLScene(LOWORD(lParam), HIWORD(lParam));
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_LBUTTONDOWN:
+        {
+            SetCursorPos(SCREEN_WIDTH&gt;&gt;1, SCREEN_HEIGHT&gt;&gt;1);
+            L_MOUSE_DOWN = <span class=keyword>true</span>;
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_LBUTTONUP:        
+        {
+            L_MOUSE_DOWN = <span class=keyword>false</span>;
+
+            <span class=comment>//glViewMode = (glViewMode == GL_TRIANGLES)?GL_LINES:GL_TRIANGLES;
+</span>        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_RBUTTONDOWN:
+            g_RenderMode = !g_RenderMode;    <span class=comment>// Change the rendering mode
+</span>
+            <span class=comment>// Change the rendering mode to and from lines or triangles
+</span>            <span class=keyword>if</span>(g_RenderMode) {
+                <span class=comment>// Render the triangles in fill mode        
+</span>                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
+            }
+            <span class=keyword>else</span> {
+                <span class=comment>// Render the triangles in wire frame mode
+</span>                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);    
+            }
+        <span class=keyword>break</span>;
+    }
+
+    <span class=keyword>return</span> DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// This tutorial shows how to load an .obj file.  These files are ASCII text files
+</span><span class=comment>// that contain very few information about the models, but are great for importing/exporting
+</span><span class=comment>// into almost every 3D software package as well as being easy to read in.
+</span><span class=comment>// 
+</span><span class=comment>// This tutorial is modified from the 3DS loading tutorial.  I wanted to keep them 
+</span><span class=comment>// consistent as possible so you didn't have to see much changed between the 2.
+</span><span class=comment>// The failure in that is that .obj files don't have material information, so I had
+</span><span class=comment>// to add my own manual ways of doing it.  I personally wouldn't use .obj for a demo
+</span><span class=comment>// or game, but It is always great to have something like this around since it's so
+</span><span class=comment>// popular.  I would recommend looking at this tutorial actually before the 3DS tutorial.
+</span><span class=comment>// 
+</span><span class=comment>// * What's An STL (Standard Template Library) Vector? *
+</span><span class=comment>// Let me quickly explain the STL vector for those of you who are not familiar with them.
+</span><span class=comment>// To use a vector you must include &lt;vector&gt; and use the std namespace: using namespace std;
+</span><span class=comment>// A vector is an array based link list.  It allows you to dynamically add and remove nodes.
+</span><span class=comment>// This is a template class so it can be a list of ANY type.  To create a vector of type
+</span><span class=comment>// &quot;int&quot; you would say:  vector&lt;int&gt; myIntList;
+</span><span class=comment>// Now you can add a integer to the dynamic array by saying: myIntList.push_back(10);
+</span><span class=comment>// or you can say:  myIntList.push_back(num);.  The more you push back, the larger
+</span><span class=comment>// your array gets.  You can index the vector like an array.  myIntList[0] = 0;
+</span><span class=comment>// To get rid of a node you use the pop_back() function.  To clear the vector use clear().
+</span><span class=comment>// It frees itself so you don't need to worry about it, except if you have data
+</span><span class=comment>// structures that need information freed from inside them, like our objects.
+</span><span class=comment>//
+</span><span class=comment>// Here is some commentary about the .obj file which comes from the bottom of obj.cpp:
+</span><span class=comment>//
+</span><span class=comment>// First, no .obj file format is going to be the same.  When you import/export
+</span><span class=comment>// .obj files anywhere, each application has their own way of saving it.  Some
+</span><span class=comment>// save normals, some save extra comments, some save object names, etc...  That is
+</span><span class=comment>// why I calculate my own normals because rarely are they including as &quot;vn&quot; in the file.
+</span><span class=comment>// The only thing you can depend on is the headers:
+</span><span class=comment>//
+</span><span class=comment>// &quot;v&quot;  - This is a line that contains a vertex (x y z)
+</span><span class=comment>//
+</span><span class=comment>//        IE:            v    -1    -1    0
+</span><span class=comment>//
+</span><span class=comment>// After the 'v' it will list the X Y and Z information for that vertex.
+</span><span class=comment>//
+</span><span class=comment>// &quot;vt&quot; - This is a line that contains a UV texture coordinate (U V)
+</span><span class=comment>//
+</span><span class=comment>//        IE:            vt    .99998    .99936
+</span><span class=comment>//
+</span><span class=comment>// After the &quot;vt&quot; it will list the U and V information for a vertex.
+</span><span class=comment>// Note that this will ONLY appear in the file if the object has a UVW map.
+</span><span class=comment>// Just dragging a texture onto an object doesn't create a UVW map.
+</span><span class=comment>//
+</span><span class=comment>// &quot;f&quot;    - This is a line that contains the vertex indices into the vertex array.
+</span><span class=comment>//        If there are UV coordinates for that object, it also contains the UV indices.
+</span><span class=comment>//
+</span><span class=comment>//        IE (Just vertices):            f    1    2    3
+</span><span class=comment>//        
+</span><span class=comment>//        IE (Verts and UV Indices)    f    1/1 2/2    3/3
+</span><span class=comment>//
+</span><span class=comment>// After the 'f' it will list the vertex indices, or the vertex / UV indices.
+</span><span class=comment>//
+</span><span class=comment>// Those are the only 3 you can count on 99% of the time.  The other one that
+</span><span class=comment>// isn't always there is &quot;vn&quot;.  That is a vertex normal:  vn -1 0 0
+</span><span class=comment>// There are some other lines that are sometimes used by they can be generally ignored.
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// Let us know if this helps you out!
+</span><span class=comment>// 
+</span><span class=comment>// 
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span><span class=comment>// © 2000-2003 GameTutorials
+</span></pre></body>
+</html>

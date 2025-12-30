@@ -1,0 +1,151 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _MD2_H_
+<span class=pp>#define</span> _MD2_H_
+
+<span class=pp>#include</span> &lt;windows.h&gt;
+<span class=pp>#include</span> &lt;stdio.h&gt;
+<span class=pp>#include</span> &lt;stdlib.h&gt;
+<span class=pp>#include</span> &lt;vector&gt;
+<span class=pp>#include</span> &quot;main.h&quot;
+<span class=keyword>using</span> <span class=keyword>namespace</span> std;    <span class=comment>//for vector
+</span>
+<span class=keyword>typedef</span> <span class=keyword>unsigned</span> <span class=keyword>char</span> byte;
+
+<span class=comment>//These are the needed defines for the max values when loading .MD2 files
+</span><span class=pp>#define</span> MD2_MAX_TRIANGLES            4096
+<span class=pp>#define</span> MD2_MAX_VERTICES            2048
+<span class=pp>#define</span> MD2_TEX_COORINATES            2048
+<span class=pp>#define</span> MD2_MAX_FRAMES                512
+<span class=pp>#define</span> MD2_MAX_SKINS                32
+<span class=pp>#define</span> MD2_MAX_FRAME_SIZE            (MD2_MAX_VERTICES * 4 + 128)
+
+<span class=comment>//This stores the speed of the Animation between each key frame
+</span><span class=pp>#define</span> kAnimationSpeed                5.0f
+
+<span class=comment>//This holds the Header Info which is read at the beginning of the '.md2' file
+</span><span class=keyword>struct</span> tMD2Header {
+    <span class=keyword>int</span> magic;                        <span class=comment>//Magic number to identify the file - 'IPD2'
+</span>    <span class=keyword>int</span> version;                    <span class=comment>//The version number of the file (must be 8)
+</span>    <span class=keyword>int</span> skinWidth;                    <span class=comment>//The Skin Width in pixels
+</span>    <span class=keyword>int</span> skinHeight;                    <span class=comment>//The Skin Height in pixels
+</span>    <span class=keyword>int</span> frameSize;                    <span class=comment>//This specifies the size in bytes of each frame.
+</span>    <span class=keyword>int</span> numOfSkins;                    <span class=comment>//Tells us the number of textures available for this Model
+</span>    <span class=keyword>int</span> numOfVertices;                <span class=comment>//Total number of Vertices in the Model
+</span>    <span class=keyword>int</span> numOfTexCoordinates;        <span class=comment>//Is the number of atexture coordinates stored in the file
+</span>    <span class=keyword>int</span> numOfTriangles;                <span class=comment>//Is the number of Triangles in the Model
+</span>    <span class=keyword>int</span> numOfGlCmds;                <span class=comment>//Gives the number of OpenGL commands
+</span>                                    <span class=comment>//The GL command list is an array of integers that allows 
+</span>                                    <span class=comment>//us to render the model using only triangle fans and 
+</span>                                    <span class=comment>//triangle strip (GL_TRIANGLE_STRIP and GL_TRIANGLE_FAN), 
+</span>                                    <span class=comment>//instead of classic triangles (GL_TRIANGLES). GL commands are very powerful. 
+</span>                                    <span class=comment>//It is easy to get a rendering about 10 or 15 fps faster!
+</span>    <span class=keyword>int</span> numOfFrames;                <span class=comment>//The number of Animation Frames that holds the Model. In fact, each of them 
+</span>                                    <span class=comment>//are refered to as keyframes, which are frames taken from discrete time intervals 
+</span>                                    <span class=comment>//because it would be impossible to hold 200 or 300 frames per animation!
+</span>
+    <span class=keyword>int</span> offsetSkinsStart;
+    <span class=keyword>int</span> offsetTexCoordStart;
+    <span class=keyword>int</span> offsetTrianglesStart;
+    <span class=keyword>int</span> offsetFramesStart;
+    <span class=keyword>int</span> offsetGLCommandsStart;
+    <span class=keyword>int</span> offsetEnd;
+};
+
+
+<span class=comment>//This is used to store that vertices that are read in for the current Frame
+</span><span class=comment>/*
+You may have noticed that compressedVertex[3] contains vertex' (x,y,z) coordinates 
+and because of the unsigned char type, these coordinates can only range 
+from 0 to 255. In fact these 3D coordinates are compressed (3 bytes 
+instead of 12 if we would use float or vec3_t). To uncompress it, we'll 
+use other data proper to each frame. lightnormalindex is an index to a 
+precalculated normal table. Normal vectors will be used for the lighting.
+*/</span>
+<span class=keyword>struct</span> tMD2AliasVertex {
+    byte compressedVertex[3];                    <span class=comment>// compressed vertex (x, y, z) coordinates
+</span>    byte lightNormalIndex;                        <span class=comment>// index to a normal vector for the lighting
+</span>};
+
+<span class=comment>//This stores the normals and vertices for the Frames
+</span><span class=keyword>struct</span> tMD2Vertex {
+    <span class=keyword>float</span> vertex[3];
+    <span class=keyword>float</span> normal[3];
+};
+
+<span class=comment>// This stores the indices into the vertex and texture coordinate arrays
+</span><span class=keyword>struct</span> tMD2Face {
+    <span class=keyword>short</span> vertexIndices[3];
+    <span class=keyword>short</span> textureIndices[3];
+};
+
+<span class=comment>/*
+Like for vertices, data is compresed. Here we use short (2 bytes) 
+instead of float (4 bytes) for storing texture coordinates. But to 
+use them, we must convert them to float because texture coordinates 
+range from 0.0 to 1.0, and if we kept short values, we could have 
+only 0 or 1 and any intermediate value! So how to uncompress them? 
+It's quite simple. Divide the short value by the texture size
+*/</span>
+<span class=keyword>struct</span> tMD2TexCoord {
+    <span class=keyword>short</span> u;
+    <span class=keyword>short</span> v;
+};
+
+<span class=comment>//This store the Animation scale, translate and name information for a frame, plus vertices
+</span><span class=keyword>struct</span> tMD2AliasFrame {                
+    <span class=keyword>float</span> scale[3];                                <span class=comment>//Scale values
+</span>    <span class=keyword>float</span> translate[3];                            <span class=comment>//Translate values
+</span>    <span class=keyword>char</span> frameName[16];                            <span class=comment>//Frame Name
+</span>    tMD2AliasVertex aliasVertex[1];                <span class=comment>//First vertex of this frame
+</span>};
+
+<span class=comment>//This stores the FRAME vertices after they have been 'Transformed'
+</span><span class=keyword>struct</span> tMD2Frame {
+    <span class=keyword>char</span> frameName[16];
+    tMD2Vertex *pVertices;
+};
+
+<span class=comment>//This stores the Skin Name
+</span><span class=keyword>typedef</span> <span class=keyword>char</span> tMD2SkinName[64];
+
+<span class=keyword>class</span> CReaderMD2 {
+    <span class=keyword>public</span>:
+        CReaderMD2();
+
+        <span class=comment>//This is called whenever u need to load an '.md2' file
+</span>        <span class=keyword>bool</span> importMD2(t3DModel *pModel, <span class=keyword>char</span> *fileNameMD2);
+
+        FILE *mFilePointer, *mFileConsoleLog;
+        <span class=keyword>char</span> logText[255];
+
+    <span class=keyword>private</span>:
+        <span class=keyword>void</span> readMD2Data();
+
+        <span class=keyword>void</span> readSkins();
+        <span class=keyword>void</span> readTexCoords();
+        <span class=keyword>void</span> readFaces();
+        <span class=keyword>void</span> readFrames();
+
+        <span class=keyword>void</span> convertDataStructures(t3DModel *pModel);
+        <span class=keyword>void</span> parseAnimations(t3DModel *pModel);
+
+        
+        
+        
+        tMD2Header        m_pMD2Header;
+        tMD2SkinName    *m_pSkins;
+        tMD2TexCoord    *m_pTexCoords;
+        tMD2Face        *m_pFaces;
+        tMD2Frame        *m_pFrames;
+};
+
+<span class=pp>#endif</span></pre></body>
+</html>

@@ -1,0 +1,81 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=pp>#ifndef</span> _CCAMERA_H_
+<span class=pp>#define</span> _CCAMERA_H_
+
+<span class=pp>#define</span>    CAMERA_HUMAN        0
+<span class=pp>#define</span>    CAMERA_AIRCRAFT        1
+<span class=pp>#define</span>    CAMERA_TYPE            CAMERA_HUMAN
+
+<span class=pp>#define</span> CAMERA_GLULOOKAT        0
+<span class=pp>#define</span> CAMERA_TRANSLATE        1
+
+<span class=keyword>class</span> CCamera {
+
+    <span class=keyword>public</span>:
+        CVector3 cameraPosition;
+        CVector3 cameraRotation;
+        CVector3 viewVector;
+        CVector3 rightVector;
+        CVector3 upVector;
+        <span class=keyword>bool</span> cameraHasCollisions;
+        <span class=keyword>bool</span> CAMERA_HAS_GRAVITY;
+        byte CAMERA_IMPLEMENT_TYPE;
+        <span class=keyword>float</span> camRadius;
+        <span class=keyword>char</span> debugString[255];
+
+        CCamera() {};
+        CCamera(CVector3 VIEW_VECT, CVector3 RIGHT_VECT, CVector3 UP_VECT) {
+            viewVector = VIEW_VECT;
+            rightVector = RIGHT_VECT;
+            upVector = UP_VECT;
+
+            cameraHasCollisions    = <span class=keyword>false</span>;
+            CAMERA_HAS_GRAVITY        = <span class=keyword>false</span>;
+            CAMERA_IMPLEMENT_TYPE  = CAMERA_GLULOOKAT;
+
+            cameraRotation = CVector3(0.0, 0.0, 0.0);
+            camRadius = 1.20f;
+        };
+
+        <span class=keyword>void</span> setPosition(CVector3 position);
+        <span class=keyword>void</span> setGravity(<span class=keyword>bool</span> bHasGravity);
+        <span class=keyword>void</span> setCollision(<span class=keyword>bool</span> bHasCollision);
+
+        <span class=keyword>void</span> rotateX(<span class=keyword>float</span> angle);
+        <span class=keyword>void</span> rotateY(<span class=keyword>float</span> angle);
+        <span class=keyword>void</span> rotateZ(<span class=keyword>float</span> angle);
+        <span class=keyword>void</span> moveForward(<span class=keyword>float</span> distance);
+        <span class=keyword>void</span> strafeRight(<span class=keyword>float</span> distance);
+        <span class=keyword>void</span> moveUpward(<span class=keyword>float</span> distance);
+
+        <span class=keyword>void</span> cameraPitch(<span class=keyword>float</span> rotation);
+        <span class=keyword>void</span> cameraYaw(<span class=keyword>float</span> rotation);
+        <span class=keyword>void</span> cameraRoll(<span class=keyword>float</span> rotation);
+        <span class=keyword>void</span> cameraMoveTo(CVector3 camPos);
+
+        <span class=keyword>void</span> checkMouseMovementForGLULookAt();
+        <span class=keyword>void</span> checkKeyboardMovementForGLULookAt();
+
+        <span class=keyword>void</span> checkMouseMovementForTranslatef();
+        <span class=keyword>void</span> checkKeyboardMovementForTranslatef();
+
+        <span class=keyword>void</span> updateCamera(<span class=keyword>void</span>);
+        <span class=keyword>void</span> moveCamera(<span class=keyword>void</span>);
+        
+        <span class=keyword>void</span> cameraDebug();
+
+        <span class=keyword>void</span> checkCameraCollision(SCENE* scene);
+};
+
+<span class=pp>#endif</span></pre></body>
+</html>

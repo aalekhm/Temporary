@@ -1,0 +1,48 @@
+<shop>
+<workshop>
+	<shopitem>
+		<id>drugstore</id>
+		<title>DRUG STORE</title>
+		<image>drugstore.png</image>
+		<coins>5000</coins>
+	</shopitem>
+	<shopitem>
+		<id>government</id>
+		<title>GOVERNMENT</title>
+		<image>government.png</image>
+		<coins>6000</coins>
+	</shopitem>
+	<shopitem>
+		<id>museum</id>
+		<title>MUSEUM</title>
+		<image>museum.png</image>
+		<coins>7000</coins>
+	</shopitem>
+	<shopitem>
+		<id>property</id>
+		<title>PROPERTY</title>
+		<image>property.png</image>
+		<coins>8000</coins>
+	</shopitem>
+	<shopitem>
+		<id>Temple-icon</id>
+		<title>TEMPLE ICON</title>
+		<image>Temple-icon.png</image>
+		<coins>9000</coins>
+	</shopitem>
+</workshop>
+<decoration>
+	<shopitem>
+		<id>bridge</id>
+		<title>BRIDGE</title>
+		<image>bridge.png</image>
+		<coins>15000</coins>
+	</shopitem>
+	<shopitem>
+		<id>hangar</id>
+		<title>HANGAR</title>
+		<image>hangar.png</image>
+		<coins>16000</coins>
+	</shopitem>
+</decoration>
+</shop>

@@ -1,0 +1,171 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=pp>#include</span> &quot;camera.h&quot;
+<span class=pp>#include</span> &quot;math.h&quot;
+<span class=pp>#include</span> &lt;iostream&gt;
+<span class=pp>#include</span> &quot;windows.h&quot;
+
+<span class=pp>#define</span> SQR(x) (x*x)
+
+<span class=pp>#define</span> NULL_VECTOR F3dVector(0.0f,0.0f,0.0f)
+
+SF3dVector F3dVector ( GL<span class=keyword>float</span> x, GL<span class=keyword>float</span> y, GL<span class=keyword>float</span> z )
+{
+    SF3dVector tmp;
+    tmp.x = x;
+    tmp.y = y;
+    tmp.z = z;
+    <span class=keyword>return</span> tmp;
+}
+
+GL<span class=keyword>float</span> GetF3dVectorLength( SF3dVector * v)
+{
+    <span class=keyword>return</span> (GL<span class=keyword>float</span>)(sqrt(SQR(v-&gt;x)+SQR(v-&gt;y)+SQR(v-&gt;z)));
+}
+
+SF3dVector Normalize3dVector( SF3dVector v)
+{
+    SF3dVector res;
+    <span class=keyword>float</span> l = GetF3dVectorLength(&amp;v);
+    <span class=keyword>if</span> (l == 0.0f) <span class=keyword>return</span> NULL_VECTOR;
+    res.x = v.x / l;
+    res.y = v.y / l;
+    res.z = v.z / l;
+    <span class=keyword>return</span> res;
+}
+
+SF3dVector <span class=keyword>operator</span>+ (SF3dVector v, SF3dVector u)
+{
+    SF3dVector res;
+    res.x = v.x+u.x;
+    res.y = v.y+u.y;
+    res.z = v.z+u.z;
+    <span class=keyword>return</span> res;
+}
+SF3dVector <span class=keyword>operator</span>- (SF3dVector v, SF3dVector u)
+{
+    SF3dVector res;
+    res.x = v.x-u.x;
+    res.y = v.y-u.y;
+    res.z = v.z-u.z;
+    <span class=keyword>return</span> res;
+}
+
+
+SF3dVector <span class=keyword>operator</span>* (SF3dVector v, <span class=keyword>float</span> r)
+{
+    SF3dVector res;
+    res.x = v.x*r;
+    res.y = v.y*r;
+    res.z = v.z*r;
+    <span class=keyword>return</span> res;
+}
+
+SF3dVector CrossProduct (SF3dVector * u, SF3dVector * v)
+{
+    SF3dVector resVector;
+    resVector.x = u-&gt;y*v-&gt;z - u-&gt;z*v-&gt;y;
+    resVector.y = u-&gt;z*v-&gt;x - u-&gt;x*v-&gt;z;
+    resVector.z = u-&gt;x*v-&gt;y - u-&gt;y*v-&gt;x;
+
+    <span class=keyword>return</span> resVector;
+}
+<span class=keyword>float</span> <span class=keyword>operator</span>* (SF3dVector v, SF3dVector u)    <span class=comment>//dot product
+</span>{
+    <span class=keyword>return</span> v.x*u.x+v.y*u.y+v.z*u.z;
+}
+
+
+
+
+<span class=comment>/***************************************************************************************/</span>
+
+CCamera::CCamera()
+{
+    <span class=comment>//Init with standard OGL values:
+</span>    Position = F3dVector (0.0, 0.0,    0.0);
+    ViewDir = F3dVector( 0.0, 0.0, -1.0);
+    RightVector = F3dVector (1.0, 0.0, 0.0);
+    UpVector = F3dVector (0.0, 1.0, 0.0);
+
+    <span class=comment>//Only to be sure:
+</span>    RotatedX = RotatedY = RotatedZ = 0.0;
+}
+
+<span class=keyword>void</span> CCamera::Move (SF3dVector Direction)
+{
+    Position = Position + Direction;
+}
+
+<span class=keyword>void</span> CCamera::RotateX (GL<span class=keyword>float</span> Angle)
+{
+    RotatedX += Angle;
+    
+    <span class=comment>//Rotate viewdir around the right vector:
+</span>    ViewDir = Normalize3dVector(ViewDir*cos(Angle*PIdiv180)
+                                + UpVector*sin(Angle*PIdiv180));
+
+    <span class=comment>//now compute the new UpVector (by cross product)
+</span>    UpVector = CrossProduct(&amp;ViewDir, &amp;RightVector)*-1;
+
+    
+}
+
+<span class=keyword>void</span> CCamera::RotateY (GL<span class=keyword>float</span> Angle)
+{
+    RotatedY += Angle;
+    
+    <span class=comment>//Rotate viewdir around the up vector:
+</span>    ViewDir = Normalize3dVector(ViewDir*cos(Angle*PIdiv180)
+                                - RightVector*sin(Angle*PIdiv180));
+
+    <span class=comment>//now compute the new RightVector (by cross product)
+</span>    RightVector = CrossProduct(&amp;ViewDir, &amp;UpVector);
+}
+
+<span class=keyword>void</span> CCamera::RotateZ (GL<span class=keyword>float</span> Angle)
+{
+    RotatedZ += Angle;
+    
+    <span class=comment>//Rotate viewdir around the right vector:
+</span>    RightVector = Normalize3dVector(RightVector*cos(Angle*PIdiv180)
+                                + UpVector*sin(Angle*PIdiv180));
+
+    <span class=comment>//now compute the new UpVector (by cross product)
+</span>    UpVector = CrossProduct(&amp;ViewDir, &amp;RightVector)*-1;
+}
+
+<span class=keyword>void</span> CCamera::Render( <span class=keyword>void</span> )
+{
+
+    <span class=comment>//The point at which the camera looks:
+</span>    SF3dVector ViewPoint = Position+ViewDir;
+
+    <span class=comment>//as we know the up vector, we can easily use gluLookAt:
+</span>    gluLookAt(    Position.x,Position.y,Position.z,
+                ViewPoint.x,ViewPoint.y,ViewPoint.z,
+                UpVector.x,UpVector.y,UpVector.z);
+
+}
+
+<span class=keyword>void</span> CCamera::MoveForward( GL<span class=keyword>float</span> Distance )
+{
+    Position = Position + (ViewDir*-Distance);
+}
+
+<span class=keyword>void</span> CCamera::StrafeRight ( GL<span class=keyword>float</span> Distance )
+{
+    Position = Position + (RightVector*Distance);
+}
+
+<span class=keyword>void</span> CCamera::MoveUpward( GL<span class=keyword>float</span> Distance )
+{
+    Position = Position + (UpVector*Distance);
+}</pre></body>
+</html>

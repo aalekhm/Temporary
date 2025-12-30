@@ -1,0 +1,266 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;main.h&quot;
+<span class=pp>#include</span> &lt;math.h&gt;    <span class=comment>// We include math.h so we can use the sqrt() function
+</span>
+<span class=comment>// Because in our future tutorials we will be reusing all of this code quite often,
+</span><span class=comment>// we will put it in a separate .cpp file.  Also this is nice because then we can
+</span><span class=comment>// just copy 3DMath.cpp and 3DMath.h into a new project without having to cut and paste code.
+</span><span class=comment>// Eventually, once this gets big enough you will probably want to make a library out of it.
+</span>
+<span class=comment>// *FINDING THE NORMAL OF A POLYGON*
+</span>
+<span class=comment>// In order to find the normal of a polygon, we need to take the cross product of 2
+</span><span class=comment>// vectors from that polygon.  What that means, is that we need to get the directions
+</span><span class=comment>// of 2 of the sides of our triangle.  After all, that is all a vector is, just a direction
+</span><span class=comment>// and a length.  The length of our vectors in this case isn't really important.  We are
+</span><span class=comment>// just going to use the direction.  Then, with those 2 vectors we can find a vector coming
+</span><span class=comment>// straight out of the polygon, perpendicular (90 degrees) to the polygon.  To give you some
+</span><span class=comment>// examples of a cross product of 2 vectors, let's assume that we have a piece of paper
+</span><span class=comment>// lying flat on a table.  Where would the cross product of that paper be pointing?
+</span><span class=comment>// Straight up!  But, the paper isn't a polygon really?  Well, all you are really getting
+</span><span class=comment>// is the normal to a plane.  A plane is infinite, it goes on forever.  If you drew a triangle
+</span><span class=comment>// in the middle of the piece of paper, the normal of that triangle would be the same as the paper,
+</span><span class=comment>// so it doesn't matter does it?  That's why you are really getting a normal to the polygon's plane.
+</span><span class=comment>// If you stuck the piece of paper straight up vertically, where would the normal be?  It would 
+</span><span class=comment>// follow the paper perfectly as a 90 degree angle, so it would now we perfectly horizontal.  Now, 
+</span><span class=comment>// depending on the order of your vertices, it could either being pointing out on one side of the paper, 
+</span><span class=comment>// or on the other side.  You just have to decide which order you want to use, then ALWAYS stick
+</span><span class=comment>// with that.  Usually, you want to do something called back face culling which doesn't
+</span><span class=comment>// draw the back of a polygon.  That way you aren't drawing twice as much as you could be.
+</span><span class=comment>// Think about it, it you have a huge 3D model, do you really need to draw the inside of
+</span><span class=comment>// the model?  Of course not, that would be wasteful.  You always want to have your objects
+</span><span class=comment>// enclosed so they don't show back of polygons.  Like in a 3D maze, you would just have
+</span><span class=comment>// polygon thin walls, you would have thick walls which comprised of a cube like shape.
+</span><span class=comment>// That way, when you get into BSP trees, you can do something called Solid Node BSP tree's.
+</span>
+
+<span class=comment>/////////////////////////////////////// CROSS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns a perpendicular vector from 2 given vectors by taking the cross product.
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////////// CROSS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>CVector3 cross(CVector3 vVector1, CVector3 vVector2) {
+    
+    CVector3 vNormal;        <span class=comment>// The vector to hold the cross product
+</span>
+    <span class=comment>// Once again, if we are given 2 vectors (directions of 2 sides of a polygon)
+</span>    <span class=comment>// then we have a plane define.  The cross product finds a vector that is perpendicular
+</span>    <span class=comment>// to that plane, which means it's point straight out of the plane at a 90 degree angle.
+</span>    <span class=comment>// The equation for the cross product is simple, but difficult at first to memorize:
+</span>    
+    <span class=comment>// The X value for the vector is:  (V1.y * V2.z) - (V1.z * V2.y)                                                    // Get the X value
+</span>    vNormal.x = ((vVector1.y * vVector2.z) - (vVector1.z * vVector2.y));
+
+    <span class=comment>// The Y value for the vector is:  (V1.z * V2.x) - (V1.x * V2.z)
+</span>    vNormal.y = ((vVector1.z * vVector2.x) - (vVector1.x * vVector2.z));
+    
+    <span class=comment>// The Z value for the vector is:  (V1.x * V2.y) - (V1.y * V2.x)
+</span>    vNormal.z = ((vVector1.x * vVector2.y) - (vVector1.y * vVector2.x));
+
+    <span class=comment>// *IMPORTANT* This is not communitive. You can not change the order or this or
+</span>    <span class=comment>// else it won't work correctly.  It has to be exactly like that.  Just remember,
+</span>    <span class=comment>// If you are trying to find the X, you don't use the X value of the 2 vectors, and
+</span>    <span class=comment>// it's the same for the Y and Z.  You notice you use the other 2, but never that axis.
+</span>    <span class=comment>// If you look at the camera rotation tutorial, you will notice it's the same for rotations.
+</span>
+    <span class=comment>// Now we have a vector pointing straight out of the plane of the polygon.  This is the
+</span>    <span class=comment>// direction the polygon is facing.  You use this information for numerous things like
+</span>    <span class=comment>// lighting, camera viewing, back face culling, collision and tons of other stuff.
+</span>    
+    <span class=keyword>return</span> vNormal;        <span class=comment>// Return the cross product (Direction the polygon is facing - Normal)
+</span>}
+
+<span class=comment>//This returns a vector between 2 points
+</span>CVector3 makeVector(CVector3 vPoint1, CVector3 vPoint2) {
+    
+    CVector3 vVector = {0};        <span class=comment>// Initialize our variable to zero
+</span>    
+    <span class=comment>// In order to get a vector from 2 points (a direction) we need to
+</span>    <span class=comment>// subtract the second point from the first point.
+</span>    vVector.x = vPoint1.x - vPoint2.x;    <span class=comment>// Get the X value of our new vector
+</span>    vVector.y = vPoint1.y - vPoint2.y;    <span class=comment>// Get the Y value of our new vector
+</span>    vVector.z = vPoint1.z - vPoint2.z;    <span class=comment>// Get the Z value of our new vector
+</span>    
+    <span class=comment>// Now that we have our new vector between the 2 points, we will return it.
+</span>    <span class=keyword>return</span> vVector;        <span class=comment>// Return our new vector
+</span>}
+
+<span class=comment>//This returns the magnitude of a normal (or any other vector)
+</span><span class=keyword>float</span> magnitude(CVector3 vVector) {
+    
+    <span class=comment>// This will give us the magnitude or &quot;Norm&quot; as some say of, our normal.
+</span>    <span class=comment>// The magnitude has to do with the length of the vector.  We use this
+</span>    <span class=comment>// information to normalize a vector, which gives it a length of 1.
+</span>    <span class=comment>// Here is the equation:  magnitude = sqrt(V.x^2 + V.y^2 + V.z^2)   Where V is the vector
+</span>
+    <span class=keyword>return</span> (<span class=keyword>float</span>)sqrt( (vVector.x * vVector.x) + (vVector.y * vVector.y) + (vVector.z * vVector.z) );
+}
+
+<span class=comment>//This returns a normalize vector (A vector exactly of length 1)
+</span>CVector3 normalize(CVector3 vVector) {
+
+    <span class=comment>// Get the magnitude of our normal
+</span>    <span class=keyword>float</span> mag = magnitude(vVector);
+
+    <span class=comment>// Now that we have the magnitude, we can divide our normal by that magnitude.
+</span>    <span class=comment>// That will make our normal a total length of 1.  This makes it easier to work with too.
+</span>
+    vVector.x = vVector.x / mag;        <span class=comment>// Divide the X value of our vector by it's magnitude
+</span>    vVector.y = vVector.y / mag;        <span class=comment>// Divide the Y value of our vector by it's magnitude
+</span>    vVector.z = vVector.z / mag;        <span class=comment>// Divide the Z value of our vector by it's magnitude
+</span>
+    <span class=comment>// Finally, return our normalized vector.
+</span>    <span class=keyword>return</span> vVector;                            <span class=comment>// Return the new normal of length 1.
+</span>}
+
+<span class=comment>//This returns the normal of a polygon (The direction the polygon is facing)
+</span>CVector3 normal(CVector3 vTriangle[]) {
+
+    <span class=comment>// You might want to error check to make sure it's valid
+</span>    <span class=comment>// Get 2 vectors from the polygon
+</span>
+    CVector3 vVector1 = makeVector(vTriangle[2], vTriangle[0]);
+    CVector3 vVector2 = makeVector(vTriangle[1], vTriangle[0]);
+
+    <span class=comment>// We Chose to get the vectors surrounding the first point of the polygon.
+</span>    <span class=comment>// We could have chosen to get 2 other sides of the triangle, but we chose these 2.
+</span>    <span class=comment>// Now that we have the 2 side vectors, we will take their cross product.
+</span>    <span class=comment>// (*NOTE*) It is important that pass in the vector of the bottom side of the triangle
+</span>    <span class=comment>// first, and then pass in the vector of the left side second.  If we switch them,
+</span>    <span class=comment>// it will turn the normal the opposite way.  Try it, switch them like this: Cross(vVector2, vVector1);
+</span>    <span class=comment>// Like I said before, it's important to ALWAYS work in the same direction.  In our case,
+</span>    <span class=comment>// we chose that we always work counter-clockwise.
+</span>
+    CVector3 vNormal = cross(vVector1, vVector2);
+
+    <span class=comment>// Now that we have the direction of the normal, we want to do one last thing.
+</span>    <span class=comment>// Right now, it's an unknown length, it is probably pretty long in length.
+</span>    <span class=comment>// We want to do something which gives the normal a length of 1.  This is called
+</span>    <span class=comment>// normalizing.  To do this we divide the normal by it's magnitude.  Well how do we
+</span>    <span class=comment>// find it's magnitude? We use this equation: magnitude = sqrt(x^2 + y^2 + z^2)
+</span>    
+    vNormal = normalize(vNormal);        <span class=comment>// Use our function we created to normalize the normal (Makes it a length of one)
+</span>
+    <span class=comment>// Now return the normalized normal
+</span>    <span class=comment>// (*NOTE*) If you want to understand what normalizing our normal does, comment out
+</span>    <span class=comment>// the above line.  Then you can see how long the normal is before we normalize it.
+</span>    <span class=comment>// I strongly recommend this.  And remember, it doesn't matter how long the normal is,
+</span>    <span class=comment>// (of course besides (0, 0, 0)), if we normalize it, it will always be of length 1 afterwards.
+</span>
+    <span class=keyword>return</span> vNormal;                        <span class=comment>// Return our normal at our desired length
+</span>}
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>//This returns the distance between a plane and Origin
+</span><span class=keyword>float</span> planeDistance(CVector3 vNormal, CVector3 vPoint) {
+
+    <span class=keyword>float</span> distance = 0.0f;                <span class=comment>// This variable holds the distance from the plane to the point
+</span>
+    <span class=comment>// Use the plane equation to find the distance (Ax + By + Cz + D = 0)  We want to find D.
+</span>    <span class=comment>// For more information about the plane equation, read about it in the function below (IntersectedPlane())
+</span>    <span class=comment>// Basically, A B C is the X Y Z value of our normal and the x y z is our x y z of our point.
+</span>    <span class=comment>// D is the distance from the origin.  So, we need to move this equation around to find D.
+</span>    <span class=comment>// We come up with D = -(Ax + By + Cz)
+</span>    
+    <span class=comment>// Basically, the negated dot product of the normal of the plane and the point. (More about the dot product in another tutorial)
+</span>    <span class=comment>//D = -N DOT P, where N - normal, P - a Point on the plane.
+</span>    <span class=comment>//D = -(A, B, C) DOT (x, y, z)
+</span>    <span class=comment>//D = -(Ax + By + Cz)
+</span>    <span class=comment>//so, 
+</span>    distance = -((vNormal.x*vPoint.x) + (vNormal.y*vPoint.y) + (vNormal.z*vPoint.z));
+<span class=keyword>char</span> logText[255] = {0};
+sprintf(logText, &quot;distance = %f&quot;, distance);
+<span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>    <span class=comment>// Return the distance
+</span>    <span class=keyword>return</span> distance;
+}
+
+<span class=comment>//This checks to see if a line intersects a plane
+</span><span class=keyword>bool</span> intersectedPlane(CVector3 vTriangle[], CVector3 vLine[]) {
+    
+    <span class=comment>// The distances from the 2 points of the line from the plane
+</span>    <span class=keyword>float</span> distance1 = 0.0, distance2 = 0.0;
+    
+    <span class=comment>// We need to get the normal of our plane to go any further
+</span>    CVector3 vNormal = normal(vTriangle);
+
+    <span class=comment>// Now that we have the normal, we need to calculate the distance our triangle is from the Origin.
+</span>    <span class=comment>// Since we would have the same triangle, but -10 down the z axis, we need to know
+</span>    <span class=comment>// how far our plane is to the origin.  The origin is (0, 0, 0), so we need to find
+</span>    <span class=comment>// the shortest distance our plane is from (0, 0, 0).  This way we can test the collision.
+</span>    <span class=comment>// The direction the plane is facing is important (We know this by the normal), but it's
+</span>    <span class=comment>// also important WHERE that plane is in our 3D space.  I hope this makes sense.
+</span>
+    <span class=comment>// We created a function to calculate the distance for us.  All we need is the normal
+</span>    <span class=comment>// of the plane, and then ANY point located on that plane.  Well, we have 3 points.  Each
+</span>    <span class=comment>// point of the triangle is on the plane, so we just pass in one of our points.  It doesn't
+</span>    <span class=comment>// matter which one, so we will just pass in the first one.  We get a single value back.
+</span>    <span class=comment>// That is the distance.  Just like our normalized normal is of length 1, our distance
+</span>    <span class=comment>// is a single value too.  It's like if you were to measure something with a ruler,
+</span>    <span class=comment>// you don't measure it according to the X Y and Z of our world, you just want ONE number.
+</span>
+    <span class=keyword>float</span> distanceFromOrigin = planeDistance(vNormal, vTriangle[0]);
+
+    <span class=comment>// Now the next step is simple, but hard to understand at first.  What we need to
+</span>    <span class=comment>// do is get the distance of EACH point from our plane.  Above we got the distance of the
+</span>    <span class=comment>// plane to the point (0, 0, 0) which happens to be the origin, now we need to get a distance
+</span>    <span class=comment>// for each point.  If the distance is a negative number, then the point is BEHIND the plane.
+</span>    <span class=comment>// If the distance is positive, then the point is in front of the plane.  Basically, if the
+</span>    <span class=comment>// line collides with the plane, there should be a negative and positive distance.  make sense?
+</span>    <span class=comment>// If the line pierces the plane, it will have a negative distance and a positive distance,
+</span>    <span class=comment>// meaning that a point will be on one side of the plane, and one point on the other.  But we
+</span>    <span class=comment>// will do the check after this, first we need to get the distance of each point to the plane.
+</span>
+    <span class=comment>// Now, we need to use something called the plane equation to get the distance from each point.
+</span>    <span class=comment>// Here is the plane Equation:  (Ax + By + Cz + D = The distance from the plane)
+</span>    <span class=comment>// If &quot;The distance from the plane&quot; is 0, that means that the point is ON the plane, which all the polygon points should be.
+</span>    <span class=comment>// A, B and C is the Normal's X Y and Z values.  x y and z is the Point's x y and z values.
+</span>    <span class=comment>// &quot;the Point&quot; meaning one of the points of our line.  D is the distance that the plane
+</span>    <span class=comment>// is from the origin.  We just calculated that and stored it in &quot;distanceFromOrigin&quot;.
+</span>    <span class=comment>// Let's fill in the equation with our data:
+</span>
+    <span class=comment>// Get the distance from point1 from the plane using: Ax + By + Cz + D = (The distance from the plane)
+</span>    distance1 = (vNormal.x * vLine[0].x) +                        <span class=comment>//Ax +
+</span>                (vNormal.y * vLine[0].y) +                        <span class=comment>//By +
+</span>                (vNormal.z * vLine[0].z) + distanceFromOrigin;    <span class=comment>//Cx + D
+</span>
+    <span class=comment>// We just got the first distance from the first point to the plane, now let's get the second.
+</span>    
+    <span class=comment>// Get the distance from point2 from the plane using Ax + By + Cz + D = (The distance from the plane)
+</span>    distance2 = (vNormal.x * vLine[1].x) +                        <span class=comment>//Ax +
+</span>                (vNormal.y * vLine[1].y) +                        <span class=comment>//By +
+</span>                (vNormal.z * vLine[1].z) + distanceFromOrigin;    <span class=comment>//Cz + D
+</span>
+<span class=keyword>char</span> logText[255] = {0};
+sprintf(logText, &quot;distance1, distance2 = %f, %f&quot;, distance1, distance2);
+<span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>
+    <span class=comment>// Ok, we should have 2 distances from the plane, from each point of our line.
+</span>    <span class=comment>// Remember what I said about an intersection?  If one is negative and one is positive,
+</span>    <span class=comment>// that means that they are both on either side of the plane.  So, all we need to do
+</span>    <span class=comment>// is multiply the 2 distances together, and if the result is less than 0, we intersection.
+</span>    <span class=comment>// This works because, any number times a negative number is always negative, IE (-1 * 1 = -1)
+</span>    <span class=comment>// If they are both positive or negative values then it will be above zero.
+</span>    
+    <span class=comment>// Check to see if both point's distances are both negative or both positive
+</span>    <span class=keyword>if</span>(distance1 * distance2 &gt;= 0)
+        <span class=keyword>return</span> <span class=keyword>false</span>;                    <span class=comment>// Return false if each point has the same sign.  -1 and 1 would mean each point is on either side of the plane.  -1 -2 or 3 4 wouldn't...
+</span>
+    
+    <span class=comment>// The line intersected the plane, Return TRUE
+</span>    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+</pre></body>
+</html>

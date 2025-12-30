@@ -1,0 +1,199 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=comment>/**********************************************************************
+    
+  Camera with OpenGL
+
+  June, 11th, 2000
+
+  This tutorial was written by Philipp Crocoll
+  Contact: 
+    philipp.crocoll@web.de
+    www.codecolony.de
+
+  Every comment would be appreciated.
+
+  If you want to use parts of any code of mine:
+    let me know and
+    use it!
+
+**********************************************************************
+ESC: exit
+
+CAMERA movement:
+w : forwards
+s : backwards
+a : turn left
+d : turn right
+x : turn up
+y : turn down
+v : strafe right
+c : strafe left
+r : move up
+f : move down
+
+***********************************************************************/</span>
+
+<span class=pp>#include</span> &lt;GL\glut.h&gt;
+<span class=pp>#include</span> &lt;windows.h&gt;
+<span class=pp>#include</span> &quot;camera.h&quot;
+
+
+CCamera Camera;
+
+
+<span class=keyword>void</span> DrawNet(GL<span class=keyword>float</span> size, GL<span class=keyword>int</span> LinesX, GL<span class=keyword>int</span> LinesZ)
+{
+    glBegin(GL_LINES);
+    <span class=keyword>for</span> (<span class=keyword>int</span> xc = 0; xc &lt; LinesX; xc++)
+    {
+        glVertex3f(    -size / 2.0 + xc / (GL<span class=keyword>float</span>)(LinesX-1)*size,
+                    0.0,
+                    size / 2.0);
+        glVertex3f(    -size / 2.0 + xc / (GL<span class=keyword>float</span>)(LinesX-1)*size,
+                    0.0,
+                    size / -2.0);
+    }
+    <span class=keyword>for</span> (<span class=keyword>int</span> zc = 0; zc &lt; LinesX; zc++)
+    {
+        glVertex3f(    size / 2.0,
+                    0.0,
+                    -size / 2.0 + zc / (GL<span class=keyword>float</span>)(LinesZ-1)*size);
+        glVertex3f(    size / -2.0,
+                    0.0,
+                    -size / 2.0 + zc / (GL<span class=keyword>float</span>)(LinesZ-1)*size);
+    }
+    glEnd();
+}
+
+<span class=keyword>void</span> reshape(<span class=keyword>int</span> x, <span class=keyword>int</span> y)
+{
+    <span class=keyword>if</span> (y == 0 || x == 0) <span class=keyword>return</span>;  <span class=comment>//Nothing is visible then, so return
+</span>    
+    <span class=comment>//Set a new projection matrix
+</span>    glMatrixMode(GL_PROJECTION);  
+    glLoadIdentity();
+    <span class=comment>//Angle of view:40 degrees
+</span>    <span class=comment>//Near clipping plane distance: 0.5
+</span>    <span class=comment>//Far clipping plane distance: 20.0
+</span>    gluPerspective(40.0,(GL<span class=keyword>double</span>)x/(GL<span class=keyword>double</span>)y,0.5,20.0);
+
+    glMatrixMode(GL_MODELVIEW);
+    glViewport(0,0,x,y);  <span class=comment>//Use the whole window for rendering
+</span>}
+
+<span class=keyword>void</span> Display(<span class=keyword>void</span>)
+{
+    glClear(GL_COLOR_BUFFER_BIT);
+    glLoadIdentity();
+    Camera.Render();
+    glTranslatef(0.0,0.8,0.0);
+
+    glScalef(3.0,1.0,3.0);
+    
+    GL<span class=keyword>float</span> size = 2.0;
+    GL<span class=keyword>int</span> LinesX = 30;
+    GL<span class=keyword>int</span> LinesZ = 30;
+    
+    GL<span class=keyword>float</span> halfsize = size / 2.0;
+    glColor3f(1.0,1.0,1.0);
+    glPushMatrix();
+        glTranslatef(0.0,-halfsize ,0.0);
+        DrawNet(size,LinesX,LinesZ);
+        glTranslatef(0.0,size,0.0);
+        DrawNet(size,LinesX,LinesZ);
+    glPopMatrix();
+    glColor3f(0.0,0.0,1.0);
+    glPushMatrix();
+        glTranslatef(-halfsize,0.0,0.0);    
+        glRotatef(90.0,0.0,0.0,halfsize);
+        DrawNet(size,LinesX,LinesZ);
+        glTranslatef(0.0,-size,0.0);
+        DrawNet(size,LinesX,LinesZ);
+    glPopMatrix();
+    glColor3f(1.0,0.0,0.0);
+    glPushMatrix();
+        glTranslatef(0.0,0.0,-halfsize);    
+        glRotatef(90.0,halfsize,0.0,0.0);
+        DrawNet(size,LinesX,LinesZ);
+        glTranslatef(0.0,size,0.0);
+        DrawNet(size,LinesX,LinesZ);
+    glPopMatrix();
+        
+    glFlush();  
+    glutSwapBuffers();
+
+}
+<span class=keyword>void</span> KeyDown(<span class=keyword>unsigned</span> <span class=keyword>char</span> key, <span class=keyword>int</span> x, <span class=keyword>int</span> y)
+{
+    <span class=keyword>switch</span> (key) 
+    {
+    <span class=keyword>case</span> 27:        <span class=comment>//ESC
+</span>        PostQuitMessage(0);
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'a':        
+        Camera.RotateY(5.0);
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'd':        
+        Camera.RotateY(-5.0);
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'w':        
+        Camera.MoveForwards( -0.1 ) ;
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 's':        
+        Camera.MoveForwards( 0.1 ) ;
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'x':        
+        Camera.RotateX(5.0);
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'y':        
+        Camera.RotateX(-5.0);
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'c':        
+        Camera.StrafeRight(-0.1);
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'v':        
+        Camera.StrafeRight(0.1);
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'f':
+        Camera.Move(F3dVector(0.0,-0.3,0.0));
+        Display();
+        <span class=keyword>break</span>;
+    <span class=keyword>case</span> 'r':
+        Camera.Move(F3dVector(0.0,0.3,0.0));
+        Display();
+        <span class=keyword>break</span>;
+
+    }
+}
+
+<span class=keyword>int</span> main(<span class=keyword>int</span> argc, <span class=keyword>char</span> **argv)
+{
+    glutInit(&amp;argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    glutInitWindowSize(300,300);
+    glutCreateWindow(&quot;Camera&quot;);
+    Camera.Move( F3dVector(0.0, 0.0, 3.0 ));
+    Camera.MoveForwards( 1.0 );
+    glutDisplayFunc(Display);
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(KeyDown);
+    glutMainLoop();
+    <span class=keyword>return</span> 0;             
+}
+</pre></body>
+</html>

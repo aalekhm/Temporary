@@ -1,0 +1,379 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;MD2.h&quot;
+
+CReaderMD2::CReaderMD2() {
+    <span class=comment>//Here we initialise our structures to 0.
+</span>    memset(&amp;m_pMD2Header, 0, <span class=keyword>sizeof</span>(tMD2Header));
+
+    <span class=comment>//set all pointer to NULL;
+</span>    m_pSkins        = NULL;
+    m_pTexCoords    = NULL;
+    m_pFaces        = NULL;
+    m_pFrames        = NULL;
+}
+
+<span class=keyword>bool</span> CReaderMD2::importMD2(t3DModel *pGame3DModel, <span class=keyword>char</span> *fileNameMD2) {
+    
+    mFilePointer = fopen(fileNameMD2, &quot;rb&quot;);
+    mFileConsoleLog = fopen(&quot;console.log&quot;, &quot;wb&quot;);
+
+    <span class=keyword>if</span>(!mFilePointer) {
+        sprintf(logText, &quot;Unable to find file %s&quot;, fileNameMD2);
+        fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+        MessageBox(NULL, logText, &quot;ERR&quot;, MB_OK);
+
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>//Read MD2 HEADER
+</span>    fread(&amp;m_pMD2Header, 1, <span class=keyword>sizeof</span>(tMD2Header), mFilePointer);
+<span class=comment>//char logtext[255];
+</span><span class=comment>//sprintf(logText, &quot;SkinWidth/H %d %d&quot;, m_pMD2Header.skinWidth, m_pMD2Header.skinHeight);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;ssss&quot;, MB_OK);
+</span>
+    <span class=comment>//Make sure the version is the crazy no. '8', else its a bad egg
+</span>    <span class=keyword>if</span>(m_pMD2Header.version != 8) {
+        sprintf(logText, &quot;Invalid file version %d&quot;, m_pMD2Header.version);
+        fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+        MessageBox(NULL, logText, &quot;ERR&quot;, MB_OK);
+        
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>//Read in the Model &amp; Animation data
+</span>    readMD2Data();
+
+    <span class=comment>// Here we pass in our model structure to it can store the read Quake data
+</span>    <span class=comment>// in our own model and object structure data
+</span>    convertDataStructures(pGame3DModel);
+
+<span class=comment>//char logText[255];
+</span><span class=comment>//sprintf(logText, &quot;***pObject-&gt;numOfFaces %d&quot;, pGame3DModel-&gt;firstObject-&gt;numOfFaces);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;ssss&quot;, MB_OK);
+</span>
+<span class=comment>//pGame3DModel-&gt;currentAnim = 1;
+</span><span class=comment>//pGame3DModel-&gt;currentFrame = pGame3DModel-&gt;pAnimations[pGame3DModel-&gt;currentAnim].startFrame;
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=keyword>void</span> CReaderMD2::readMD2Data() {
+    m_pSkins        = <span class=keyword>new</span> tMD2SkinName[m_pMD2Header.numOfSkins];
+    m_pTexCoords    = <span class=keyword>new</span> tMD2TexCoord[m_pMD2Header.numOfTexCoordinates];
+    m_pFaces        = <span class=keyword>new</span> tMD2Face[m_pMD2Header.numOfTriangles];
+    m_pFrames        = <span class=keyword>new</span> tMD2Frame[m_pMD2Header.numOfFrames];
+    <span class=comment>//OR
+</span>    <span class=comment>//m_pFrames        = (tMD2Frame*)calloc(m_pMD2Header.numOfFrames, sizeof(tMD2Frame));
+</span>    <span class=comment>//OR
+</span>    <span class=comment>//m_pFrames        = (tMD2Frame*)malloc(sizeof(tMD2Frame)*m_pMD2Header.numOfFrames);
+</span>    
+<span class=comment>//sprintf(logText, &quot;m_pFrames = %d&quot;, m_pMD2Header.offsetFramesStart);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>
+    readSkins();
+    readTexCoords();
+    readFaces();
+    readFrames();
+}
+
+<span class=keyword>void</span> CReaderMD2::readSkins() {
+    fseek(mFilePointer, m_pMD2Header.offsetSkinsStart, SEEK_SET);
+    fread(m_pSkins, <span class=keyword>sizeof</span>(tMD2SkinName), m_pMD2Header.numOfSkins, mFilePointer);
+
+<span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; m_pMD2Header.numOfSkins; i++) {
+    sprintf(logText, &quot;Skins %d %s\r\n&quot;, i, m_pSkins[i]);
+    fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+}
+}
+
+<span class=keyword>void</span> CReaderMD2::readTexCoords() {
+    fseek(mFilePointer, m_pMD2Header.offsetTexCoordStart, SEEK_SET);
+    fread(m_pTexCoords, <span class=keyword>sizeof</span>(tMD2TexCoord), m_pMD2Header.numOfTexCoordinates, mFilePointer);
+    <span class=comment>//OR
+</span>    <span class=comment>//for(int i = 0;  i &lt; m_pMD2Header.numOfTexCoordinates; i++) {
+</span>    <span class=comment>//    fread(&amp;m_pTexCoords[i], sizeof(tMD2TexCoord), 1, mFilePointer);
+</span>    <span class=comment>//}
+</span>
+sprintf(logText, &quot;--------- Texture Coordinates ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+<span class=keyword>for</span>(<span class=keyword>int</span> i = 0;  i &lt; m_pMD2Header.numOfTexCoordinates; i++) {
+    sprintf(logText, &quot;\t %d - %d \t %d\r\n&quot;, i, m_pTexCoords[i].u, m_pTexCoords[i].v);
+    fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+}
+}
+
+<span class=keyword>void</span> CReaderMD2::readFaces() {
+    fseek(mFilePointer, m_pMD2Header.offsetTrianglesStart, SEEK_SET);
+    fread(m_pFaces, <span class=keyword>sizeof</span>(tMD2Face), m_pMD2Header.numOfTriangles, mFilePointer);
+
+logText[255];
+sprintf(logText, &quot;--------- FACES ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+sprintf(logText, &quot;\t--------- VERTEX LIST ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+<span class=keyword>for</span>(<span class=keyword>int</span> i = 0;  i &lt; m_pMD2Header.numOfTriangles; i++) {
+    sprintf(logText, &quot;\t\t VERTEX %d - %d \t %d \t %d\r\n&quot;, i, m_pFaces[i].vertexIndices[0], m_pFaces[i].vertexIndices[1], m_pFaces[i].vertexIndices[2]);
+    fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+}
+
+sprintf(logText, &quot;\t--------- TEXTURE VERTEX LIST ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+<span class=keyword>for</span>(<span class=keyword>int</span> i = 0;  i &lt; m_pMD2Header.numOfTriangles; i++) {
+    sprintf(logText, &quot;\t\t TEXTURE VERTEX %d - %d \t %d \t %d\r\n&quot;, i, m_pFaces[i].textureIndices[0], m_pFaces[i].textureIndices[1], m_pFaces[i].textureIndices[2]);
+    fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+}
+}
+
+<span class=keyword>void</span> CReaderMD2::readFrames() {
+    <span class=comment>//Create a larger buffer for 1 frame of animation (remember its numOfVertices*(compressedVertex[3]+lightNormalIndex) + 128)
+</span>    <span class=keyword>unsigned</span> <span class=keyword>char</span> buffer[MD2_MAX_FRAME_SIZE];
+    
+    fseek(mFilePointer, m_pMD2Header.offsetFramesStart, SEEK_SET);
+
+sprintf(logText, &quot;--------- FRAMES ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; m_pMD2Header.numOfFrames; i++) {
+sprintf(logText, &quot;\t--------- FRAME %d---------\r\n&quot;, i);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+        tMD2AliasFrame *pFrame = (tMD2AliasFrame *)buffer;
+
+        <span class=comment>//memset(&amp;m_pFrames, 0, sizeof(tMD2Frame));
+</span>        <span class=comment>//m_pFrames-&gt;pVertices = (tMD2Vertex *)malloc(sizeof(tMD2Vertex)*m_pMD2Header.numOfVertices);
+</span>        <span class=comment>//(&amp;m_pFrames[i])-&gt;pVertices = new tMD2Vertex[m_pMD2Header.numOfVertices];
+</span>        m_pFrames[i].pVertices = <span class=keyword>new</span> tMD2Vertex[m_pMD2Header.numOfVertices];
+
+        fread(pFrame, 1, m_pMD2Header.frameSize, mFilePointer);
+
+        strcpy(m_pFrames[i].frameName, pFrame-&gt;frameName);
+
+        tMD2Vertex *pVertices = m_pFrames[i].pVertices;
+        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; m_pMD2Header.numOfVertices; j++) {
+            pVertices[j].vertex[0] = pFrame-&gt;aliasVertex[j].compressedVertex[0] * pFrame-&gt;scale[0] + pFrame-&gt;translate[0];
+            pVertices[j].vertex[1] = pFrame-&gt;aliasVertex[j].compressedVertex[2] * pFrame-&gt;scale[2] + pFrame-&gt;translate[2];
+            pVertices[j].vertex[2] = -(pFrame-&gt;aliasVertex[j].compressedVertex[1] * pFrame-&gt;scale[1] + pFrame-&gt;translate[1]);
+
+sprintf(logText, &quot;\t\t VERTEX %d - %0.2f \t %0.2f \t %0.2f\r\n&quot;, j, pVertices[j].vertex[0], pVertices[j].vertex[1], pVertices[j].vertex[2]);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+        }
+    }
+}
+
+<span class=comment>//This function converts the .md2 structures to our own model and object structures
+</span><span class=keyword>void</span> CReaderMD2::convertDataStructures(t3DModel *pModel) {
+    <span class=keyword>int</span> i = 0, j = 0;
+sprintf(logText, &quot;--------- AFTER CONVERSION ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+    <span class=comment>// Like the previous function, not a lot was changed her from the last tutorial.
+</span>    <span class=comment>// Since we are dealing with multiple key frames, we need to pretty much do the 
+</span>    <span class=comment>// same things for each frame.  This entails adding a for loop to go through
+</span>    <span class=comment>// every frame.  We use index 'i' into the m_pFrames array to set each key frame.
+</span>    <span class=comment>// This is one tricky thing in the middle of this for loop though, since we only
+</span>    <span class=comment>// need to save the face and texture information once, this is only calculated
+</span>    <span class=comment>// once and stored in the first frame of animation.  We can then reference the 
+</span>    <span class=comment>// polygon information for every other frame from the first frame.  That way
+</span>    <span class=comment>// we don't copy the same information for every key frame, which would make a huge
+</span>    <span class=comment>// memory footprint.
+</span>
+    <span class=comment>//Initialize the Model structure
+</span>    memset(pModel, 0, <span class=keyword>sizeof</span>(t3DModel));
+
+    <span class=comment>//Set the number of Frames to the numOfObjects in our Model.
+</span>    pModel-&gt;numOfObjects = m_pMD2Header.numOfFrames;
+
+    <span class=comment>//Create our Animation List and store it our Model
+</span>    parseAnimations(pModel);
+
+    <span class=comment>//Go through every Key Frame and store its Vertices info in out pObject list.
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+sprintf(logText, &quot;\t--------- OBJECTTTTTTTTTTTTTTTTTT %d ---------\r\n&quot;, i);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+        
+        <span class=comment>//Create a local Object to store the first Frane of the Animation's data
+</span>        t3DObject currentObject = {0};
+        
+        <span class=comment>//Assign maxVertices, maxFaces and maxTextureCordinates to our Object
+</span>        currentObject.numOfVertices            = m_pMD2Header.numOfVertices;
+        currentObject.numOfFaces            = m_pMD2Header.numOfTriangles;
+        currentObject.numOfTextureVertex    = m_pMD2Header.numOfTexCoordinates;
+
+        <span class=comment>//Allocate memory for the Vertices.
+</span>        currentObject.pVertices        = <span class=keyword>new</span> CVector3[currentObject.numOfVertices];
+            
+sprintf(logText, &quot;\t\t--------- VERTEXXXXX ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+        <span class=comment>// Go through all of the vertices and assign them over to our structure
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; currentObject.numOfVertices; j++) {
+            currentObject.pVertices[j].x = (&amp;m_pFrames[i])-&gt;pVertices[j].vertex[0];
+            currentObject.pVertices[j].y = (&amp;m_pFrames[i])-&gt;pVertices[j].vertex[1];
+            currentObject.pVertices[j].z = (&amp;m_pFrames[i])-&gt;pVertices[j].vertex[2];
+
+sprintf(logText, &quot;\t\t\t VERTEX %d - %0.2f \t %0.2f \t %0.2f\r\n&quot;, j, currentObject.pVertices[j].x, currentObject.pVertices[j].y, currentObject.pVertices[j].z);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+        }        
+        
+        <span class=comment>// We can now free the old vertices stored in this frame of animation
+</span>        <span class=comment>// since we have them stored in the pObject list of our model
+</span>        <span class=keyword>delete</span> m_pFrames[i].pVertices;
+
+        <span class=comment>// Now comes the tricky part, since we only need to store the UV coordinates
+</span>        <span class=comment>// and face indices once, we only do this on the first frame.  If the
+</span>        <span class=comment>// current frame is past the first frame, we just add the current frame
+</span>        <span class=comment>// as it is to our list, then continue to the next frame.  If we are
+</span>        <span class=comment>// on the first frame, we still need to store the UV and face information.
+</span>        <span class=comment>// This will only go in the first frame, and will be referenced from the
+</span>        <span class=comment>// remaining frames when we animate the model.
+</span>
+        <span class=comment>// Check if we are past the first key frame/Object
+</span>        <span class=keyword>if</span>(i &gt; 0) {
+            <span class=comment>// Here we add the current object (or frame) to our list object list
+</span>            pModel-&gt;pObjects.push_back(currentObject);
+            <span class=keyword>continue</span>;    <span class=comment>// Go on to the next key frame
+</span>        }
+        
+        <span class=comment>// We will only get here ONCE because we just need this information
+</span>        <span class=comment>// calculated for the first key frame.
+</span>            
+        <span class=comment>// Allocate memory for our UV Texture Coordinates and Face information
+</span>        currentObject.pTexVertices    = <span class=keyword>new</span> CVector2[currentObject.numOfTextureVertex];
+        currentObject.pFaces        = <span class=keyword>new</span> tFace[currentObject.numOfFaces];
+
+sprintf(logText, &quot;\t\t--------- TEXXXXX VERTEXXXXX ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+        <span class=comment>// Go through all of the uv coordinates and assign them over to our structure.
+</span>        <span class=comment>// The UV coordinates are not normal uv coordinates, they have a pixel ratio of
+</span>        <span class=comment>// 0 to 256.  We want it to be a 0 to 1 ratio, so we divide the u value by the
+</span>        <span class=comment>// skin width and the v value by the skin height.  This gives us our 0 to 1 ratio.
+</span>        <span class=comment>// For some reason also, the v coodinate is flipped upside down.  We just subtract
+</span>        <span class=comment>// the v coordinate from 1 to remedy this problem.
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; currentObject.numOfTextureVertex; j++) {
+            currentObject.pTexVertices[j].x = m_pTexCoords[j].u / <span class=keyword>float</span>(m_pMD2Header.skinWidth);
+            currentObject.pTexVertices[j].y = 1 - m_pTexCoords[j].v / <span class=keyword>float</span>(m_pMD2Header.skinHeight);
+sprintf(logText, &quot;\t\t\t TEX VERTICES FACE %d TEXCO = %0.2f %0.2f\r\n&quot;, j, currentObject.pTexVertices[j].x, currentObject.pTexVertices[j].y);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+        }
+
+sprintf(logText, &quot;\t\t--------- MMMMMMMMMMMMMMMMMMMM ---------\r\n&quot;);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+        <span class=comment>// Go through all of the face data and assign it over to OUR structure
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; currentObject.numOfFaces; j++) {
+
+            <span class=comment>//Assign the Vertex indices to our Face data
+</span>            currentObject.pFaces[j].vertexIndex[0] = m_pFaces[j].vertexIndices[0];
+            currentObject.pFaces[j].vertexIndex[1] = m_pFaces[j].vertexIndices[1];
+            currentObject.pFaces[j].vertexIndex[2] = m_pFaces[j].vertexIndices[2];
+
+            <span class=comment>//Assign the Texture Coordinate indices to our Face data
+</span>            currentObject.pFaces[j].texCoordIndex[0] = m_pFaces[j].textureIndices[0];
+            currentObject.pFaces[j].texCoordIndex[1] = m_pFaces[j].textureIndices[1];
+            currentObject.pFaces[j].texCoordIndex[2] = m_pFaces[j].textureIndices[2];
+sprintf(logText, &quot;\t\t\tFACE %d VI = %d %d %d %d %d %d\r\n&quot;, j, m_pFaces[j].vertexIndices[0], m_pFaces[j].vertexIndices[1], m_pFaces[j].vertexIndices[2], currentObject.pFaces[j].texCoordIndex[0], currentObject.pFaces[j].texCoordIndex[1], currentObject.pFaces[j].texCoordIndex[2]);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+        }
+
+        <span class=comment>// Here we add the currentObject (or frame) to our list Object list
+</span>        pModel-&gt;pObjects.push_back(currentObject);
+    }
+}
+
+<span class=comment>//This function fills in the animation list for each animation by name and frame
+</span><span class=keyword>void</span> CReaderMD2::parseAnimations(t3DModel *pModel) {
+    tAnimation animation = {0};
+    string strLastName = &quot;&quot;;
+
+    <span class=comment>//t3DModel *model = pModel;
+</span>    <span class=comment>//vector&lt;tAnimation&gt; ANIM;
+</span>
+    <span class=comment>// This function felt like a hack when I wrote it.  You aren't really given
+</span>    <span class=comment>// any good information about the animations, other than the fact that each
+</span>    <span class=comment>// key frame has a name assigned to it with a frame number for that animation.
+</span>    <span class=comment>// For instance, the first animation is the &quot;stand&quot; animation.  The first frame
+</span>    <span class=comment>// would have the name of: &quot;stand01&quot; or perhaps &quot;stand1&quot;.  The 40th frame is
+</span>    <span class=comment>// usually the last frame for the standing animation, so it would look like:
+</span>    <span class=comment>// &quot;stand40&quot;.  After this frame, the next animation is the running animation.
+</span>    <span class=comment>// The next frame is labeled something like &quot;run01&quot;.  You now know that the
+</span>    <span class=comment>// standing animation is from frame 1 to frame 40 of the total frames.  The
+</span>    <span class=comment>// start of the run animation is 41.  We will know how long the run animation
+</span>    <span class=comment>// goes when we run into another animation name besides &quot;run..&quot;.  That is how
+</span>    <span class=comment>// I went about finding out the animation information.  I just grab each frame
+</span>    <span class=comment>// name and check if it's the same animation name as the last name we found.
+</span>    <span class=comment>// If it is, I just ignore it and continue to the next frame.  Once I find that
+</span>    <span class=comment>// it's not, I then have the last frame saved off from the index 'i', and then
+</span>    <span class=comment>// I create a new animation to add to the list, then start from the beginning.
+</span>    <span class=comment>// It wasn't until later that I found on www.planetquake.com that there is a
+</span>    <span class=comment>// standard frame count for each animation and they are all the same.  I figure
+</span>    <span class=comment>// this way makes it modular so you don't have to stick to those standards anyway.
+</span>
+    <span class=comment>// Go through all of the frames of animation and parse each animation
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfObjects; i++) {
+
+        <span class=comment>//Assign the name of this frame of Animation to a dtring object
+</span>        string strName = (&amp;m_pFrames[i])-&gt;frameName;
+        <span class=keyword>int</span> frameNum = 0;
+        
+        <span class=comment>// Go through and extract the frame numbers and erase them from the name
+</span>        <span class=keyword>for</span>(<span class=keyword>unsigned</span> <span class=keyword>int</span> j = 0; j &lt; strName.length(); j++) {
+            
+            <span class=keyword>if</span>( isdigit(strName[j]) &amp;&amp; j &gt;= strName.length() - 2) {
+
+                <span class=comment>// Use a C function to convert the character to a integer.
+</span>                <span class=comment>// Notice we use the address to pass in the current character and on
+</span>                frameNum = atoi(&amp;strName[j]);
+
+                <span class=comment>//Erase the frameNum from the name so we extract the Animation Name
+</span>                strName.erase(j, strName.length() - j);
+
+                <span class=keyword>break</span>;
+            }
+        }
+
+        <span class=comment>//Check if the Animation name is not the same as the last Frame
+</span>        <span class=comment>//or if we are on the last frame of Animation for this Model
+</span>        <span class=keyword>if</span>(strName != strLastName || i == pModel-&gt;numOfObjects - 1) {
+<span class=comment>//MessageBox(NULL, strName.c_str(), &quot;asdasd&quot;, MB_OK);
+</span>            <span class=comment>// If this animation frame is NOT the first frame
+</span>            <span class=keyword>if</span>(strLastName != &quot;&quot;) {
+
+                <span class=comment>// Copy the last animation name into our new animation's name
+</span>                strcpy(animation.animName, strLastName.c_str());
+
+                <span class=comment>// Set the last frame of this animation to i
+</span>                animation.endFrame = i;
+
+                <span class=comment>// Add the animation to our list and reset the animation object for next time
+</span>                
+                pModel-&gt;pAnimations.push_back(animation);
+
+                memset(&amp;animation, 0, <span class=keyword>sizeof</span>(tAnimation));
+
+                <span class=comment>// Increase the number of animations for this model
+</span>                pModel-&gt;numOfAnimations++;
+sprintf(logText, &quot;ANIMATION NAME %s = %d %d\r\n&quot;, animation.animName, animation.startFrame, animation.endFrame);
+fwrite(logText, 1, strlen(logText), mFileConsoleLog);
+
+            }
+
+            <span class=comment>// Set the starting frame number to the current frame number we just found,
+</span>            <span class=comment>// minus 1 (since 0 is the first frame) and add 'i'.
+</span>            animation.startFrame = frameNum - 1 + i;
+        }
+
+        <span class=comment>// Store the current animation name in the strLastName string to check it latter
+</span>        strLastName = strName;
+    }
+}</pre></body>
+</html>

@@ -1,0 +1,509 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;3DS.h&quot;
+
+<span class=keyword>int</span> gBuffer[50000] = {0};
+
+<span class=keyword>bool</span> CReader3DS::import3DS(t3DModel *pGame3DModel, <span class=keyword>char</span> *fileName3DS) {
+    <span class=keyword>char</span> errorMessage[255] = {0};
+    
+    tCHUNK    pChunk = {0};
+
+    <span class=comment>// (1) Open .3DS file
+</span>    mFilePointer = fopen(fileName3DS, &quot;rb&quot;);
+    mConsoleLogFilePointer = fopen(&quot;data/console.txt&quot;, &quot;wb&quot;);
+
+    <span class=keyword>if</span>(!mFilePointer) {
+        sprintf(errorMessage, &quot;Unable to find file %s&quot;, fileName3DS);
+        displayErrorMessage(errorMessage);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// (2) Once we have the file open, we need to read the very first data chunk
+</span>    <span class=comment>// to see if it's a 3DS file.  That way we don't read an invalid file.
+</span>    <span class=comment>// If it is a 3DS file, then the first chunk ID will be equal to PRIMARY (some hex num)
+</span>
+    <span class=comment>// Read the first chuck of the file to see if it's a 3DS file
+</span>    readChunk(&amp;pChunk);
+
+    <span class=comment>// (3) Make sure the CHUNK_ID we found is PRIMARY, else its not a valid '.3ds' file
+</span>    <span class=keyword>if</span>(pChunk.chunkID != PRIMARY) {
+        sprintf(errorMessage, &quot;Invalid .3ds file %s&quot;, fileName3DS);
+        displayErrorMessage(errorMessage);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=comment>// (4) Now we actuallt start reading the data, recursively.
+</span>    <span class=comment>// Start loading the objects by calling the recursive function
+</span>    processNextChunk(pGame3DModel, &amp;pChunk);
+
+    <span class=comment>//After we have read the entire 3DS file, we want to calculate out own vertex normals
+</span>
+
+    <span class=comment>//Clean up after everything
+</span>    cleanUp();
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=comment>//This function reads in a chunk ID and it's length in bytes
+</span><span class=keyword>void</span> CReader3DS::readChunk(tCHUNK *pChunk) {
+    <span class=comment>//This reads the CHUNK_ID which is 2 bytes.
+</span>    <span class=comment>//The CHUNK_ID is like PRIMARY, VERION, OBJECT, MATERIAL, etc.
+</span>    <span class=comment>//It tells what data lies within this chunk section
+</span>    pChunk-&gt;bytesRead = fread(&amp;pChunk-&gt;chunkID, 1, 2, mFilePointer);
+
+    <span class=comment>//Then we read the length of the Chunk, which is 4 bytes.
+</span>    <span class=comment>//This is how we know how much to read in or read past!!!
+</span>    pChunk-&gt;bytesRead += fread(&amp;pChunk-&gt;chunkLength, 1, 4, mFilePointer);
+}
+
+<span class=comment>//This function reads the main sections of the .3DS file, then dives deeper with recursion
+</span><span class=keyword>void</span> CReader3DS::processNextChunk(t3DModel *pModel, tCHUNK *pPreviousChunk) {
+    t3DObject        newObject = {0};        <span class=comment>//This is added to our Object List
+</span>    tMaterial        newMaterial = {0};        <span class=comment>//This is added to our Material List
+</span>
+    tCHUNK            currentChunk = {0};        <span class=comment>//The current Chunk to load
+</span>    tCHUNK            tempChunk = {0};        <span class=comment>//A temp Chunk for holding data
+</span>    
+    <span class=keyword>char</span> errorMessage[255] = {0};
+
+    <span class=comment>// Continue to read the sub chunks until we have reached the length.
+</span>    <span class=comment>// After we read ANYTHING we add the bytes read to the chunk and then check
+</span>    <span class=comment>// check against the length.
+</span>
+    <span class=comment>// Below we check our chunk ID each time we read a new chunk.  Then, if
+</span>    <span class=comment>// we want to extract the information from that chunk, we do so.
+</span>    <span class=comment>// If we don't want a chunk, we just read past it.
+</span>    <span class=keyword>while</span>(pPreviousChunk-&gt;bytesRead &lt; pPreviousChunk-&gt;chunkLength) {
+        <span class=comment>//Read the next Chunk
+</span>        readChunk(&amp;currentChunk);
+
+        <span class=comment>//Check the CHUNK_ID
+</span>        <span class=keyword>switch</span>(currentChunk.chunkID) {
+            <span class=comment>//This holds the version of the .3ds file.
+</span>            <span class=keyword>case</span> FILE_VERSION :
+                currentChunk.bytesRead += fread(    gBuffer, 
+                                                    1, 
+                                                    currentChunk.chunkLength - currentChunk.bytesRead, 
+                                                    mFilePointer
+                                                );
+
+                <span class=comment>//If the file version is over 3, give a warning that there could be a problem
+</span>                <span class=keyword>if</span>((currentChunk.chunkLength - currentChunk.bytesRead) &amp;&amp; gBuffer[0] &gt; 0x03) {
+                    displayErrorMessage(&quot;This 3DS file is over version 3 so it may load incorrectly&quot;);
+                }
+            <span class=keyword>break</span>;
+
+            <span class=comment>//This holds the version of the Mesh.
+</span>            <span class=keyword>case</span> OBJECT_INFO:
+                <span class=comment>//This holds the version of the Mesh.
+</span>                <span class=comment>//It also is the head of the MATERIAL &amp; OBJECT chunks.
+</span>                <span class=comment>//From here we start reading Object and Material Chunk info
+</span>
+                <span class=comment>//Read the next Chunk
+</span>                readChunk(&amp;tempChunk);
+                
+                <span class=comment>//Read the version of the Mesh
+</span>                tempChunk.bytesRead += fread(    gBuffer, 
+                                                1, 
+                                                tempChunk.chunkLength - tempChunk.bytesRead,
+                                                mFilePointer
+                                            );
+                <span class=comment>//Increas the bytes read by the bytes read from the last Chunk
+</span>                currentChunk.bytesRead += tempChunk.bytesRead;
+
+                <span class=comment>//Go to the next Chunk,
+</span>                <span class=comment>//which if the object has a texture will be MATERIAL followed by OBJECT chunk
+</span>                processNextChunk(pModel, &amp;currentChunk);
+            <span class=keyword>break</span>;
+            <span class=comment>//This Chunk is the header of the Material Info Chunks
+</span>            <span class=comment>//This holds the Material information
+</span>            <span class=keyword>case</span> MATERIAL:
+
+                <span class=comment>//Increase the number of Materials
+</span>                pModel-&gt;numOfMaterials++;
+
+                <span class=comment>//Add the new Material to our Material List.
+</span>                <span class=comment>// If you are unfamiliar with STL's &quot;vector&quot; class, all push_back()
+</span>                <span class=comment>// does is add a new node onto the list.  I used the vector class
+</span>                <span class=comment>// so I didn't need to write my own link list functions.  
+</span>                pModel-&gt;pMaterials.push_back(newMaterial);
+
+                <span class=comment>//Proceed to the Material Loading function
+</span>                processNextMaterial(pModel, &amp;currentChunk);
+            <span class=keyword>break</span>;
+            <span class=comment>//This Chunk is the header of the Object Chunk
+</span>            <span class=comment>//This holds the Object information like its name
+</span>            <span class=keyword>case</span> OBJECT:
+                <span class=comment>//Increase the number of objects in the MODEL/SCENE
+</span>                pModel-&gt;numOfObjects++;
+
+                <span class=comment>//Add the new Object to our Object List.
+</span>                pModel-&gt;pObjects.push_back(newObject);
+
+                <span class=comment>//Initialize the object and all its data members
+</span>                memset(&amp;(pModel-&gt;pObjects[pModel-&gt;numOfObjects - 1]), 0, <span class=keyword>sizeof</span>(t3DObject));
+
+                <span class=comment>//Get the name of the object and store it, then add the read bytes to our byte counter.
+</span>                currentChunk.bytesRead += readString(pModel-&gt;pObjects[pModel-&gt;numOfObjects - 1].objectName);
+
+                <span class=comment>//Now proceed to read in the rest of the Object information
+</span>                processNextObjectChunk(pModel, &amp;(pModel-&gt;pObjects[pModel-&gt;numOfObjects-1]), &amp;currentChunk);
+            <span class=keyword>break</span>;
+            <span class=keyword>case</span> EDIT_KEY_FRAME:
+
+                <span class=comment>// Because I wanted to make this a SIMPLE tutorial as possible, I did not include
+</span>                <span class=comment>// the key frame information.  This chunk is the header for all the animation info.
+</span>                <span class=comment>// In a later tutorial this will be the subject and explained thoroughly.
+</span>
+                <span class=comment>//ProcessNextKeyFrameChunk(pModel, currentChunk);
+</span>
+                <span class=comment>// Read past this chunk and add the bytes read to the byte counter
+</span>                currentChunk.bytesRead += fread(gBuffer, 1, currentChunk.chunkLength - currentChunk.bytesRead, mFilePointer);
+            <span class=keyword>break</span>;
+            <span class=keyword>default</span>: 
+                <span class=comment>// If we didn't care about a chunk, then we get here.  We still need
+</span>                <span class=comment>// to read past the unknown or ignored chunk and add the bytes read to the byte counter.
+</span>                currentChunk.bytesRead += fread(gBuffer, 1, currentChunk.chunkLength - currentChunk.bytesRead, mFilePointer);
+            <span class=keyword>break</span>;
+        }
+
+        <span class=comment>// Add the bytes read from the last chunk to the previous chunk passed in.
+</span>        pPreviousChunk-&gt;bytesRead += currentChunk.bytesRead;
+
+    }
+}
+
+<span class=keyword>void</span> CReader3DS::processNextMaterial(t3DModel * pModel, tCHUNK *pPreviousChunk) {
+    <span class=comment>//The current Chunk to work with
+</span>    tCHUNK        currentChunk = {0};
+
+    <span class=comment>// Continue to read these chunks until we read the end of this sub chunk
+</span>    <span class=keyword>while</span> (pPreviousChunk-&gt;bytesRead &lt; pPreviousChunk-&gt;chunkLength) {
+        <span class=comment>//Read the next Chunk
+</span>        readChunk(&amp;currentChunk);
+
+        <span class=keyword>switch</span>(currentChunk.chunkID) {
+            <span class=comment>//Hold the name of the Material
+</span>            <span class=keyword>case</span> MATERIAL_NAME:
+                    currentChunk.bytesRead += fread(    pModel-&gt;pMaterials[pModel-&gt;numOfMaterials - 1].materialName,
+                                                        1, 
+                                                        currentChunk.chunkLength - currentChunk.bytesRead,
+                                                        mFilePointer
+                                                    );
+            <span class=keyword>break</span>;
+            <span class=comment>//Hold the R, G, B colour info of the Material
+</span>            <span class=keyword>case</span> MATERIAL_DIFFUSE:
+                    readColourChunk(&amp;(pModel-&gt;pMaterials[pModel-&gt;numOfMaterials - 1]), &amp;currentChunk);
+            <span class=keyword>break</span>;
+            <span class=comment>//Since its a Material Map, we have more Textures/Materials, so process the next Material.
+</span>            <span class=keyword>case</span> MATERIAL_MAP:
+                    processNextMaterial(pModel, &amp;currentChunk);
+            <span class=keyword>break</span>;
+            <span class=comment>//Hold the name of the texture file for our Material
+</span>            <span class=keyword>case</span> MATERIAL_MAP_FILENAME:
+                    currentChunk.bytesRead += fread(    pModel-&gt;pMaterials[pModel-&gt;numOfMaterials - 1].textureFileName,
+                                                        1, 
+                                                        currentChunk.chunkLength - currentChunk.bytesRead,
+                                                        mFilePointer
+                                                    );
+            <span class=keyword>break</span>;
+            <span class=comment>//Read past the UNKNOWN Chunks
+</span>            <span class=keyword>default</span>:
+                    currentChunk.bytesRead += fread(    gBuffer, 
+                                                        1, 
+                                                        currentChunk.chunkLength - currentChunk.bytesRead,
+                                                        mFilePointer
+                                                    );
+            <span class=keyword>break</span>;
+        }
+
+        <span class=comment>//Add the bytes read from this Chunk to the previous Chunk
+</span>        pPreviousChunk-&gt;bytesRead += currentChunk.bytesRead;
+    }
+}
+
+<span class=keyword>void</span> CReader3DS::readColourChunk(tMaterial *pMaterial, tCHUNK *pChunk) {
+    tCHUNK tempChunk = {0};
+
+    <span class=comment>//Read the Colour info Chunk
+</span>    readChunk(&amp;tempChunk);
+
+    <span class=comment>//Read in the R, G, B values (3 bytes - 0 through 255)
+</span>    tempChunk.bytesRead += fread(    pMaterial-&gt;colour,
+                                    1,
+                                    tempChunk.chunkLength - tempChunk.bytesRead,
+                                    mFilePointer
+                                );
+
+    pChunk-&gt;bytesRead += tempChunk.bytesRead;
+}
+
+<span class=comment>// This function reads in a string of characters
+</span><span class=keyword>int</span> CReader3DS::readString(<span class=keyword>char</span> *pBuffer) {
+    <span class=keyword>int</span> index = 0;
+
+    <span class=comment>//Read 1 byte of data which is the first letter of the string.
+</span>    fread(pBuffer, 1, 1, mFilePointer);
+    
+    <span class=comment>//Loop until we encounter a NULL(0x00)
+</span>    <span class=keyword>while</span>(*(pBuffer + index++) != 0) {
+        <span class=comment>//Read 1 byte of data.
+</span>        fread(pBuffer + index, 1, 1, mFilePointer);
+    }
+
+    <span class=keyword>return</span> strlen(pBuffer) + 1;
+}
+
+<span class=comment>// This function handles all the information about the objects in the file
+</span><span class=keyword>void</span> CReader3DS::processNextObjectChunk(t3DModel *pModel, t3DObject *pObject, tCHUNK *pPreviousChunk) {
+
+    <span class=comment>//The current Chunk to work with
+</span>    tCHUNK        currentChunk = {0};
+
+    <span class=comment>// Continue to read these chunks until we read the end of this sub chunk
+</span>    <span class=keyword>while</span>(pPreviousChunk-&gt;bytesRead &lt; pPreviousChunk-&gt;chunkLength) {
+        <span class=comment>//Read the next Chunk
+</span>        readChunk(&amp;currentChunk);
+
+        <span class=keyword>switch</span>(currentChunk.chunkID) {
+            
+            <span class=comment>//Tells us that we are reading a new Object
+</span>            <span class=keyword>case</span> OBJECT_MESH:
+                <span class=comment>// We found a new object, so let's read in it's info using recursion
+</span>                processNextObjectChunk(pModel, pObject, &amp;currentChunk);
+            <span class=keyword>break</span>;
+            
+            <span class=comment>//Time to read Object Vertices
+</span>            <span class=keyword>case</span> OBJECT_VERTICES:
+                readObjectVertices(pObject, &amp;currentChunk);
+            <span class=keyword>break</span>;
+            
+            <span class=comment>//Time to read Object Face information
+</span>            <span class=keyword>case</span> OBJECT_FACES:
+                readObjectFaceIndices(pObject, &amp;currentChunk);
+            <span class=keyword>break</span>;
+
+            <span class=comment>//Time to read Object Face Material info
+</span>            <span class=keyword>case</span> OBJECT_MATERIAL:
+                <span class=comment>// This chunk holds the name of the material that the object has assigned to it.
+</span>                <span class=comment>// This could either be just a color or a texture map.  This chunk also holds
+</span>                <span class=comment>// the faces that the texture is assigned to (In the case that there is multiple
+</span>                <span class=comment>// textures assigned to one object, or it just has a texture on a part of the object.
+</span>                <span class=comment>// Since most of my game objects just have the texture around the whole object, and 
+</span>                <span class=comment>// they aren't multitextured, I just want the material name.
+</span>
+                <span class=comment>// We now will read the name of the material assigned to this object
+</span>                readObjectFaceMaterial(pModel, pObject, &amp;currentChunk);
+            <span class=keyword>break</span>;
+
+            <span class=comment>//Time to read UV Texture Coordinates for the Object
+</span>            <span class=keyword>case</span> OBJECT_UV:
+                <span class=comment>// This chunk holds all of the UV coordinates for our object.  Let's read them in.
+</span>                readObjectUVCoordinates(pObject, &amp;currentChunk);
+            <span class=keyword>break</span>;
+
+            <span class=keyword>default</span>:
+                <span class=comment>// Read past the ignored or unknown chunks
+</span>                currentChunk.bytesRead += fread(    gBuffer, 
+                                                    1,
+                                                    currentChunk.chunkLength - currentChunk.bytesRead,
+                                                    mFilePointer
+                                                );
+        }
+
+        <span class=comment>// Add the bytes read from the last chunk to the previous chunk passed in.
+</span>        pPreviousChunk-&gt;bytesRead += currentChunk.bytesRead;
+    }
+}
+
+<span class=keyword>void</span> CReader3DS::readObjectVertices(t3DObject *pObject, tCHUNK *pPreviousChunk) {
+    <span class=comment>// Like most chunks, before we read in the actual vertices, we need
+</span>    <span class=comment>// to find out how many there are to read in.  Once we have that number
+</span>    <span class=comment>// we then fread() them into our vertice array.
+</span>
+    <span class=comment>// (1) Read in the number of Vertices
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;pObject-&gt;numOfVertices, 1, 2, mFilePointer);
+
+    <span class=comment>// Allocate memory for the vertices and initialise the vertices structure
+</span>    pObject-&gt;pVertices = <span class=keyword>new</span> CVector3[pObject-&gt;numOfVertices];
+    memset(pObject-&gt;pVertices, 0, <span class=keyword>sizeof</span>(CVector3) * pObject-&gt;numOfVertices );
+
+    <span class=comment>// (2) Read in the array of Vertices (an array of 3 floats)
+</span>    pPreviousChunk-&gt;bytesRead += fread(    pObject-&gt;pVertices,
+                                        1, 
+                                        pPreviousChunk-&gt;chunkLength - pPreviousChunk-&gt;bytesRead,
+                                        mFilePointer
+                                    );
+<span class=comment>//log(&quot;MAX VERTICES = %d\r\n&quot;, pObject-&gt;numOfVertices);
+</span>sprintf(logText, &quot;MAX VERTICES = %d\r\n&quot;, pObject-&gt;numOfVertices);
+fwrite(logText, 1, strlen(logText), mConsoleLogFilePointer);
+
+    <span class=comment>// The coordinate system of OpenGL and 3DS Max are different.
+</span>    <span class=comment>// Since 3D Studio Max Models with the Z-Axis pointing up (strange and ugly I know! :), 
+</span>    <span class=comment>// we need to flip the Y values with the Z values in our vertices.  That way it
+</span>    <span class=comment>// will be normal, with Y pointing up.  Also, because we swap the Y and Z we need to negate 
+</span>    <span class=comment>// the Z to make it come out correctly.  This is also explained and done in ReadVertices().
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pObject-&gt;numOfVertices; i++) {
+        <span class=comment>//Temporarily store the 'Y' value
+</span>        <span class=keyword>float</span> fTempY = pObject-&gt;pVertices[i].y;
+        
+        <span class=comment>//Shift the 'Z' value to be our new 'Y' value
+</span>        pObject-&gt;pVertices[i].y = pObject-&gt;pVertices[i].z;
+        
+        <span class=comment>//Save the value store in temp('Y' value) to be our new 'Z' value.
+</span>        <span class=comment>//Also negate it.
+</span>        pObject-&gt;pVertices[i].z = -fTempY;
+<span class=comment>//log(&quot;%f %f %f\r\n&quot;, pObject-&gt;pVertices[i].x, pObject-&gt;pVertices[i].y, pObject-&gt;pVertices[i].z);
+</span>sprintf(logText, &quot;%f %f %f\r\n&quot;, pObject-&gt;pVertices[i].x, pObject-&gt;pVertices[i].y, pObject-&gt;pVertices[i].z);
+fwrite(logText, 1, strlen(logText), mConsoleLogFilePointer);
+
+    }
+}
+
+<span class=comment>//This function reads in the indices for the vertex array
+</span><span class=keyword>void</span> CReader3DS::readObjectFaceIndices(t3DObject *pObject, tCHUNK *pPreviousChunk) {
+    <span class=comment>//Tells which Face index we are currently reading
+</span>    <span class=keyword>unsigned</span> <span class=comment>/*short */</span><span class=keyword>int</span> index = 0;
+
+    <span class=comment>// In order to read in the vertex indices for the object, we need to first
+</span>    <span class=comment>// read in the number of them, then read them in.  Remember,
+</span>    <span class=comment>// we only want 3 of the 4 values read in for each face.  The fourth is
+</span>    <span class=comment>// a visibility flag for 3D Studio Max that doesn't mean anything to us.
+</span>
+    <span class=comment>// (1) Read in the number of Faces that are in this object (int)
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;pObject-&gt;numOfFaces, 1, 2, mFilePointer);
+
+    <span class=comment>//Allow enought memory for the faces and initialize the structure
+</span>    pObject-&gt;pFaces = <span class=keyword>new</span> tFace[pObject-&gt;numOfFaces];
+    memset(pObject-&gt;pFaces, 0, <span class=keyword>sizeof</span>(tFace) * pObject-&gt;numOfFaces );
+
+    <span class=comment>// (2) Go through all the Faces in this object
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pObject-&gt;numOfFaces; i++) {
+        <span class=comment>//Next we read in the A, then B, then C value of the face, 
+</span>        <span class=comment>//but ignore the 4th value. The 4th value is the visibility flag
+</span>        <span class=comment>//used by 3D Studio Max, we don`t need that value...
+</span>        <span class=keyword>for</span>(<span class=keyword>int</span> j = 0; j &lt; 4; j++) {
+            <span class=comment>//Read the vertice index for the Face
+</span>            pPreviousChunk-&gt;bytesRead += fread(    &amp;index, 
+                                                1, 
+                                                <span class=keyword>sizeof</span>(index), <span class=comment>//unsigned short
+</span>                                                mFilePointer
+                                            );
+            <span class=keyword>if</span>(j &lt; 3) {
+                <span class=comment>// Store the index in our face structure.
+</span>                pObject-&gt;pFaces[i].vertexIndex[j] = index;
+            }
+        }
+<span class=comment>//log(&quot;FACE %d = %d %d %d\r\n&quot;, i, pObject-&gt;pFaces[i].vertexIndex[0], pObject-&gt;pFaces[i].vertexIndex[1], pObject-&gt;pFaces[i].vertexIndex[2]);
+</span>sprintf(logText, &quot;FACE %d = %d %d %d\r\n&quot;, &amp;i, pObject-&gt;pFaces[i].vertexIndex[0], pObject-&gt;pFaces[i].vertexIndex[1], pObject-&gt;pFaces[i].vertexIndex[2]);
+fwrite(logText, 1, strlen(logText), mConsoleLogFilePointer);
+
+    }
+}
+
+<span class=comment>//This function reads in the material name assigned to the object and sets the materialID
+</span><span class=keyword>void</span> CReader3DS::readObjectFaceMaterial(t3DModel *pModel, t3DObject *pObject, tCHUNK *pPreviousChunk) {
+    <span class=comment>// This is used to hold the Objects Material name
+</span>    <span class=keyword>char</span> materialName[255] = {0};
+
+    <span class=comment>// *What is a material?*  - A material is either the color or the texture map of the object.
+</span>    <span class=comment>// It can also hold other information like the brightness, shine, etc... Stuff we don't
+</span>    <span class=comment>// really care about.  We just want the color, or the texture map file name really.
+</span>
+    <span class=comment>// Here we read the material name that is assigned to the current object.
+</span>    <span class=comment>// 'materialName' should now have a string of the material name, like &quot;Material #2&quot; etc..
+</span>    pPreviousChunk-&gt;bytesRead += readString(materialName);
+
+    <span class=comment>// Now that we have a material name, we need to go through all of the materials
+</span>    <span class=comment>// and check the name against each material.  When we find a material in our material
+</span>    <span class=comment>// list that matches this name we just read in, then we assign the materialID
+</span>    <span class=comment>// of the object to that material index.  You will notice that we passed in the
+</span>    <span class=comment>// model to this function.  This is because we need the number of textures.
+</span>    <span class=comment>// Yes though, we could have just passed in the model and not the object too.
+</span>
+    <span class=comment>// Go through all of the Material Textures
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pModel-&gt;numOfMaterials; i++) {
+
+        <span class=comment>// If the material we just read in matches the current texture name
+</span>        <span class=keyword>if</span>(strcmp(materialName, pModel-&gt;pMaterials[i].materialName) == 0) {
+            
+            <span class=comment>// Now that we found the material, check if it's a Texture Map &amp; not the Colour.
+</span>            <span class=comment>// If the 'textureFileName' has a string length of 1 and over it's a texture
+</span>            <span class=keyword>if</span>(strlen(pModel-&gt;pMaterials[i].textureFileName) &gt; 0) {
+                <span class=comment>// Set the Material ID to the current index 'i' and stop checking
+</span>                pObject-&gt;materialID = i;
+                
+                <span class=comment>//Set the Objects flag to say 'YES' it has a Texture Map to bind.
+</span>                pObject-&gt;bHasTexture = <span class=keyword>true</span>;
+            }
+            <span class=keyword>break</span>;
+        }
+        <span class=keyword>else</span> {
+            <span class=comment>// Here we check first to see if there is a texture already assigned to this object
+</span>            <span class=keyword>if</span>( ! pObject-&gt;bHasTexture) {
+
+                <span class=comment>// Set the ID to -1 to show there is no Material binding for this object
+</span>                pObject-&gt;materialID = -1;
+            }
+        }
+    }
+
+    <span class=comment>// Read past the rest of the chunk since we don't care about shared vertices
+</span>    <span class=comment>// You will notice we subtract the bytes already read in this chunk from the total length.
+</span>    pPreviousChunk-&gt;bytesRead += fread(gBuffer, 1, pPreviousChunk-&gt;chunkLength - pPreviousChunk-&gt;bytesRead, mFilePointer);
+}
+
+<span class=keyword>void</span> CReader3DS::readObjectUVCoordinates(t3DObject *pObject, tCHUNK *pPreviousChunk) {
+    <span class=comment>// In order to read in the UV indices for the object, we need to first
+</span>    <span class=comment>// read in the amount there are, then read them in.
+</span>
+    <span class=comment>// Read in the number of UV coordinates there are (int)
+</span>    pPreviousChunk-&gt;bytesRead += fread(&amp;pObject-&gt;numOfTextureVertex, 1, 2, mFilePointer);
+
+    <span class=comment>// Allocate memory to hold the UV coordinates
+</span>    pObject-&gt;pTexVertices = <span class=keyword>new</span> CVector2[pObject-&gt;numOfTextureVertex];
+
+    <span class=comment>// Read in the texture coodinates (an array 2 float)
+</span>    pPreviousChunk-&gt;bytesRead += fread(    pObject-&gt;pTexVertices,
+                                        1,
+                                        pPreviousChunk-&gt;chunkLength - pPreviousChunk-&gt;bytesRead,
+                                        mFilePointer
+                                    );
+
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; pObject-&gt;numOfTextureVertex; i++) {
+sprintf(logText, &quot;UVVVVVVVVVVVV %f %f\r\n&quot;, pObject-&gt;pTexVertices[i].x, pObject-&gt;pTexVertices[i].y);
+fwrite(logText, 1, strlen(logText), mConsoleLogFilePointer);
+    }
+}
+
+<span class=keyword>void</span> CReader3DS::cleanUp() {
+    <span class=comment>//Close the current File Pointer
+</span>    <span class=keyword>if</span>(mFilePointer) {
+        fclose(mFilePointer);
+        mFilePointer = NULL;
+
+        fclose(mConsoleLogFilePointer);
+        mConsoleLogFilePointer = NULL;
+    }
+}
+
+<span class=keyword>void</span> CReader3DS::log(<span class=keyword>char</span> *format, ...) {
+    sprintf(logText, format);
+    fwrite(logText, 1, strlen(logText), mConsoleLogFilePointer);
+}
+
+<span class=keyword>void</span> CReader3DS::displayErrorMessage(<span class=keyword>const</span> <span class=keyword>char</span> *errMsg, ...) {
+    MessageBox(NULL, errMsg, &quot;ERROR&quot;, MB_OK | MB_ICONERROR);
+}
+
+</pre></body>
+</html>

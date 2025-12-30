@@ -1,0 +1,456 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;main.h&quot;
+<span class=pp>#include</span> &lt;math.h&gt;    <span class=comment>// We include math.h so we can use the sqrt() function
+</span>
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=pp>#include</span> &lt;<span class=keyword>float</span>.h&gt;    <span class=comment>// This is so we can use _isnan() for acos()
+</span>
+<span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// This file was build from the Ray Plane Collision tutorial.
+</span><span class=comment>// We added 5 new functions to this math file:  
+</span><span class=comment>//
+</span><span class=comment>// This returns the dot product between 2 vectors
+</span><span class=comment>// float Dot(CVector3 vVector1, CVector3 vVector2);
+</span><span class=comment>//
+</span><span class=comment>// This returns the angle between 2 vectors
+</span><span class=comment>// double AngleBetweenVectors(CVector3 Vector1, CVector3 Vector2);
+</span><span class=comment>//
+</span><span class=comment>// This returns an intersection point of a polygon and a line (assuming intersects the plane)
+</span><span class=comment>// CVector3 IntersectionPoint(CVector3 vNormal, CVector3 vLine[], double distance);
+</span><span class=comment>//
+</span><span class=comment>// This returns true if the intersection point is inside of the polygon
+</span><span class=comment>// bool InsidePolygon(CVector3 vIntersection, CVector3 Poly[], long verticeCount);
+</span><span class=comment>//
+</span><span class=comment>// Use this function to test collision between a line and polygon
+</span><span class=comment>// bool IntersectedPolygon(CVector3 vPoly[], CVector3 vLine[], int verticeCount);
+</span><span class=comment>//
+</span><span class=comment>// These will enable to check if we internet not just the plane of a polygon,
+</span><span class=comment>// but the actual polygon itself.  Once the line is outside the permiter, it will fail
+</span><span class=comment>// on a collision test.
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+
+<span class=comment>/////////////////////////////////////// CROSS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span><span class=comment>/////
+</span><span class=comment>/////    This returns a perpendicular vector from 2 given vectors by taking the cross product.
+</span><span class=comment>/////
+</span><span class=comment>/////////////////////////////////////// CROSS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*
+</span>CVector3 cross(CVector3 vVector1, CVector3 vVector2) {
+    
+    CVector3 vNormal;        <span class=comment>// The vector to hold the cross product
+</span>
+    <span class=comment>// Once again, if we are given 2 vectors (directions of 2 sides of a polygon)
+</span>    <span class=comment>// then we have a plane define.  The cross product finds a vector that is perpendicular
+</span>    <span class=comment>// to that plane, which means it's point straight out of the plane at a 90 degree angle.
+</span>    <span class=comment>// The equation for the cross product is simple, but difficult at first to memorize:
+</span>    
+    <span class=comment>// The X value for the vector is:  (V1.y * V2.z) - (V1.z * V2.y)                                                    // Get the X value
+</span>    vNormal.x = ((vVector1.y * vVector2.z) - (vVector1.z * vVector2.y));
+
+    <span class=comment>// The Y value for the vector is:  (V1.z * V2.x) - (V1.x * V2.z)
+</span>    vNormal.y = ((vVector1.z * vVector2.x) - (vVector1.x * vVector2.z));
+    
+    <span class=comment>// The Z value for the vector is:  (V1.x * V2.y) - (V1.y * V2.x)
+</span>    vNormal.z = ((vVector1.x * vVector2.y) - (vVector1.y * vVector2.x));
+
+    <span class=comment>// *IMPORTANT* This is not communitive. You can not change the order or this or
+</span>    <span class=comment>// else it won't work correctly.  It has to be exactly like that.  Just remember,
+</span>    <span class=comment>// If you are trying to find the X, you don't use the X value of the 2 vectors, and
+</span>    <span class=comment>// it's the same for the Y and Z.  You notice you use the other 2, but never that axis.
+</span>    <span class=comment>// If you look at the camera rotation tutorial, you will notice it's the same for rotations.
+</span>
+    <span class=comment>// Now we have a vector pointing straight out of the plane of the polygon.  This is the
+</span>    <span class=comment>// direction the polygon is facing.  You use this information for numerous things like
+</span>    <span class=comment>// lighting, camera viewing, back face culling, collision and tons of other stuff.
+</span>    
+    <span class=keyword>return</span> vNormal;        <span class=comment>// Return the cross product (Direction the polygon is facing - Normal)
+</span>}
+
+<span class=comment>//This returns a vector between 2 points
+</span>CVector3 makeVector(CVector3 vPoint1, CVector3 vPoint2) {
+    
+    CVector3 vVector = {0};        <span class=comment>// Initialize our variable to zero
+</span>    
+    <span class=comment>// In order to get a vector from 2 points (a direction) we need to
+</span>    <span class=comment>// subtract the second point from the first point.
+</span>    vVector.x = vPoint1.x - vPoint2.x;    <span class=comment>// Get the X value of our new vector
+</span>    vVector.y = vPoint1.y - vPoint2.y;    <span class=comment>// Get the Y value of our new vector
+</span>    vVector.z = vPoint1.z - vPoint2.z;    <span class=comment>// Get the Z value of our new vector
+</span>    
+    <span class=comment>// Now that we have our new vector between the 2 points, we will return it.
+</span>    <span class=keyword>return</span> vVector;        <span class=comment>// Return our new vector
+</span>}
+
+<span class=comment>//This returns the magnitude of a normal (or any other vector)
+</span><span class=keyword>float</span> magnitude(CVector3 vVector) {
+    
+    <span class=comment>// This will give us the magnitude or &quot;Norm&quot; as some say of, our normal.
+</span>    <span class=comment>// The magnitude has to do with the length of the vector.  We use this
+</span>    <span class=comment>// information to normalize a vector, which gives it a length of 1.
+</span>    <span class=comment>// Here is the equation:  magnitude = sqrt(V.x^2 + V.y^2 + V.z^2)   Where V is the vector
+</span>
+    <span class=keyword>return</span> (<span class=keyword>float</span>)sqrt( (vVector.x * vVector.x) + (vVector.y * vVector.y) + (vVector.z * vVector.z) );
+}
+
+<span class=comment>//This returns a normalize vector (A vector exactly of length 1)
+</span>CVector3 normalize(CVector3 vVector) {
+
+    <span class=comment>// Get the magnitude of our normal
+</span>    <span class=keyword>float</span> mag = magnitude(vVector);
+
+    <span class=comment>// Now that we have the magnitude, we can divide our normal by that magnitude.
+</span>    <span class=comment>// That will make our normal a total length of 1.  This makes it easier to work with too.
+</span>
+    vVector.x = vVector.x / mag;        <span class=comment>// Divide the X value of our vector by it's magnitude
+</span>    vVector.y = vVector.y / mag;        <span class=comment>// Divide the Y value of our vector by it's magnitude
+</span>    vVector.z = vVector.z / mag;        <span class=comment>// Divide the Z value of our vector by it's magnitude
+</span>
+    <span class=comment>// Finally, return our normalized vector.
+</span>    <span class=keyword>return</span> vVector;                            <span class=comment>// Return the new normal of length 1.
+</span>}
+
+<span class=comment>//This returns the normal of a polygon (The direction the polygon is facing)
+</span>CVector3 normal(CVector3 vTriangle[]) {
+
+    <span class=comment>// You might want to error check to make sure it's valid
+</span>    <span class=comment>// Get 2 vectors from the polygon
+</span>
+    CVector3 vVector1 = makeVector(vTriangle[2], vTriangle[0]);
+    CVector3 vVector2 = makeVector(vTriangle[1], vTriangle[0]);
+
+    <span class=comment>// We Chose to get the vectors surrounding the first point of the polygon.
+</span>    <span class=comment>// We could have chosen to get 2 other sides of the triangle, but we chose these 2.
+</span>    <span class=comment>// Now that we have the 2 side vectors, we will take their cross product.
+</span>    <span class=comment>// (*NOTE*) It is important that pass in the vector of the bottom side of the triangle
+</span>    <span class=comment>// first, and then pass in the vector of the left side second.  If we switch them,
+</span>    <span class=comment>// it will turn the normal the opposite way.  Try it, switch them like this: Cross(vVector2, vVector1);
+</span>    <span class=comment>// Like I said before, it's important to ALWAYS work in the same direction.  In our case,
+</span>    <span class=comment>// we chose that we always work counter-clockwise.
+</span>
+    CVector3 vNormal = cross(vVector1, vVector2);
+
+    <span class=comment>// Now that we have the direction of the normal, we want to do one last thing.
+</span>    <span class=comment>// Right now, it's an unknown length, it is probably pretty long in length.
+</span>    <span class=comment>// We want to do something which gives the normal a length of 1.  This is called
+</span>    <span class=comment>// normalizing.  To do this we divide the normal by it's magnitude.  Well how do we
+</span>    <span class=comment>// find it's magnitude? We use this equation: magnitude = sqrt(x^2 + y^2 + z^2)
+</span>    
+    vNormal = normalize(vNormal);        <span class=comment>// Use our function we created to normalize the normal (Makes it a length of one)
+</span>
+    <span class=comment>// Now return the normalized normal
+</span>    <span class=comment>// (*NOTE*) If you want to understand what normalizing our normal does, comment out
+</span>    <span class=comment>// the above line.  Then you can see how long the normal is before we normalize it.
+</span>    <span class=comment>// I strongly recommend this.  And remember, it doesn't matter how long the normal is,
+</span>    <span class=comment>// (of course besides (0, 0, 0)), if we normalize it, it will always be of length 1 afterwards.
+</span>
+    <span class=keyword>return</span> vNormal;                        <span class=comment>// Return our normal at our desired length
+</span>}
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>//This returns the distance between a plane and Origin
+</span><span class=keyword>float</span> planeDistance(CVector3 vNormal, CVector3 vPoint) {
+
+    <span class=keyword>float</span> distance = 0.0f;                <span class=comment>// This variable holds the distance from the plane to the point
+</span>
+    <span class=comment>// Use the plane equation to find the distance (Ax + By + Cz + D = 0)  We want to find D.
+</span>    <span class=comment>// For more information about the plane equation, read about it in the function below (IntersectedPlane())
+</span>    <span class=comment>// Basically, A B C is the X Y Z value of our normal and the x y z is our x y z of our point.
+</span>    <span class=comment>// D is the distance from the origin.  So, we need to move this equation around to find D.
+</span>    <span class=comment>// We come up with D = -(Ax + By + Cz)
+</span>    
+    <span class=comment>// Basically, the negated dot product of the normal of the plane and the point. (More about the dot product in another tutorial)
+</span>    <span class=comment>//D = -N DOT P, where N - normal, P - a Point on the plane.
+</span>    <span class=comment>//D = -(A, B, C) DOT (x, y, z)
+</span>    <span class=comment>//D = -(Ax + By + Cz)
+</span>    <span class=comment>//so, 
+</span>    distance = -((vNormal.x*vPoint.x) + (vNormal.y*vPoint.y) + (vNormal.z*vPoint.z));
+    
+    <span class=comment>// Return the distance
+</span>    <span class=keyword>return</span> distance;
+}
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>// Since the last tutorial, we added 2 more parameters for the normal and the distance
+</span><span class=comment>// from the origin.  This is so we don't have to recalculate it 3 times in our IntersectionPoint() 
+</span><span class=comment>// IntersectedPolygon() functions.  We would probably make 2 different functions for
+</span><span class=comment>// this so we have the choice of getting the normal and distance back, or not.
+</span><span class=comment>// I also changed the vTriangle to &quot;vPoly&quot; because it isn't always a triangle.
+</span><span class=comment>// The code doesn't change, it's just more correct (though we only need 3 points anyway).
+</span><span class=comment>// For C programmers, the '&amp;' is called a reference and is the same concept as the '*' for addressing.
+</span>
+<span class=comment>//This checks to see if a line intersects a plane
+</span><span class=keyword>bool</span> intersectedPlane(CVector3 vPoly[], CVector3 vLine[], CVector3 &amp;vNormal, <span class=keyword>float</span> &amp;originDistance) {
+    
+    <span class=comment>// The distances from the 2 points of the line from the plane
+</span>    <span class=keyword>float</span> distance1 = 0.0, distance2 = 0.0;
+    
+    vNormal = normal(vPoly);
+
+    <span class=comment>// Let's find the distance our plane is from the origin.  We can find this value
+</span>    <span class=comment>// from the normal to the plane (polygon) and any point that lies on that plane (Any vertice)
+</span>    originDistance = planeDistance(vNormal, vPoly[0]);
+    
+    <span class=comment>// Get the distance from point1 from the plane using: Ax + By + Cz + D = (The distance from the plane)
+</span>    distance1 = (vNormal.x * vLine[0].x) +                        <span class=comment>// Ax +
+</span>                (vNormal.y * vLine[0].y) +                        <span class=comment>// By +
+</span>                (vNormal.z * vLine[0].z) + originDistance;        <span class=comment>// Cz + D
+</span>
+    distance2 = (vNormal.x * vLine[1].x) +                        <span class=comment>// Ax +
+</span>                (vNormal.y * vLine[1].y) +                        <span class=comment>// By +
+</span>                (vNormal.z * vLine[1].z) + originDistance;        <span class=comment>// Cz + D
+</span>
+    <span class=comment>// Now that we have 2 distances from the plane, if we times them together we either
+</span>    <span class=comment>// get a positive or negative number.  If it's a negative number, that means we collided!
+</span>    <span class=comment>// This is because the 2 points must be on either side of the plane (IE. -1 * 1 = -1).
+</span>    <span class=keyword>if</span>(distance1*distance2 &gt;= 0)        <span class=comment>// Check to see if both point's distances are both negative or both positive
+</span>        <span class=keyword>return</span> <span class=keyword>false</span>;                    <span class=comment>// Return false if each point has the same sign.  -1 and 1 would mean each point is on either side of the plane.  -1 -2 or 3 4 wouldn't...
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;                        <span class=comment>// The line intersected the plane, Return TRUE
+</span>}
+
+<span class=comment>//This computers the dot product of 2 vectors
+</span><span class=keyword>float</span> dot(CVector3 vVector1, CVector3 vVector2) {
+    <span class=comment>// The dot product is this equation: V1.V2 = (V1.x * V2.x  +  V1.y * V2.y  +  V1.z * V2.z)
+</span>    <span class=comment>// In math terms, it looks like this:  V1.V2 = ||V1|| ||V2|| cos(theta)
+</span>    <span class=comment>// The '.' means DOT.   The || || is magnitude.  So the magnitude of V1 times the magnitude
+</span>    <span class=comment>// of V2 times the cosine of the angle.  It seems confusing now, but it will become more clear.
+</span>    <span class=comment>// This function is used for a ton of things, which we will cover in other tutorials.
+</span>    <span class=comment>// For this tutorial, we use it to compute the angle between 2 vectors.  If the vectors
+</span>    <span class=comment>// are normalize, the dot product returns the cosine of the angle between the 2 vectors.
+</span>    <span class=comment>// What does that mean? Well, it doesn't return the actual angle, it returns the value of:
+</span>    <span class=comment>// cos(angle).    Well, what if we want to get the actual angle?  Then we use the arc cosine.
+</span>    <span class=comment>// There is more on this in the below function AngleBetweenVectors().  Let's give some
+</span>    <span class=comment>// applications of using the dot product.  How would you tell if the angle between the
+</span>    <span class=comment>// 2 vectors is perpendicular (90 degrees)?  Well, if we normalize the vectors we can
+</span>    <span class=comment>// get rid of the ||V1|| * ||V2|| in front, which just leaves us with:  cos(theta).
+</span>    <span class=comment>// If a vector is normalize, it's magnitude is 1, so it would be: 1 * 1 * cos(theta) , 
+</span>    <span class=comment>// which is pointless, so we discard that part of the equation.  So, What is the cosine of 90?
+</span>    <span class=comment>// If you punch it in your calculator you will find that it's 0.  So that means
+</span>    <span class=comment>// if the dot product of 2 angles is 0, then they are perpendicular.  What we did in
+</span>    <span class=comment>// our mind is take the arc cosine of 0, which is 90 (or PI/2 in radians).  More on this below.
+</span>
+    <span class=comment>//    (V1.x * V2.x        +        V1.y * V2.y        +        V1.z * V2.z)
+</span>    
+    <span class=keyword>return</span> ((vVector1.x * vVector2.x) + (vVector1.y * vVector2.y) + (vVector1.z * vVector2.z));
+}
+
+<span class=comment>//Finds the angle between 2 vectors
+</span><span class=keyword>double</span> angleBetweenVectors(CVector3 vVector1, CVector3 vVector2) {
+    <span class=comment>// Remember, above we said that the Dot Product of returns the cosine of the angle
+</span>    <span class=comment>// between 2 vectors?  Well, that is assuming they are unit vectors (normalize vectors).
+</span>    <span class=comment>// So, if we don't have a unit vector, then instead of just saying  arcCos(DotProduct(A, B))
+</span>    <span class=comment>// We need to divide the dot product by the magnitude of the 2 vectors multiplied by each other.
+</span>    <span class=comment>// Here is the equation:   arc cosine of (V . W / || V || * || W || )
+</span>    <span class=comment>// the || V || means the magnitude of V.  This then cancels out the magnitudes dot product magnitudes.
+</span>    <span class=comment>// But basically, if you have normalize vectors already, you can forget about the magnitude part.
+</span>
+    <span class=comment>// Get the dot product of the vectors
+</span>    <span class=keyword>float</span> dotProduct = dot(vVector1, vVector2);
+
+    <span class=comment>// Get the product of both of the vectors magnitudes
+</span>    <span class=keyword>float</span> vectorsMagnitude = magnitude(vVector1) * magnitude(vVector2);
+
+    <span class=comment>// Get the arc cosine of the (dotProduct / vectorsMagnitude) which is the angle in RADIANS.
+</span>    <span class=comment>// (IE.   PI/2 radians = 90 degrees      PI radians = 180 degrees    2*PI radians = 360 degrees)
+</span>    <span class=comment>// To convert radians to degress use this equation:   radians * (PI / 180)
+</span>    <span class=comment>// TO convert degrees to radians use this equation:   degrees * (180 / PI)
+</span>    <span class=keyword>double</span> angle = acos(dotProduct / vectorsMagnitude);
+
+    <span class=comment>// Here we make sure that the angle is not a -1.#IND0000000 number, which means indefinate.
+</span>    <span class=comment>// acos() thinks it's funny when it returns -1.#IND0000000.  If we don't do this check,
+</span>    <span class=comment>// our collision results will sometimes say we are colliding when we aren't.  I found this
+</span>    <span class=comment>// out the hard way after MANY hours and already wrong written tutorials :)  Usually
+</span>    <span class=comment>// this value is found when the dot product and the maginitude are the same value.
+</span>    <span class=comment>// We want to return 0 when this happens.
+</span>    <span class=keyword>if</span>(_isnan(angle))
+        <span class=keyword>return</span> 0;
+    
+    <span class=comment>// Return the angle in radians
+</span>    <span class=keyword>return</span> angle;
+}
+
+<span class=keyword>bool</span> isPointInsidePolygon(CVector3 vIntersectionPoint, CVector3 vPoly[], <span class=keyword>long</span> verticeCount) {
+    
+    <span class=keyword>const</span> <span class=keyword>double</span> MATCH_FACTOR = 0.9999;        <span class=comment>// Used to cover up the error in floating point
+</span>    <span class=keyword>double</span> angle = 0.0;                        <span class=comment>// Initialize the angle
+</span>    CVector3 vA, vB;                        <span class=comment>// Create temp vectors
+</span>
+    <span class=comment>// Just because we intersected the plane, doesn't mean we were anywhere near the polygon.
+</span>    <span class=comment>// This functions checks our intersection point to make sure it is inside of the polygon.
+</span>    <span class=comment>// This is another tough function to grasp at first, but let me try and explain.
+</span>    <span class=comment>// It's a brilliant method really, what it does is create triangles within the polygon
+</span>    <span class=comment>// from the intersection point.  It then adds up the inner angle of each of those triangles.
+</span>    <span class=comment>// If the angles together add up to 360 degrees (or 2 * PI in radians) then we are inside!
+</span>    <span class=comment>// If the angle is under that value, we must be outside of polygon.  To further
+</span>    <span class=comment>// understand why this works, take a pencil and draw a perfect triangle.  Draw a dot in
+</span>    <span class=comment>// the middle of the triangle.  Now, from that dot, draw a line to each of the vertices.
+</span>    <span class=comment>// Now, we have 3 triangles within that triangle right?  Now, we know that if we add up
+</span>    <span class=comment>// all of the angles in a triangle we get 180° right?  Well, that is kinda what we are doing,
+</span>    <span class=comment>// but the inverse of that.  Say your triangle is an equilateral triangle, so add up the angles
+</span>    <span class=comment>// and you will get 180° degree angles.  60 + 60 + 60 is 360°.
+</span>
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; verticeCount; i++) {
+
+        vA = makeVector(vPoly[i], vIntersectionPoint);
+
+        vB = makeVector(vPoly[(i + 1)%verticeCount], vIntersectionPoint);
+
+        angle += angleBetweenVectors(vA, vB);
+    }
+
+    <span class=comment>// Now that we have the total angles added up, we need to check if they add up to 360 degrees.
+</span>    <span class=comment>// Since we are using the dot product, we are working in radians, so we check if the angles
+</span>    <span class=comment>// equals 2*PI.  We defined PI in 3DMath.h.  You will notice that we use a MATCH_FACTOR
+</span>    <span class=comment>// in conjunction with our desired degree.  This is because of the inaccuracy when working
+</span>    <span class=comment>// with floating point numbers.  It usually won't always be perfectly 2 * PI, so we need
+</span>    <span class=comment>// to use a little twiddling.  I use .9999, but you can change this to fit your own desired accuracy.
+</span>    <span class=keyword>if</span>(angle &gt;= (MATCH_FACTOR * (2.0 * PI)))        <span class=comment>// If the angle is greater than 2 PI, (360 degrees)
+</span>        <span class=keyword>return</span> <span class=keyword>true</span>;                                <span class=comment>// The point is inside of the polygon
+</span>
+    <span class=keyword>return</span> <span class=keyword>false</span>;                                    <span class=comment>// If you get here, it obviously wasn't inside the polygon, so Return FALSE
+</span>}
+
+<span class=comment>//This returns the intersection point of the line that intersects the plane
+</span>CVector3 intersectionPoint(CVector3 vNormal, CVector3 vLine[], <span class=keyword>double</span> distance) {
+    
+    CVector3 vPoint = {0}, vLineDir = {0};
+    <span class=keyword>double</span> numerator = 0.0, denominator = 0.0, dist = 0.0;
+
+    <span class=comment>// Here comes the confusing part.  We need to find the 3D point that is actually
+</span>    <span class=comment>// on the plane.  Here are some steps to do that:
+</span>    
+    <span class=comment>// 1)  First we need to get the vector of our line, Then normalize it so it's a length of 1
+</span>    vLineDir = makeVector(vLine[1], vLine[0]);        <span class=comment>// Get the Vector of the line
+</span>    vLineDir = normalize(vLineDir);                    <span class=comment>// Normalize the lines vector
+</span>
+    <span class=comment>// 2) Use the plane equation (distance = Ax + By + Cz + D) to find the distance from one of our points to the plane.
+</span>    <span class=comment>//    Here I just chose a arbitrary point as the point to find that distance.  You notice we negate that
+</span>    <span class=comment>//    distance.  We negate the distance because we want to eventually go BACKWARDS from our point to the plane.
+</span>    <span class=comment>//    By doing this is will basically bring us back to the plane to find our intersection point.
+</span>    numerator = - (    vNormal.x * vLine[0].x + 
+                    vNormal.y * vLine[0].y + 
+                    vNormal.z * vLine[0].z + distance);
+
+    <span class=comment>// 3) If we take the dot product between our line vector and the normal of the polygon,
+</span>    <span class=comment>//    this will give us the cosine of the angle between the 2 (since they are both normalized i.e length 1).
+</span>    <span class=comment>//    We will then divide our Numerator by this value to find the offset towards the plane from our arbitrary point.
+</span>    denominator = dot(vNormal, vLineDir);            <span class=comment>// Get the dot product of the line's vector and the normal of the plane
+</span>
+    <span class=comment>// Since we are using division, we need to make sure we don't get a divide by zero error
+</span>    <span class=comment>// If we do get a 0, that means that there are INFINITE points because the the line is
+</span>    <span class=comment>// on the plane (the normal is perpendicular to the line - (Normal.Vector = 0)).  
+</span>    <span class=comment>// In this case, we should just return any point on the line.
+</span>
+    <span class=keyword>if</span>(denominator == 0.0)                            <span class=comment>// Check so we don't divide by zero
+</span>        <span class=keyword>return</span> vLine[0];                            <span class=comment>// Return an arbitrary point on the line
+</span>
+    <span class=comment>// We divide the (distance from the point to the plane) by (the dot product)
+</span>    <span class=comment>// to get the distance (dist) that we need to move from our arbitrary point.  We need
+</span>    <span class=comment>// to then times this distance (dist) by our line's vector (direction).  When you times
+</span>    <span class=comment>// a scalar (single number) by a vector you move along that vector.  That is what we are
+</span>    <span class=comment>// doing.  We are moving from our arbitrary point we chose from the line BACK to the plane
+</span>    <span class=comment>// along the lines vector.  It seems logical to just get the numerator, which is the distance
+</span>    <span class=comment>// from the point to the line, and then just move back that much along the line's vector.
+</span>    <span class=comment>// Well, the distance from the plane means the SHORTEST distance.  What about in the case that
+</span>    <span class=comment>// the line is almost parallel with the polygon, but doesn't actually intersect it until half
+</span>    <span class=comment>// way down the line's length.  The distance from the plane is short, but the distance from
+</span>    <span class=comment>// the actual intersection point is pretty long.  If we divide the distance by the dot product
+</span>    <span class=comment>// of our line vector and the normal of the plane, we get the correct length.  Cool huh?
+</span>
+    dist = numerator / denominator;                    <span class=comment>// Divide to get the multiplying (percentage) factor
+</span>
+    <span class=comment>// Now, like we said above, we times the dist by the vector, then add our arbitrary point.
+</span>    <span class=comment>// This essentially moves the point along the vector to a certain distance.  This now gives
+</span>    <span class=comment>// us the intersection point.  Yay!
+</span>
+    vPoint.x = (<span class=keyword>float</span>)(vLine[0].x + (vLineDir.x * dist));
+    vPoint.y = (<span class=keyword>float</span>)(vLine[0].y + (vLineDir.y * dist));
+    vPoint.z = (<span class=keyword>float</span>)(vLine[0].z + (vLineDir.z * dist));
+
+    <span class=keyword>return</span> vPoint;
+    <span class=comment>/*
+                                                  (A)vLine[0]
+                                                .  |
+                                            .   (*)|
+                                  H        .           |
+                                    .               |  dY ==&gt; numerator(Shortest distance of point vLine[0] form the Plane)
+                                .                   |
+                            .                       |
+                        .                            |
+    _______________(P)___________________________(0)__________________________________PLANE
+                .                dX    
+            .
+        .
+    (B)vLine[1]    
+        
+    The Line (A - B) intersects the Plane at point P. 
+    
+    since
+            cos(*) = dY / H;
+        ie, adjacentSide / Hypotenuse = dY / H;
+        ie, normalized(planeNormal) / normalized(lineDirection) = dY / H;
+        ie, denominator = dY / H;
+            
+    Therefore,
+        ie, H = dY / cos(THETA);
+        ie, H = numerator / denominator
+        ie, H = (Shortest distance of the point from the Plane) / (angle between the LINE vector and the PLANE NORMAL);
+
+    hence, 
+        P(x) = A(x) + vLineDir(x)*H
+        P(y) = A(y) + vLineDir(y)*H
+        P(z) = A(z) + vLineDir(z)*H
+
+        here,    vLineDir can be thought of as the SLOPE of a line as in 2D space.
+    */</span>
+}
+
+<span class=comment>//This checks if a line is intersecting a polygon
+</span><span class=keyword>bool</span> intersectedPolygon(CVector3 vPoly[], CVector3 vLine[], <span class=keyword>int</span> verticeCount) {
+    
+    CVector3 vNormal = {0};
+    <span class=keyword>float</span> originDistance = 0;
+
+    <span class=comment>// First we check to see if our line intersected the plane.  If this isn't true
+</span>    <span class=comment>// there is no need to go on, so return false immediately.
+</span>    <span class=comment>// We pass in address of vNormal and originDistance so we only calculate it once
+</span>    <span class=keyword>if</span>(!intersectedPlane(vPoly, vLine, vNormal,    originDistance))
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    <span class=comment>// Now that we have our normal and distance passed back from IntersectedPlane(), 
+</span>    <span class=comment>// we can use it to calculate the intersection point.  The intersection point
+</span>    <span class=comment>// is the point that actually is ON the plane.  It is between the line.  We need
+</span>    <span class=comment>// this point test next, if we are inside the polygon.  To get the I-Point, we
+</span>    <span class=comment>// give our function the normal of the plan, the points of the line, and the originDistance.
+</span>    CVector3 vIntersectionPoint = intersectionPoint(vNormal, vLine, originDistance);
+
+    <span class=comment>// Now that we have the intersection point, we need to test if it's inside the polygon.
+</span>    <span class=comment>// To do this, we pass in :
+</span>    <span class=comment>// (our intersection point, the polygon, and the number of vertices our polygon has)
+</span>    <span class=keyword>if</span>(isPointInsidePolygon(vIntersectionPoint, vPoly, verticeCount))
+        <span class=keyword>return</span> <span class=keyword>true</span>;                <span class=comment>// We collided!      Return success
+</span>
+    <span class=comment>// If we get here, we must have NOT collided
+</span>    <span class=keyword>return</span> <span class=keyword>false</span>;                    <span class=comment>// There was no collision, so return false
+</span>    
+    
+
+}
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+</pre></body>
+</html>

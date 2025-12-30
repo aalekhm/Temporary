@@ -1,0 +1,150 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\CocosPopupView.cpp" />
+    <ClCompile Include="src\CocosSceneGenericPopup.cpp" />
+    <ClCompile Include="src\CocosSceneManager.cpp" />
+    <ClCompile Include="src\CocosSceneUtils.cpp" />
+    <ClCompile Include="src\CocosView.cpp" />
+    <ClCompile Include="src\GameMessaging.cpp" />
+    <ClCompile Include="src\GameTimeController.cpp" />
+    <ClCompile Include="src\ICocosViewLifeCycle.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\CocosCustomDefines.h" />
+    <ClInclude Include="include\CocosPopupView.h" />
+    <ClInclude Include="include\CocosSceneGenericPopup.h" />
+    <ClInclude Include="include\CocosSceneManager.h" />
+    <ClInclude Include="include\CocosSceneUtils.h" />
+    <ClInclude Include="include\CocosView.h" />
+    <ClInclude Include="include\CocosViewDefines.h" />
+    <ClInclude Include="include\GameMessaging.h" />
+    <ClInclude Include="include\GameTimeController.h" />
+    <ClInclude Include="include\ICocosReader.h" />
+    <ClInclude Include="include\ICocosViewLifeCycle.h" />
+    <ClInclude Include="include\json.hpp" />
+    <ClInclude Include="include\Singleton.h" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{C9D65119-3CC8-401A-9DD5-8F4C1F86FAC3}</ProjectGuid>
+    <RootNamespace>Cocos2DSceneManager</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LibraryPath>$(SolutionDir)external-deps\Cocos2d\lib;$(SolutionDir)external-deps\glfw3\prebuilt\win32;$(SolutionDir)external-deps\win32-specific\gles\prebuilt;$(SolutionDir)external-deps\png\prebuilt\win32;$(SolutionDir)external-deps\jpeg\prebuilt\win32;$(SolutionDir)external-deps\curl\prebuilt\win32;$(SolutionDir)external-deps\freetype2\prebuilt\win32;$(SolutionDir)external-deps\bullet\prebuilt\win32\$(Configuration);$(SolutionDir)external-deps\win32-specific\gles;$(SolutionDir)external-deps\win32-specific\zlib\prebuilt;$(SolutionDir)external-deps\webp\prebuilt\win32;$(SolutionDir)external-deps\glew;$(SolutionDir)external-deps\chipmunk\prebuilt\win32\$(Configuration)-lib;$(SolutionDir)external-deps\win32-specific\OpenalSoft\prebuilt;$(SolutionDir)external-deps\win32-specific\OggDecoder\prebuilt;$(SolutionDir)external-deps\win32-specific\MP3Decoder\prebuilt;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)external-deps\Cocos2D\include\cocos\reader;$(ProjectDir)include;$(SolutionDir)external-deps\Cocos2D\include\cocos;$(SolutionDir)external-deps\Cocos2D\include\external;$(SolutionDir)external-deps\Cocos2D\include\extensions;$(SolutionDir)external-deps\Cocos2D\include\cocos\editor-support\cocostudio;$(SolutionDir)external-deps\Cocos2D\include\cocos\platform;$(SolutionDir)external-deps\Cocos2D\include\external\freetype2\include\win32\freetype2;$(SolutionDir)external-deps\Cocos2D\include\external\win32-specific\gles\include\OGLES;$(SolutionDir)external-deps\Cocos2D\include\external\win32-specific\icon\include;$(SolutionDir)external-deps\Cocos2D\include\external\win32-specific\MP3Decoder\include;$(SolutionDir)external-deps\Cocos2D\include\external\win32-specific\OggDecoder\include;$(SolutionDir)external-deps\Cocos2D\include\xternal\win32-specific\OpenalSoft\include;$(SolutionDir)external-deps\Cocos2D\include\external\win32-specific\OpenalSoft\include;$(SolutionDir)external-deps\Cocos2D\include\external\tinyxml2;$(SolutionDir)external-deps\Cocos2D\include\external\win32-specific\zlib\include;$(SolutionDir)external-deps\Cocos2D\include;$(SolutionDir)external-deps\Cocos2D\include\external\curl\include\win32;$(SolutionDir)external-deps\Cocos2D\include\external\websockets\include\win32;$(SolutionDir)external-deps\Cocos2D\include\external\glfw3\include\win32;$(SolutionDir)external-deps\Cocos2D\include\external\uv\include;$(SolutionDir)external-deps\Cocos2D\include\external\openssl\include\win32;$(SolutionDir)external-deps\Cocos2D\include\external\png\include\win32;$(SolutionDir)external-deps\Cocos2D\include\external\jpeg\include\win32;$(SolutionDir)external-deps\Cocos2D\include\external\lua\luajit\include;$(SolutionDir)external-deps\Cocos2D\include\cocos\editor-support;$(SolutionDir)external-deps\Cocos2D\include\external\chipmunk\include;$(SolutionDir)external-deps\Cocos2D\include\external\bullet\include;$(SolutionDir)external-deps\Cocos2D\include\external\bullet\include\bullet;$(SolutionDir)external-deps\Cocos2D\include\external\xxtea;$(SolutionDir)external-deps\Cocos2D\include\external\xxhash;$(SolutionDir)external-deps\Cocos2D\include\external\edtaa3func;$(SolutionDir)external-deps\Cocos2D\include\external\ConvertUTF;$(SolutionDir)external-deps\Cocos2D\include\external\unzip;$(SolutionDir)external-deps\Cocos2D\include\cocos\3d;$(SolutionDir)external-deps\Cocos2D\include\external\webp\include\win32</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;STRICT;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS_DEBUG;COCOS2D_DEBUG=1;_WINSOCK_DEPRECATED_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>libogg.lib;libvorbis.lib;libvorbisfile.lib;libmpg123.lib;OpenAL32.lib;Ws2_32.lib;opengl32.lib;glew32.lib;libwebp.lib;libzlib.lib;libbullet.lib;libcurl.lib;freetype.lib;libjpeg.lib;libpng.lib;glfw3.lib;libchipmunk.lib;Cocos2D.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <Lib>
+      <OutputFile>$(OutDir)$(TargetName)_d$(TargetExt)</OutputFile>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,1067 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>//
+</span><span class=comment>// In this tutorial we build from our past terrain tutorials to bring you a
+</span><span class=comment>// neat effect that can be summed up in 1 word, &quot;sweeeet&quot;.  Volumetric fog
+</span><span class=comment>// is used in many popular games, include Quake.  This technique allows you to
+</span><span class=comment>// specify a bounding volume that only will have fog.  In many game levels you
+</span><span class=comment>// will notice that large endless &quot;pits of death&quot; use this effect.  We are going
+</span><span class=comment>// to use this to apply to our terrain.  It gives our scene a nice morning look.
+</span><span class=comment>// Of course the huge bright sun might destroy that morning look, but you can
+</span><span class=comment>// just imagine that it just came out :)
+</span><span class=comment>// 
+</span><span class=comment>// The thought of creating volumetric fog might at first seem scary and complicated,
+</span><span class=comment>// but in fact it's as easy at applying a texture map with glTexCoord2*() functions.
+</span><span class=comment>// Since we will be using OpenGL's hardware fog and not our own 2 pass/blend technique,
+</span><span class=comment>// we will need to load an extension: &quot;glFogCoordfEXT&quot;.  This will be done upon
+</span><span class=comment>// initialization of our program, right after the multitexture extensions are loaded.
+</span><span class=comment>// Some video cards might not support this feature, like the Voodoo* cards.  If you
+</span><span class=comment>// find yourself in this predicament, just use vertex coloring to fake it.
+</span><span class=comment>//
+</span><span class=comment>// It is assumed that you have read through the &quot;Fog&quot; tutorial, since we will be
+</span><span class=comment>// using the standard fog function.  If not, you can still easily follow along, as
+</span><span class=comment>// the functions are self explanatory.
+</span><span class=comment>//
+</span><span class=comment>// To apply volumetric fog, the steps are simple.  First you want to initialize the
+</span><span class=comment>// fog like normal, then you will set a new property using glFogi() with the new
+</span><span class=comment>// defines listed in main.h, then just call glFogCoordfEXT() with a depth value
+</span><span class=comment>// before each vertex that should have fog.  If you pass in a 0 it should ignore
+</span><span class=comment>// the fog.  The higher the value the more dense the fog.
+</span><span class=comment>//
+</span><span class=comment>// Currently, the fog doesn't change when the camera moves.  To make it more realistic
+</span><span class=comment>// you might want to try and come up with a ratio that will change the GL_FOG_END value
+</span><span class=comment>// depending on the y position of the camera.  If the camera is above or in the fog, you
+</span><span class=comment>// would want to change the fog's density.
+</span><span class=comment>//
+</span><span class=comment>//
+</span>
+<span class=comment>// This is our fog extension function pointer to set a vertice's depth
+</span>PFNGLFOGCOORDFEXTPROC    glFogCoordfEXT = NULL;
+
+<span class=comment>// This stores the desired depth that we want to fog
+</span><span class=keyword>float</span> g_FogDepth = 50.0f;
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>// Our function pointers for the ARB multitexturing functions
+</span>PFNGLMULTITEXCOORD2FARBPROC            glMultiTexCoord2fARB    = NULL;
+PFNGLACTIVETEXTUREARBPROC            glActiveTextureARB        = NULL;
+
+<span class=comment>// This controls if we have detail texturing on or off
+</span><span class=keyword>bool</span> bDetail    = <span class=keyword>true</span>;
+
+<span class=comment>// This handles the current scale for the texture matrix for the detail texture
+</span><span class=keyword>int</span> iDetailScale = 16;
+<span class=keyword>int</span> TILING_MODE = TILE_MODE_SCALING;
+<span class=keyword>bool</span> spacePressed, tPressed;
+
+<span class=comment>// This holds the height map data
+</span>BYTE gHeightMap[MAP_SIZE*MAP_SIZE];
+
+HDC            mHDC        = NULL;            <span class=comment>// Private GDI Device Context
+</span>HGLRC        mHRC        = NULL;            <span class=comment>// Permanent Rendering Context
+</span>HWND        mHWnd        = NULL;            <span class=comment>// Holds Our Window Handle
+</span>HINSTANCE    mHInstance;                    <span class=comment>// Holds The Instance Of The Application
+</span>
+<span class=keyword>bool</span>        mKeys[256];                    <span class=comment>// Array Used For The Keyboard Routine
+</span><span class=keyword>bool</span>        mKeysPressed[256];                    <span class=comment>// Array Used For The Keyboard Routine
+</span><span class=keyword>bool</span>        mActive = <span class=keyword>false</span>;            <span class=comment>// Window Active Flag
+</span><span class=keyword>bool</span>        mFULLSCREEN = <span class=keyword>true</span>;            <span class=comment>// Fullscreen Flag Set To TRUE By Default
+</span><span class=keyword>bool</span>        L_MOUSE_DOWN = <span class=keyword>false</span>;
+<span class=keyword>bool</span>        R_MOUSE_DOWN = <span class=keyword>false</span>;
+
+<span class=keyword>int</span> curTexture = 0, maxTextures;
+GLuint* textures = {0};
+GLuint fontList;
+<span class=keyword>static</span> <span class=keyword>float</span> FPS;
+<span class=keyword>char</span> debugString[255] = {0};
+
+<span class=keyword>int</span> glViewMode = GL_TRIANGLES;
+<span class=keyword>float</span> rotateFaceY = 0.0;
+
+<span class=keyword>bool</span> g_RenderMode = <span class=keyword>false</span>;
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+GL<span class=keyword>void</span>    resizeGLScene(GLsizei width, GLsizei height);
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>);
+<span class=keyword>int</span> drawGLScene(GL<span class=keyword>void</span>);
+GL<span class=keyword>void</span> killGLWindow(GL<span class=keyword>void</span>);
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen);
+
+CCamera camera;
+
+<span class=keyword>void</span> handleKeyboard(<span class=keyword>void</span>) {
+    <span class=keyword>if</span>(mKeys[VK_F1]) {
+        mKeys[VK_F1] = <span class=keyword>false</span>;
+        killGLWindow();
+        mFULLSCREEN = !mFULLSCREEN;
+        <span class=keyword>if</span>(!createGLWindow(&quot;openGL window&quot;, 640, 480, 16, mFULLSCREEN)) {
+            <span class=keyword>return</span>;
+        }
+    }
+
+    <span class=keyword>if</span>(mKeys[VK_ADD]) {                            <span class=comment>// Check if we hit the + key
+</span>        g_FogDepth += 1;                        <span class=comment>// Increase the fog height
+</span>        <span class=keyword>if</span>(g_FogDepth &gt; 200)                    <span class=comment>// Make sure we don't go past 200
+</span>            g_FogDepth = 200;
+    }
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(mKeys[VK_SUBTRACT]) {                    <span class=comment>// Check if we hit the + key
+</span>        g_FogDepth -= 1;                        <span class=comment>// Increase the fog height
+</span>        <span class=keyword>if</span>(g_FogDepth &lt; 0)                    <span class=comment>// Make sure we don't go past 200
+</span>            g_FogDepth = 0;
+    }
+    
+    <span class=keyword>if</span>(mKeys[' ']) {
+        <span class=keyword>if</span>(!mKeysPressed[' ']) {
+            mKeysPressed[' '] = <span class=keyword>true</span>;
+
+            <span class=comment>// To get a few different ideas of what a detail texture
+</span>            <span class=comment>// could look like, we want to change it's scale value.
+</span>            
+            <span class=comment>// Times the current scale value by 2 and loop when it get's to 128
+</span>            iDetailScale = (iDetailScale * 2) % 128;
+
+            <span class=comment>// If the scale value is 0, set it to 1 again
+</span>            <span class=keyword>if</span>(iDetailScale == 0)
+                iDetailScale = 1;
+            
+            <span class=comment>//JUMP
+</span>            <span class=comment>//if(TRAMP &lt;= 0)
+</span>            <span class=comment>//    TRAMP = GRAVITY*5;
+</span>        }
+    }
+    <span class=keyword>else</span> {
+        mKeysPressed[' '] = <span class=keyword>false</span>;
+    }
+    
+    <span class=keyword>if</span>(mKeys['T']) {
+        <span class=keyword>if</span>(!mKeysPressed['T']) {
+            mKeysPressed['T'] = <span class=keyword>true</span>;
+
+            TILING_MODE = TILE_MODE_SCALING - TILING_MODE;
+            iDetailScale = 1;
+        }
+    }
+    <span class=keyword>else</span> {
+        mKeysPressed['T'] = <span class=keyword>false</span>;
+    }
+
+    <span class=keyword>if</span>(mKeys[17]) {
+        CROUCH = <span class=keyword>true</span>;
+    }
+    <span class=keyword>else</span>
+        CROUCH = <span class=keyword>false</span>;
+}
+
+<span class=keyword>bool</span> bitmapLoader(LPCSTR fileName, GLuint textureID) {
+    HBITMAP hBMP;
+    BITMAP BMP;
+
+    hBMP = (HBITMAP)LoadImage(GetModuleHandle(NULL), fileName, IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION | LR_LOADFROMFILE);
+
+    <span class=keyword>if</span>(!hBMP)
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+
+    GetObject(hBMP, <span class=keyword>sizeof</span>(BMP), &amp;BMP);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, BMP.bmWidth, BMP.bmHeight, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, BMP.bmBits);
+<span class=comment>/*
+char sCurText[255];
+sprintf(sCurText, &quot;%s = %d x %d&quot;, fileName, BMP.bmWidth, BMP.bmHeight);
+MessageBox(NULL, sCurText, &quot;W x H&quot;, MB_OK);
+//*/</span>
+    DeleteObject(hBMP);
+
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+<span class=keyword>int</span> WINAPI WinMain(    HINSTANCE    hInstance, 
+                    HINSTANCE    hPrevInstance,
+                    LPSTR        lpCmdLine,
+                    <span class=keyword>int</span>            nCmdShow
+) {
+    MSG        msg;
+    <span class=keyword>bool</span>    done = <span class=keyword>false</span>;
+
+    <span class=comment>//if(MessageBox(NULL, &quot;Would you like to run in FULLSCREEN mode?&quot;, &quot;Start FullScreen&quot;, MB_YESNO) == IDNO)
+</span>        mFULLSCREEN = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(!createGLWindow(&quot;openGL Window...Press F1 to toogle between windowed &amp; Fullscreen Mode.&quot;, 640, 480, 16, mFULLSCREEN))
+        <span class=keyword>return</span> 0;
+
+    <span class=keyword>while</span>(!done) {
+        <span class=keyword>if</span>(PeekMessage(&amp;msg, NULL, 0, 0, PM_REMOVE)) {
+            <span class=keyword>if</span>(msg.message == WM_QUIT)
+                done = <span class=keyword>true</span>;
+            <span class=keyword>else</span>  {
+                TranslateMessage(&amp;msg);
+                DispatchMessage(&amp;msg);
+            }
+        }
+        <span class=keyword>else</span> {
+            <span class=keyword>if</span>(mActive) {
+                <span class=keyword>if</span>(mKeys[VK_ESCAPE])
+                    done = <span class=keyword>true</span>;
+                <span class=keyword>else</span> {
+                    camera.updateCamera();
+                    handleKeyboard();
+
+                    drawGLScene();
+                    SwapBuffers(mHDC);
+                }
+            }
+
+        }
+    }
+
+    killGLWindow();
+    <span class=keyword>return</span> msg.wParam;
+}
+
+<span class=keyword>bool</span> createGLWindow(<span class=keyword>char</span>* title, <span class=keyword>int</span> width, <span class=keyword>int</span> height, <span class=keyword>int</span> bits, <span class=keyword>bool</span> isFullScreen) {
+    <span class=keyword>int</span>            iPixelFormat;
+    WNDCLASS    wc;
+    DWORD        dwExStyle;
+    DWORD        dwStyle;
+    RECT        windowRect;
+
+    windowRect.left        = (<span class=keyword>long</span>)0;
+    windowRect.right    = (<span class=keyword>long</span>)width;
+    windowRect.top        = (<span class=keyword>long</span>)0;
+    windowRect.bottom    = (<span class=keyword>long</span>)height;
+
+    mFULLSCREEN = isFullScreen;
+
+    mHInstance            = GetModuleHandle(NULL);
+    
+    wc.cbClsExtra        = 0;
+    wc.cbWndExtra        = 0;
+    wc.hbrBackground    = NULL;
+    wc.hCursor            = LoadCursor(NULL, IDC_ARROW);
+    wc.hIcon            = LoadIcon(NULL, IDI_WINLOGO);
+    wc.hInstance        = mHInstance;
+    wc.lpfnWndProc        = (WNDPROC) WndProc;
+    wc.lpszClassName    = &quot;OpenGL&quot;;
+    wc.lpszMenuName        = NULL;
+    wc.style            = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    
+    <span class=keyword>if</span>(!RegisterClass(&amp;wc)) {
+        MessageBox(NULL, &quot;Failed to Register the Window Class.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;
+    }
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        DEVMODE    dmScreenSettings;
+        memset(&amp;dmScreenSettings, 0, <span class=keyword>sizeof</span>(dmScreenSettings));
+        dmScreenSettings.dmSize            = <span class=keyword>sizeof</span>(dmScreenSettings);
+        dmScreenSettings.dmPelsWidth    = width;
+        dmScreenSettings.dmPelsHeight    = height;
+        dmScreenSettings.dmBitsPerPel    = bits;
+        dmScreenSettings.dmFields        = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+
+        <span class=keyword>if</span>(ChangeDisplaySettings(&amp;dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+            <span class=keyword>if</span>(MessageBox(NULL, &quot;The requested FullScreen Mode is not supported\n by your Video Card. Use Windowed Mode instead?&quot;, &quot;Error&quot;, MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+                mFULLSCREEN = <span class=keyword>false</span>;
+            <span class=keyword>else</span> {
+                MessageBox(NULL, &quot;Program will now close.&quot;, &quot;ERROR&quot;, MB_OK | MB_ICONSTOP);
+                <span class=keyword>return</span> <span class=keyword>false</span>;
+            }
+        }
+    }
+    
+    ShowCursor(!<span class=keyword>false</span>);
+
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        dwExStyle    = WS_EX_APPWINDOW;
+        dwStyle        = WS_POPUP;
+    }
+    <span class=keyword>else</span> {
+        dwExStyle    = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+        dwStyle        = WS_OVERLAPPEDWINDOW;
+    }
+
+    AdjustWindowRectEx(&amp;windowRect, dwStyle, <span class=keyword>false</span>, dwExStyle);
+
+    <span class=keyword>if</span>(!(mHWnd = CreateWindowEx(    dwExStyle,
+                                &quot;OpenGL&quot;,
+                                title,
+                                dwStyle | 
+                                WS_CLIPSIBLINGS |
+                                WS_CLIPCHILDREN,
+                                0, 0,
+                                windowRect.right - windowRect.left,
+                                windowRect.bottom - windowRect.top,
+                                NULL,
+                                NULL,
+                                mHInstance,
+                                NULL))
+    ) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHDC = GetDC(mHWnd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to get Device Context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>static</span> PIXELFORMATDESCRIPTOR pfd = 
+    {
+        <span class=keyword>sizeof</span>(PIXELFORMATDESCRIPTOR),
+        1,
+        PFD_DRAW_TO_WINDOW |
+        PFD_SUPPORT_OPENGL |
+        PFD_DOUBLEBUFFER,
+        PFD_TYPE_RGBA,
+        bits,
+        0, 0, 0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0, 0, 0, 0,
+        16,
+        0,
+        0,
+        PFD_MAIN_PLANE,
+        0,
+        0, 0, 0
+    };
+
+    <span class=keyword>if</span>(!(iPixelFormat = ChoosePixelFormat(mHDC, &amp;pfd))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to choose Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!SetPixelFormat(mHDC, iPixelFormat, &amp;pfd)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to set Pixel format.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!(mHRC = wglCreateContext(mHDC))) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to create wgl context.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+
+    <span class=keyword>if</span>(!wglMakeCurrent(mHDC, mHRC)) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Unable to make wgl context&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+                                
+    ShowWindow(mHWnd, <span class=keyword>true</span>);
+    SetForegroundWindow(mHWnd);
+    SetFocus(mHWnd);
+
+    resizeGLScene(width, height);
+
+    <span class=keyword>if</span>(!initGL()) {
+        killGLWindow();                                <span class=comment>// Reset The Display
+</span>        MessageBox(NULL,&quot;Window Creation Error.&quot;,&quot;ERROR&quot;,MB_OK|MB_ICONEXCLAMATION);
+        <span class=keyword>return</span> <span class=keyword>false</span>;                                <span class=comment>// Return FALSE
+</span>    }
+    
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> resizeGLScene(GLsizei width, GLsizei height) {
+    <span class=keyword>if</span>(height == 0)
+        height = 1;
+
+    glViewport(0, 0, width, height);
+    
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(45.0f, (GL<span class=keyword>float</span>)width/(GL<span class=keyword>float</span>)height, 0.001f, 2500.0f);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+}
+
+<span class=keyword>void</span> buildFont(<span class=keyword>void</span>) {
+    fontList = glGenLists(256);
+    glBindTexture(GL_TEXTURE_2D, textures[TEX_ID_FONT]);
+    
+    <span class=keyword>float</span> cx, cy;
+    <span class=keyword>int</span> MAX_CHARS_ON_X = 16;
+    <span class=keyword>float</span> ONE_CHAR_WIDTH = 1/16.0f;
+
+
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; 256; i++) {
+        cx = (<span class=keyword>float</span>)(i%16)/16.0f;
+        cy = (<span class=keyword>float</span>)(i/16)/16.0f;
+
+        glNewList(fontList + i, GL_COMPILE);
+            glBegin(GL_QUADS);
+                glTexCoord2f(cx, 1 - cy - ONE_CHAR_WIDTH);
+                glVertex2i(0, 0);
+
+                glTexCoord2f(cx + ONE_CHAR_WIDTH, 1 - cy - ONE_CHAR_WIDTH);
+                glVertex2i(8, 0);
+
+                glTexCoord2f(cx + ONE_CHAR_WIDTH, 1 - cy);
+                glVertex2i(8, 8);
+
+                glTexCoord2f(cx, 1 - cy);
+                glVertex2i(0, 8);
+            glEnd();
+            
+            <span class=comment>//Later Translate it to the actual character width rather than a fixed 16 for all...
+</span>            glTranslated(8, 0, 0);
+        glEndList();
+    }
+}
+
+<span class=keyword>void</span> glPrint(<span class=keyword>int</span> x, <span class=keyword>int</span> y, <span class=keyword>const</span> <span class=keyword>char</span>* format, ...) {
+    <span class=comment>/***** Extract Text *****/</span>
+    <span class=keyword>char</span> text[256];
+    va_list ap;
+
+    <span class=keyword>if</span>(format == NULL)
+        <span class=keyword>return</span>;
+
+    va_start(ap, format);
+        vsprintf(text, format, ap);
+    va_end(ap);
+    <span class=comment>/***********************/</span>
+    
+    <span class=comment>/*** Bind Font Texture ***/</span>
+    glBindTexture(GL_TEXTURE_2D, textures[TEX_ID_FONT]);
+    
+    <span class=comment>/*** Disable Depth testing ***/</span>
+    glDisable(GL_DEPTH_TEST);
+    
+    <span class=comment>/*** Save PROJECTION MATRIX &amp; set it to ORTHOGONAL Projection ***/</span>
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT, -1, 1);
+    
+    <span class=comment>/*** Save MODELVIEW MATRIX ***/</span>
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    
+    <span class=comment>/*** Enable BLENDING to remove the black from the FONT borders ***/</span>
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    
+    <span class=comment>/*** Set font PRINT position ***/</span>
+    glTranslated(x, y, 0);
+    
+    <span class=comment>/*** Set FONT start &amp; PRINT the entite TEXT ***/</span>
+    glListBase(fontList - 32);
+    glCallLists(strlen(text), GL_UNSIGNED_BYTE, text);
+    
+    <span class=comment>/*** Disable BLENDING ***/</span>
+    glDisable(GL_BLEND);
+    
+    <span class=comment>/*** Revert back Original PROJECTION MATRIX ***/</span>
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    
+    <span class=comment>/*** Revert back Original MODELVIEW MATRIX ***/</span>
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    
+    <span class=comment>/*** Enable DEPTH TEST ***/</span>
+    glEnable(GL_DEPTH_TEST);
+}
+
+<span class=keyword>void</span> readStr(FILE* f, <span class=keyword>char</span>* string) {
+    <span class=keyword>do</span> {
+        fgets(string, 255, f);
+    } <span class=keyword>while</span>( (string[0] == '/') || (string[0] == '\n') );
+}
+
+<span class=keyword>typedef</span> <span class=keyword>struct</span> tagVertex {
+    <span class=keyword>float</span> x, y, z;
+}VERTEX;
+
+<span class=keyword>typedef</span> <span class=keyword>struct</span> tagFace {
+    <span class=keyword>int</span> vertexID[4];
+    <span class=comment>//int vertex1;
+</span>    <span class=comment>//int vertex2;
+</span>    <span class=comment>//int vertex3;
+</span>
+    <span class=keyword>float</span> u;
+    <span class=keyword>float</span> v;
+
+    <span class=keyword>int</span> WALL_ID;
+}FACE;
+
+<span class=keyword>typedef</span> <span class=keyword>struct</span> tagScene {
+    <span class=keyword>int</span> maxVertices;
+    VERTEX* vertices;
+
+    <span class=keyword>int</span> maxFaces;
+    FACE* faces;
+}SCENE;
+
+SCENE scene;
+
+<span class=keyword>int</span> getWallID(<span class=keyword>char</span>* WALL_ID) {
+    <span class=keyword>if</span>(strcmp(WALL_ID, &quot;WALL&quot;) == 0)
+        <span class=keyword>return</span> TEX_ID_WALL;
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(strcmp(WALL_ID, &quot;FLOOR&quot;) == 0)
+        <span class=keyword>return</span> TEX_ID_FLOOR;
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(strcmp(WALL_ID, &quot;CEILING&quot;) == 0)
+        <span class=keyword>return</span> TEX_ID_CEILING;
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(strcmp(WALL_ID, &quot;ROOMWALL&quot;) == 0)
+        <span class=keyword>return</span> TEX_ID_ROOMWALL;
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(strcmp(WALL_ID, &quot;ROOMFLOOR&quot;) == 0)
+        <span class=keyword>return</span> TEX_ID_ROOMFLOOR;
+    <span class=keyword>else</span>
+    <span class=keyword>if</span>(strcmp(WALL_ID, &quot;ROOMCEILING&quot;) == 0)
+        <span class=keyword>return</span> TEX_ID_ROOMCEILING;
+    
+    <span class=keyword>return</span> 0;
+}
+
+<span class=keyword>void</span> readMap(<span class=keyword>char</span>* filePathAndName) {
+    <span class=keyword>char</span> singleLine[255] = &quot;&quot;;
+    FILE* filePtr = fopen(filePathAndName, &quot;rt&quot;);
+    
+    <span class=keyword>int</span> maxTextures = 0;
+    readStr(filePtr, singleLine);
+    sscanf(singleLine, &quot;MAX_TEXTURES %d\n&quot;, &amp;maxTextures);
+    
+    textures = <span class=keyword>new</span> GLuint[MAX_TEXTURES];
+    glGenTextures(MAX_TEXTURES, &amp;textures[0]);
+
+    <span class=keyword>char</span> textureID[255] = &quot;&quot;;
+    <span class=keyword>char</span> textureName[255] = &quot;&quot;;
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; maxTextures; i++) {
+        readStr(filePtr, singleLine);
+        sscanf(singleLine, &quot;%s %s\n&quot;, &amp;textureID, &amp;textureName);
+        
+        bitmapLoader(textureName, textures[i]);
+
+        <span class=comment>//MessageBox(NULL, textureID, textureName, MB_OK);
+</span>    }
+    buildFont();
+
+    <span class=keyword>int</span> maxVertices = 0;
+    <span class=keyword>float</span> x, y, z;
+    readStr(filePtr, singleLine);
+    sscanf(singleLine, &quot;MAX_VERTICES %d\n&quot;, &amp;maxVertices);
+    scene.maxVertices = maxVertices;
+    scene.vertices = <span class=keyword>new</span> VERTEX[maxVertices];
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; maxVertices; i++) {
+        readStr(filePtr, singleLine);
+        sscanf(singleLine, &quot;%f %f %f\n&quot;, &amp;x, &amp;y, &amp;z);
+
+        scene.vertices[i].x = x;
+        scene.vertices[i].y = y;
+        scene.vertices[i].z = z;
+    }
+
+    <span class=keyword>int</span> maxFaces = 0;
+    <span class=keyword>int</span> v0, v1, v2, v3;
+    <span class=keyword>float</span> u, v;
+    <span class=keyword>char</span> WALL_ID[255];
+    readStr(filePtr, singleLine);
+    sscanf(singleLine, &quot;MAX_FACES %d\n&quot;, &amp;maxFaces);
+    scene.maxFaces = maxFaces;
+    scene.faces = <span class=keyword>new</span> FACE[maxFaces];
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; maxFaces; i++) {
+        readStr(filePtr, singleLine);
+        sscanf(singleLine, &quot;%d %d %d %d %f %f %s\n&quot;, &amp;v0, &amp;v1, &amp;v2, &amp;v3, &amp;u, &amp;v, &amp;WALL_ID);
+        
+        scene.faces[i].vertexID[0] = v0;
+        scene.faces[i].vertexID[1] = v1;
+        scene.faces[i].vertexID[2] = v2;
+        scene.faces[i].vertexID[3] = v3;
+
+        scene.faces[i].u = u;
+        scene.faces[i].v = v;
+        scene.faces[i].WALL_ID = getWallID(WALL_ID);
+        <span class=comment>//MessageBox(NULL, WALL_ID, WALL_ID, MB_OK);
+</span>    }
+}
+
+<span class=keyword>int</span> initGL(GL<span class=keyword>void</span>) {
+    camera = CCamera(    CVector3(0.0f, 0.0f, -1.0f),
+                        CVector3(1.0f, 0.0f,  0.0f),
+                        CVector3(0.0f, 1.0f,  0.0f)
+                    );
+    camera.setPosition(CVector3(880, 257, 1027));
+
+    <span class=comment>//glEnable(GL_LIGHTING);
+</span>    <span class=comment>//glEnable(GL_LIGHT0);
+</span>    glEnable(GL_COLOR_MATERIAL);                        <span class=comment>// Allow color
+</span>    
+    <span class=comment>///////////////////////////////////
+</span>    glEnable(GL_TEXTURE_2D);
+    readMap(&quot;data/map.txt&quot;);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+    <span class=comment>// If we have loaded the mulitextures correctly, then we can now test to see
+</span>    <span class=comment>// if the video card supports hardware accelerated fog.  We do the same things
+</span>    <span class=comment>// for every extension.  First we tell wglGetProcAddress() which extension
+</span>    <span class=comment>// we want, which then returns a function pointer.  Afterwards, the function
+</span>    <span class=comment>// pointer is checked to make sure the current video card drivers or setup
+</span>    <span class=comment>// support it.
+</span>
+    <span class=comment>// Find the correct function pointer that houses the fog coordinate function
+</span>    glFogCoordfEXT = (PFNGLFOGCOORDFEXTPROC) wglGetProcAddress(&quot;glFogCoordfEXT&quot;);
+    <span class=comment>// Before trying to use this function pointer, we need to make sure it was
+</span>    <span class=comment>// given a valid address.  If not, then we need to quit because something is wrong.
+</span>    <span class=keyword>if</span>(!glFogCoordfEXT) {
+        <span class=comment>// Print an error message and quit.
+</span>        MessageBox(NULL, &quot;Your current setup does not support volumetric fog&quot;, &quot;Error&quot;, MB_OK);
+        PostQuitMessage(0);
+    }
+
+    <span class=comment>// It is assumed that by getting here, we should be able to do volumetric fog
+</span>    <span class=comment>// with this video card.  Now comes the setup and initialization.  Just like
+</span>    <span class=comment>// when we create normal fog, we need to turn on GL_FOG, give a fog color,
+</span>    <span class=comment>// as well as give the start and end distance for the thickness of the fog.
+</span>    <span class=comment>// The new information that will need to be given will be to glFogi().
+</span>    <span class=comment>// The new flags we defined tell OpenGL that we want per vertex fog.
+</span>    <span class=comment>// Notice that we don't use GL_FOG_DENSITY.  It doesn't seem to have any effect.
+</span>
+    <span class=comment>// Pick a tan color for our fog with a full alpha
+</span>    <span class=keyword>float</span> fogColour[4] = {0.8f, 0.8f, 0.8f, 1.0f};
+
+    glEnable(GL_FOG);                        <span class=comment>// Turn on fog
+</span>    glFogi(GL_FOG_MODE, GL_LINEAR);            <span class=comment>// Set the fog mode to LINEAR (Important)
+</span>    glFogfv(GL_FOG_COLOR, fogColour);        <span class=comment>// Give OpenGL our fog color
+</span>    glFogf(GL_FOG_START, 0.0);                <span class=comment>// Set the start position for the depth at 0
+</span>    glFogf(GL_FOG_END, 50.0);                <span class=comment>// Set the end position for the detph at 50
+</span>
+    <span class=comment>// Now we tell OpenGL that we are using our fog extension for per vertex
+</span>    <span class=comment>// fog calculations.  For each vertex that needs fog applied to it we must
+</span>    <span class=comment>// use the glFogCoordfEXT() function with a depth value passed in.
+</span>    <span class=comment>// These flags are defined in main.h and are not apart of the normal opengl headers.
+</span>    glFogi(GL_FOG_COORDINATE_SOURCE_EXT, GL_FOG_COORDINATE_EXT);
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+    <span class=comment>// Here we initialize our multitexturing functions
+</span>    glActiveTextureARB            = (PFNGLACTIVETEXTUREARBPROC)    wglGetProcAddress(&quot;glActiveTextureARB&quot;);
+    glMultiTexCoord2fARB        = (PFNGLMULTITEXCOORD2FARBPROC)    wglGetProcAddress(&quot;glMultiTexCoord2fARB&quot;);
+
+    <span class=comment>// We should have our multitexturing functions defined and ready to go now, but let's make sure
+</span>    <span class=comment>// that the current version of OpenGL is installed on the machine.  If the extension functions
+</span>    <span class=comment>// could not be found, our function pointers will be NULL.
+</span>    <span class=keyword>if</span>(!glActiveTextureARB || !glMultiTexCoord2fARB) {
+        
+        <span class=comment>// Print a error message and quit.
+</span>        MessageBox(NULL, &quot;Your current setups does not support multitexturing&quot;, &quot;Error&quot;, MB_OK);
+        PostQuitMessage(0);
+    }
+    
+    loadRawHeightMap(&quot;data/Terrain.raw&quot;, MAP_SIZE * MAP_SIZE, gHeightMap);
+    
+
+
+
+
+
+
+
+    glShadeModel(GL_SMOOTH);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    glClearDepth(1.0f);
+    <span class=comment>//glEnable(GL_DEPTH_TEST);
+</span>    <span class=comment>//glDepthFunc(GL_LEQUAL);
+</span>    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    <span class=comment>//glCullFace(GL_BACK);                                // Quake2 uses front face culling apparently
+</span>    <span class=comment>//glEnable(GL_CULL_FACE);                                // Turn culling on
+</span>
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+GL<span class=keyword>void</span> killGLWindow() {
+    <span class=keyword>if</span>(mFULLSCREEN) {
+        ChangeDisplaySettings(NULL, 0);
+        ShowCursor(<span class=keyword>true</span>);
+    }
+
+    <span class=keyword>if</span>(mHRC) {
+        <span class=keyword>if</span>(!wglMakeCurrent(NULL, NULL))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        <span class=keyword>if</span>(!wglDeleteContext(mHRC))
+            MessageBox(NULL, &quot;Release of DC and RC failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+
+        mHRC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHDC &amp;&amp; !ReleaseDC(mHWnd, mHDC)) {
+        MessageBox(NULL, &quot;Release of Device Context failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHDC = NULL;
+    }
+
+    <span class=keyword>if</span>(mHWnd &amp;&amp; !DestroyWindow(mHWnd)) {
+        MessageBox(NULL, &quot;Release of mHWnd failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHWnd = NULL;
+    }
+
+    <span class=keyword>if</span>(!UnregisterClass(&quot;OpenGL&quot;, mHInstance)) {
+        MessageBox(NULL, &quot;UnRegisterClass failed.&quot;, &quot;SHUTDOWN ERROR&quot;, MB_OK | MB_ICONINFORMATION);
+        mHInstance = NULL;
+    }
+}
+
+<span class=keyword>void</span> drawGameScene(<span class=keyword>void</span>) {
+    <span class=comment>//glColor3f(0.0, 0.8, 0.0);
+</span>
+    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; scene.maxFaces; i++) {
+        <span class=keyword>int</span> vertex0 = scene.faces[i].vertexID[0] - 1;
+        <span class=keyword>int</span> vertex1 = scene.faces[i].vertexID[1] - 1;
+        <span class=keyword>int</span> vertex2 = scene.faces[i].vertexID[2] - 1;
+        <span class=keyword>int</span> vertex3 = scene.faces[i].vertexID[3] - 1;
+
+        <span class=keyword>float</span> u = scene.faces[i].u;
+        <span class=keyword>float</span> v = scene.faces[i].v;
+        
+        glBindTexture(GL_TEXTURE_2D, textures[scene.faces[i].WALL_ID]);
+        glBegin(GL_QUADS);
+            glTexCoord2f(0, 0);
+            glVertex3f(    scene.vertices[vertex0].x,
+                        scene.vertices[vertex0].y,
+                        scene.vertices[vertex0].z
+                    );
+            
+            glTexCoord2f(u, 0);
+            glVertex3f(    scene.vertices[vertex1].x,
+                        scene.vertices[vertex1].y,
+                        scene.vertices[vertex1].z
+                    );
+            
+            glTexCoord2f(u, v);
+            glVertex3f(    scene.vertices[vertex2].x,
+                        scene.vertices[vertex2].y,
+                        scene.vertices[vertex2].z
+                    );
+            
+            glTexCoord2f(0, v);
+            glVertex3f(    scene.vertices[vertex3].x,
+                        scene.vertices[vertex3].y,
+                        scene.vertices[vertex3].z
+                    );
+        glEnd();
+    }
+}
+
+<span class=keyword>void</span> drawDebug(<span class=keyword>void</span>) {
+    glColor3f(1.0, 1.0, 1.0);
+
+    <span class=comment>//Enable texturing mode, which might have been disabled after Multi-Texturing
+</span>    glEnable(GL_TEXTURE_2D);
+
+    glPrint(10, SCREEN_HEIGHT - 10, &quot;Use MOUSE RT CLICK - RENDER_MODE&quot;);
+    glPrint(10, SCREEN_HEIGHT - 20, &quot;Use 'T' - TILING MODE&quot;);
+    glPrint(10, SCREEN_HEIGHT - 30, &quot;Use 'SPACE' - TILING DETAIL&quot;);
+    glPrint(10, SCREEN_HEIGHT - 40, &quot;Use '+' / '-' to INCR/DECR FOG&quot;);
+sprintf(debugString, &quot;L_MOUSE_DOWN = %d&quot;, L_MOUSE_DOWN);
+    glPrint(10, 20, &quot;DEBUG : %s&quot;, debugString);
+    glPrint(10, 10, &quot;iDetail = %d, TILING = %s&quot;, iDetailScale, (TILING_MODE==0)?&quot;MANUAL&quot;:&quot;SCALING&quot;);
+
+    camera.cameraDebug();
+}
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>//This checks all the polygons in our list and offsets the camera if collided
+</span><span class=keyword>void</span> checkCameraCollision(SCENE* scene) {
+
+    <span class=comment>// This function is pretty much a direct rip off of SpherePolygonCollision()
+</span>    <span class=comment>// We needed to tweak it a bit though, to handle the collision detection once 
+</span>    <span class=comment>// it was found, along with checking every triangle in the list if we collided.  
+</span>    <span class=comment>// pVertices is the world data. If we have space partitioning, we would pass in 
+</span>    <span class=comment>// the vertices that were closest to the camera. What happens in this function 
+</span>    <span class=comment>// is that we go through every triangle in the list and check if the camera's 
+</span>    <span class=comment>// sphere collided with it.  If it did, we don't stop there.  We can have 
+</span>    <span class=comment>// multiple collisions so it's important to check them all.  One a collision 
+</span>    <span class=comment>// is found, we calculate the offset to move the sphere off of the collided plane.
+</span>    
+    CVector3 LEG_POS = camera.cameraPosition;    <span class=comment>//Camera is our eyes
+</span>    LEG_POS.y -= 0.15f;                    <span class=comment>//so go to the Legs, the invisible collision sphere is at the legs
+</span>
+    <span class=comment>// Go through all the triangles
+</span>    <span class=keyword>for</span>(<span class=keyword>int</span> i = 0; i &lt; scene-&gt;maxFaces; i++) {
+        <span class=keyword>int</span> vertex0 = scene-&gt;faces[i].vertexID[0] - 1;
+        <span class=keyword>int</span> vertex1 = scene-&gt;faces[i].vertexID[1] - 1;
+        <span class=keyword>int</span> vertex2 = scene-&gt;faces[i].vertexID[2] - 1;
+        <span class=keyword>int</span> vertex3 = scene-&gt;faces[i].vertexID[3] - 1;
+        
+        CVector3 vVertex0 = CVector3(scene-&gt;vertices[vertex0].x, scene-&gt;vertices[vertex0].y, scene-&gt;vertices[vertex0].z);
+        CVector3 vVertex1 = CVector3(scene-&gt;vertices[vertex1].x, scene-&gt;vertices[vertex1].y, scene-&gt;vertices[vertex1].z);
+        CVector3 vVertex2 = CVector3(scene-&gt;vertices[vertex2].x, scene-&gt;vertices[vertex2].y, scene-&gt;vertices[vertex2].z);
+        CVector3 vVertex3 = CVector3(scene-&gt;vertices[vertex3].x, scene-&gt;vertices[vertex3].y, scene-&gt;vertices[vertex3].z);
+
+        <span class=comment>// Store of the current triangle we testing
+</span>        CVector3 vPolygon[4] = {vVertex3, vVertex2, vVertex1, vVertex0};
+
+        <span class=comment>// 1) STEP ONE - Finding the sphere's classification
+</span>    
+        <span class=comment>// We want the normal to the current polygon being checked
+</span>        CVector3 vNormal = normal(vPolygon);
+
+        <span class=comment>// This will store the distance our sphere is from the plane
+</span>        <span class=keyword>float</span> distance = 0.0f;
+
+        <span class=comment>// This is where we determine if the sphere is in FRONT, BEHIND, or INTERSECTS the plane
+</span>        <span class=keyword>int</span> classification = classifySphere(LEG_POS, vNormal, vPolygon[0], camera.camRadius, distance);
+<span class=comment>//char logText[255] = {0};
+</span><span class=comment>//sprintf(debugString, &quot;class = %d %0.2f %0.2f %0.2f &quot;, classification, vNormal.x, vNormal.y, vNormal.z);
+</span><span class=comment>//MessageBox(NULL, logText, &quot;logText&quot;, MB_OK);
+</span>
+        <span class=comment>// If the sphere intersects the polygon's plane, then we need to check further
+</span>        <span class=keyword>if</span>(classification == INTERSECTS) {
+            
+            <span class=comment>// 2) STEP TWO - Finding the psuedo intersection point on the plane
+</span>
+            <span class=comment>// Now we want to project the sphere's center onto the triangle's plane
+</span>            CVector3 vOffset = vNormal * distance;
+
+            <span class=comment>// Once we have the offset to the plane, we just subtract it from the center
+</span>            <span class=comment>// of the sphere.  &quot;vIntersection&quot; is now a point that lies on the plane of the triangle.
+</span>            CVector3 vIntersection = LEG_POS - vOffset;
+
+            <span class=comment>// 3) STEP THREE - Check if the intersection point is inside the triangles perimeter
+</span>
+            <span class=comment>// We first check if our intersection point is inside the triangle, if not,
+</span>            <span class=comment>// the algorithm goes to step 4 where we check the sphere again the polygon's edges.
+</span>
+            <span class=comment>// We do one thing different in the parameters for EdgeSphereCollision though.
+</span>            <span class=comment>// Since we have a bulky sphere for our camera, it makes it so that we have to 
+</span>            <span class=comment>// go an extra distance to pass around a corner. This is because the edges of 
+</span>            <span class=comment>// the polygons are colliding with our peripheral view (the sides of the sphere).  
+</span>            <span class=comment>// So it looks likes we should be able to go forward, but we are stuck and considered 
+</span>            <span class=comment>// to be colliding.  To fix this, we just pass in the radius / 2.  Remember, this
+</span>            <span class=comment>// is only for the check of the polygon's edges.  It just makes it look a bit more
+</span>            <span class=comment>// realistic when colliding around corners.  Ideally, if we were using bounding box 
+</span>            <span class=comment>// collision, cylinder or ellipses, this wouldn't really be a problem.
+</span>
+            <span class=keyword>if</span>(    insidePolygon(vIntersection, vPolygon, 4) 
+                ||
+                edgeSphereCollision(LEG_POS, vPolygon, 4, camera.camRadius / 2)
+            ) {
+
+                <span class=comment>// If we get here, we have collided!  To handle the collision detection
+</span>                <span class=comment>// all it takes is to find how far we need to push the sphere back.
+</span>                <span class=comment>// GetCollisionOffset() returns us that offset according to the normal,
+</span>                <span class=comment>// radius, and current distance the center of the sphere is from the plane.
+</span>                vOffset = getCollisionOffset(vNormal, camera.camRadius, distance);
+<span class=comment>//sprintf(debugString, &quot;vNormal = %0.2f %0.2f %0.2f &quot;, vNormal.x, vNormal.y, vNormal.z);
+</span>                <span class=comment>// Now that we have the offset, we want to ADD it to the position and
+</span>                <span class=comment>// view vector in our camera.  This pushes us back off of the plane.  We
+</span>                <span class=comment>// don't see this happening because we check collision before we render
+</span>                <span class=comment>// the scene.
+</span>                camera.cameraPosition = camera.cameraPosition + vOffset;
+
+            }
+        }
+    }
+}
+
+<span class=keyword>void</span> checkCameraCollisionWithTerrain() {
+    <span class=comment>// Check if the camera is below the height of the terrain at x and z,
+</span>    <span class=comment>// but we add 10 to make it so the camera isn't on the floor.
+</span>    <span class=keyword>if</span>(camera.cameraPosition.y &lt; getHeight(gHeightMap, (<span class=keyword>int</span>)camera.cameraPosition.x, (<span class=keyword>int</span>)camera.cameraPosition.z) + 10) {
+        
+        <span class=comment>// Set the new position of the camera so it's above the terrain + 10
+</span>        CVector3 vNewCameraPos = camera.cameraPosition;
+        vNewCameraPos.y = getHeight(gHeightMap, (<span class=keyword>int</span>)camera.cameraPosition.x, (<span class=keyword>int</span>)camera.cameraPosition.z) + 10;
+        
+        camera.cameraPosition = vNewCameraPos;
+    }
+}
+
+<span class=keyword>int</span> drawGLScene() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+    
+    camera.moveCamera();
+
+    <span class=keyword>if</span>(camera.CAMERA_HAS_COLLISIONS) {
+            checkCameraCollisionWithTerrain();
+            <span class=comment>//checkCameraCollision(&amp;scene);
+</span>    }
+
+    drawGameScene();
+    
+    <span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>    renderHeightMap(gHeightMap);
+    sprintf(debugString, &quot;iDetail = %d, TILING = %s&quot;, iDetailScale, (TILING_MODE==0)?&quot;MANUAL&quot;:&quot;SCALING&quot;);
+    sprintf(debugString, &quot;g_FogDepth = %0.2f&quot;, g_FogDepth);
+
+    <span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>//glTranslatef(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+</span>
+<span class=comment>//*
+</span>glDisable(GL_TEXTURE_2D);
+GLUquadricObj *pObj = gluNewQuadric();            <span class=comment>// Get a Quadric off the stack
+</span>gluQuadricDrawStyle(pObj, GLU_LINE);            <span class=comment>// Draw the sphere normally
+</span>glColor3ub(255, 255, 0);
+<span class=comment>//gluSphere(pObj, 0.002, 15, 15);
+</span>CVector3 fwdPoint = camera.cameraPosition + (camera.viewVector*0.5);
+sprintf(debugString, &quot;%0.2f, %0.2f, %0.2f&quot;, fwdPoint.x, fwdPoint.y, fwdPoint.z);
+
+glBegin(GL_LINES);
+    glVertex3f(    fwdPoint.x,
+                fwdPoint.y,
+                fwdPoint.z
+            );
+    
+    glVertex3f(    fwdPoint.x + camera.viewVector.x*0.125,
+                fwdPoint.y + camera.viewVector.y*0.125,
+                fwdPoint.z + camera.viewVector.z*0.125
+            );
+glEnd();
+
+glBegin(GL_LINES);
+    glVertex3f(    fwdPoint.x,
+                fwdPoint.y,
+                fwdPoint.z
+            );
+    
+    glVertex3f(    fwdPoint.x + camera.upVector.x*0.125,
+                fwdPoint.y + camera.upVector.y*0.125,
+                fwdPoint.z + camera.upVector.z*0.125
+            );
+glEnd();
+
+glBegin(GL_LINES);
+    glVertex3f(    fwdPoint.x,
+                fwdPoint.y,
+                fwdPoint.z
+            );
+    
+    glVertex3f(    fwdPoint.x + camera.rightVector.x*0.125,
+                fwdPoint.y + camera.rightVector.y*0.125,
+                fwdPoint.z + camera.rightVector.z*0.125
+            );
+glEnd();
+<span class=comment>//*/
+</span>    drawDebug();
+    
+    <span class=keyword>return</span> <span class=keyword>true</span>;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    <span class=keyword>switch</span>(uMsg) {
+        <span class=keyword>case</span> WM_CREATE:
+        {
+            SetCursorPos(SCREEN_WIDTH&gt;&gt;1, SCREEN_HEIGHT&gt;&gt;1);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_ACTIVATE:
+        {
+            <span class=keyword>if</span>(!HIWORD(wParam))
+                mActive = <span class=keyword>true</span>;
+            <span class=keyword>else</span>
+                mActive = <span class=keyword>false</span>;
+
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SYSCOMMAND:
+        {
+            <span class=keyword>switch</span>(wParam) {
+                <span class=keyword>case</span> SC_SCREENSAVE:
+                <span class=keyword>case</span> SC_MONITORPOWER:
+                    <span class=keyword>return</span> 0;
+            }
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYDOWN:
+        {
+            mKeys[wParam] = <span class=keyword>true</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_KEYUP:
+        {
+            mKeys[wParam] = <span class=keyword>false</span>;
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_SIZE:
+        {
+            resizeGLScene(LOWORD(lParam), HIWORD(lParam));
+            <span class=keyword>return</span> 0;
+        }
+        <span class=keyword>case</span> WM_LBUTTONDOWN:
+        {
+            L_MOUSE_DOWN = <span class=keyword>true</span>;
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_LBUTTONUP:        
+        {
+            L_MOUSE_DOWN = <span class=keyword>false</span>;
+        }
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_RBUTTONDOWN:
+            R_MOUSE_DOWN = <span class=keyword>true</span>;
+
+            g_RenderMode = !g_RenderMode;    <span class=comment>// Change the rendering mode
+</span>
+            <span class=comment>// Change the rendering mode to and from lines or triangles
+</span>            <span class=keyword>if</span>(g_RenderMode) {
+                <span class=comment>// Render the triangles in fill mode        
+</span>                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
+            }
+            <span class=keyword>else</span> {
+                <span class=comment>// Render the triangles in wire frame mode
+</span>                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);    
+            }
+
+        <span class=keyword>break</span>;
+        <span class=keyword>case</span> WM_RBUTTONUP:
+            R_MOUSE_DOWN = <span class=keyword>false</span>;
+        <span class=keyword>break</span>;
+    }
+
+    <span class=keyword>return</span> DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// Nothing was added to this file except the checking for the space bar,
+</span><span class=comment>// along with the global variables at the top.
+</span><span class=comment>// 
+</span><span class=comment>// This concludes the third tutorial in the height map series.
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>// © 2000-2003 GameTutorials
+</span><span class=comment>//
+</span>     
+</pre></body>
+</html>

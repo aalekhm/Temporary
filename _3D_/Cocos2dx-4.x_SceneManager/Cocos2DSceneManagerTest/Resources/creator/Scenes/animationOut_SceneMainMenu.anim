@@ -1,0 +1,55 @@
+{
+  "__type__": "cc.AnimationClip",
+  "_name": "animationOut_SceneMainMenu",
+  "_objFlags": 0,
+  "_rawFiles": null,
+  "_duration": 1,
+  "sample": 60,
+  "speed": 1,
+  "wrapMode": 1,
+  "curveData": {
+    "paths": {
+      "RootNode/ActivityIcon_Activity": {
+        "props": {
+          "position": [
+            {
+              "frame": 0,
+              "value": [
+                320,
+                813
+              ]
+            },
+            {
+              "frame": 1,
+              "value": [
+                320,
+                1281
+              ]
+            }
+          ]
+        }
+      },
+      "RootNode/Button_Next": {
+        "props": {
+          "position": [
+            {
+              "frame": 0,
+              "value": [
+                320,
+                150
+              ]
+            },
+            {
+              "frame": 1,
+              "value": [
+                320,
+                -241
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "events": []
+}

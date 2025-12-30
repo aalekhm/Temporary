@@ -1,0 +1,167 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=pp>#ifndef</span> _3DMATH_H
+<span class=pp>#define</span> _3DMATH_H
+
+<span class=pp>#define</span> PI 3.1415926535897932                    <span class=comment>// This is our famous PI
+</span>
+
+<span class=comment>// These constants are used as return values from ClassifySphere().  Depending
+</span><span class=comment>// on where the sphere lies in accordance with the plane being checked, these
+</span><span class=comment>// will allow us to label if the sphere is in front, behind or intersecting the plane.
+</span>
+<span class=pp>#define</span> BEHIND        0    <span class=comment>// This is returned if the sphere is completely behind the plane
+</span><span class=pp>#define</span> INTERSECTS    1    <span class=comment>// This is returned if the sphere intersects the plane
+</span><span class=pp>#define</span> FRONT        2    <span class=comment>// This is returned if the sphere is completely in front of the plane
+</span>
+<span class=comment>// This is our 3D point and vector class
+</span><span class=keyword>struct</span> CVector3
+{
+<span class=keyword>public</span>:
+    
+    <span class=comment>// A default constructor
+</span>    CVector3() {}
+
+    <span class=comment>// This is our constructor that allows us to initialize our data upon creating an instance
+</span>    CVector3(<span class=keyword>float</span> X, <span class=keyword>float</span> Y, <span class=keyword>float</span> Z) 
+    { 
+        x = X; y = Y; z = Z;
+    }
+
+    <span class=comment>// Here we overload the + operator so we can add vectors together 
+</span>    CVector3 <span class=keyword>operator</span>+(CVector3 vVector)
+    {
+        <span class=comment>// Return the added vectors result.
+</span>        <span class=keyword>return</span> CVector3(vVector.x + x, vVector.y + y, vVector.z + z);
+    }
+
+    <span class=comment>// Here we overload the - operator so we can subtract vectors 
+</span>    CVector3 <span class=keyword>operator</span>-(CVector3 vVector)
+    {
+        <span class=comment>// Return the subtracted vectors result
+</span>        <span class=keyword>return</span> CVector3(x - vVector.x, y - vVector.y, z - vVector.z);
+    }
+    
+    <span class=comment>// Here we overload the - operator so we can subtract vectors 
+</span>    CVector3 <span class=keyword>operator</span>*(<span class=keyword>float</span> num)
+    {
+        <span class=comment>// Return the subtracted vectors result
+</span>        <span class=keyword>return</span> CVector3(x * num, y * num, z * num);
+    }
+
+    <span class=keyword>float</span> x, y, z;                        
+};
+
+
+<span class=comment>//    This returns a perpendicular vector from 2 given vectors by taking the cross product.
+</span>CVector3 cross(CVector3 vVector1, CVector3 vVector2);
+
+<span class=comment>//    This returns the magnitude of a normal (or any other vector)
+</span><span class=keyword>float</span> getMagnitude(CVector3 vNormal);
+
+<span class=comment>//    This returns a normalize vector (A vector exactly of length 1)
+</span>CVector3 normalize(CVector3 vNormal);
+
+<span class=comment>//    This returns the normal of a polygon (The direction the polygon is facing)
+</span>CVector3 normal(CVector3 vPolygon[]);
+
+<span class=comment>// This returns the distance between 2 3D points
+</span><span class=keyword>float</span> getDistance(CVector3 vPoint1, CVector3 vPoint2);
+
+<span class=comment>// This returns the point on the line segment vA_vB that is closest to point vPoint
+</span>CVector3 closestPointOnLine(CVector3 vA, CVector3 vB, CVector3 vPoint);
+
+<span class=comment>// This returns the distance the plane is from the origin (0, 0, 0)
+</span><span class=comment>// It takes the normal to the plane, along with ANY point that lies on the plane (any corner)
+</span><span class=keyword>float</span> planeDistance(CVector3 Normal, CVector3 Point);
+
+<span class=comment>// This takes a triangle (plane) and line and returns true if they intersected
+</span><span class=keyword>bool</span> intersectedPlane(CVector3 vPoly[], CVector3 vLine[], CVector3 &amp;vNormal, <span class=keyword>float</span> &amp;originDistance);
+
+<span class=comment>// This returns the dot product between 2 vectors
+</span><span class=keyword>float</span> dot(CVector3 vVector1, CVector3 vVector2);
+
+<span class=comment>// This returns the angle between 2 vectors
+</span><span class=keyword>double</span> angleBetweenVectors(CVector3 Vector1, CVector3 Vector2);
+
+<span class=comment>// This returns an intersection point of a polygon and a line (assuming intersects the plane)
+</span>CVector3 intersectionPoint(CVector3 vNormal, CVector3 vLine[], <span class=keyword>double</span> distance);
+
+<span class=comment>// This returns true if the intersection point is inside of the polygon
+</span><span class=keyword>bool</span> insidePolygon(CVector3 vIntersection, CVector3 Poly[], <span class=keyword>long</span> verticeCount);
+
+<span class=comment>// Use this function to test collision between a line and polygon
+</span><span class=keyword>bool</span> intersectedPolygon(CVector3 vPoly[], CVector3 vLine[], <span class=keyword>int</span> verticeCount);
+
+<span class=comment>// This returns the absolute value of num - a simple if/else check
+</span><span class=keyword>float</span> absolute(<span class=keyword>float</span> num);
+
+<span class=comment>// This function classifies a sphere according to a plane.  The information returned
+</span><span class=comment>// tells us if the sphere is BEHIND, in FRONT, or INTERSECTS the plane.  This takes 
+</span><span class=comment>// the sphere's center, the plane's normal, a point on the plane, the sphere's radius
+</span><span class=comment>// and a referenced variable to hold the distance.  This way we can return the distance
+</span><span class=comment>// and the sphere's relationship to the plane.  The distance is from the plane to the center
+</span><span class=comment>// of the sphere.  With this information it enables us to offset the sphere if needed.
+</span><span class=keyword>int</span> classifySphere(CVector3 &amp;vSphereCenter, 
+                   CVector3 &amp;vPlaneNormal, CVector3 &amp;vPointOnPlane, <span class=keyword>float</span> sphereRadius, <span class=keyword>float</span> &amp;plane2SphereCenterDistance);
+
+<span class=comment>// This takes in the sphere center, radius, polygon vertices and vertex count.
+</span><span class=comment>// This function is only called if the intersection point failed.  The sphere
+</span><span class=comment>// could still possibly be intersecting the polygon, but on it's edges.
+</span><span class=keyword>bool</span> edgeSphereCollision(CVector3 &amp;vCenter, 
+                         CVector3 vPolygon[], <span class=keyword>int</span> vertexCount, <span class=keyword>float</span> radius);
+
+<span class=comment>// This returns true if the sphere is intersecting with the polygon.
+</span><span class=comment>// The parameters are the vertices of the polygon, vertex count, along with the center 
+</span><span class=comment>// and radius of the sphere.
+</span><span class=keyword>bool</span> spherePolygonCollision(CVector3 vPolygon[], 
+                            CVector3 &amp;vCenter, <span class=keyword>int</span> vertexCount, <span class=keyword>float</span> radius);
+
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>// This returns the offset the sphere needs to move in order to not intersect the plane
+</span>CVector3 getCollisionOffset(CVector3 &amp;vNormal, <span class=keyword>float</span> radius, <span class=keyword>float</span> distance);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=pp>#endif</span> 
+
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// We added 4 new math functions and 3 new defines to our math library.  Of course,
+</span><span class=comment>// it is not an official library as of yet, but eventually it will be.  We still have
+</span><span class=comment>// many math functions to add to it before we don't need to alter it anymore.  I
+</span><span class=comment>// would assume though, that as you learn more about 3D graphics, this will be
+</span><span class=comment>// a never ending process, but for most normal games you will be making, there is
+</span><span class=comment>// a time when you got everything you will need.  The rest is most likely specialized.
+</span><span class=comment>//
+</span><span class=comment>// For sphere-polygon collision, there is only 3 main functions that needed to be added. 
+</span><span class=comment>// If you have scavenged around the internet, you will notice that this type of collision
+</span><span class=comment>// can be very complicated and there are quite a few ways to do it.  This is probably
+</span><span class=comment>// the simplest way I found, without having to add a large number of functions.  Be
+</span><span class=comment>// sure to check out how to find the closest point on a triangle to the sphere.  Instead
+</span><span class=comment>// of using edge plans, this can be a more accurate way of doing sphere-polygon collision.
+</span><span class=comment>//
+</span><span class=comment>// Check out 3DMath.cpp for the explanations of how these new functions work.
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span><span class=comment>//
+</span>
+
+</pre></body>
+</html>

@@ -1,0 +1,244 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=pp>#ifndef</span> _3DS_H
+<span class=pp>#define</span> _3DS_H
+
+<span class=pp>#include</span> &lt;windows.h&gt;
+<span class=pp>#include</span> &lt;stdio.h&gt;
+<span class=pp>#include</span> &lt;stdlib.h&gt;
+<span class=pp>#include</span> &lt;math.h&gt;
+<span class=pp>#include</span> &lt;vector&gt;
+<span class=keyword>using</span> <span class=keyword>namespace</span> std;
+
+<span class=comment>//&gt;------ Primary Chunk, at the beginning of each file
+</span><span class=pp>#define</span> PRIMARY       0x4D4D
+
+<span class=comment>//&gt;------ Main Chunks
+</span><span class=pp>#define</span> OBJECTINFO    0x3D3D                <span class=comment>// This gives the version of the mesh and is found right before the material and object information
+</span><span class=pp>#define</span> VERSION       0x0002                <span class=comment>// This gives the version of the .3ds file
+</span>
+<span class=comment>//&gt;------ sub defines of OBJECTINFO
+</span><span class=pp>#define</span> MATERIAL      0xAFFF                <span class=comment>// This stored the texture info
+</span><span class=pp>#define</span> OBJECT          0x4000                <span class=comment>// This stores the faces, vertices, etc...
+</span>
+<span class=comment>//&gt;------ sub defines of MATERIAL
+</span><span class=pp>#define</span> MATNAME       0xA000                <span class=comment>// This holds the material name
+</span><span class=pp>#define</span> MATDIFFUSE    0xA020                <span class=comment>// This holds the color of the object/material
+</span><span class=pp>#define</span> MATMAP        0xA200                <span class=comment>// This is a header for a new material
+</span><span class=pp>#define</span> MATMAPFILE    0xA300                <span class=comment>// This holds the file name of the texture
+</span>
+<span class=pp>#define</span> OBJECT_MESH   0x4100                <span class=comment>// This lets us know that we are reading a new object
+</span>
+<span class=comment>//&gt;------ sub defines of OBJECT_MESH
+</span><span class=pp>#define</span> OBJECT_VERTICES     0x4110            <span class=comment>// The objects vertices
+</span><span class=pp>#define</span> OBJECT_FACES        0x4120            <span class=comment>// The objects faces
+</span><span class=pp>#define</span> OBJECT_MATERIAL        0x4130            <span class=comment>// This is found if the object has a material, either texture map or color
+</span><span class=pp>#define</span> OBJECT_UV            0x4140            <span class=comment>// The UV texture coordinates
+</span>
+
+<span class=pp>#define</span>    KEYFRAME                    0xB000    <span class=comment>// This lets us know that we are reading in a keyframe
+</span><span class=pp>#define</span> KEYFRAME_MESH_INFO            0xB002
+<span class=pp>#define</span> KEYFRAME_OBJECT_NAME        0xB010 
+<span class=pp>#define</span> KEYFRAME_START_AND_END        0xB008
+<span class=pp>#define</span> PIVOT                        0xB013 
+<span class=pp>#define</span> POSITION_TRACK_TAG            0xB020 
+<span class=pp>#define</span> ROTATION_TRACK_TAG            0xB021 
+<span class=pp>#define</span> SCALE_TRACK_TAG                0xB022
+
+<span class=comment>// This is our 3D point class.  This will be used to store the vertices of our model.
+</span><span class=keyword>class</span> CVector3 
+{
+<span class=keyword>public</span>:
+    <span class=keyword>float</span> x, y, z;
+};
+
+<span class=comment>// This is our 2D point class.  This will be used to store the UV coordinates.
+</span><span class=keyword>class</span> CVector2 
+{
+<span class=keyword>public</span>:
+    <span class=keyword>float</span> x, y;
+};
+
+<span class=comment>// This is our face structure.  This is is used for indexing into the vertex 
+</span><span class=comment>// and texture coordinate arrays.  From this information we know which vertices
+</span><span class=comment>// from our vertex array go to which face, along with the correct texture coordinates.
+</span><span class=keyword>struct</span> tFace
+{
+    <span class=keyword>int</span> vertIndex[3];            <span class=comment>// indicies for the verts that make up this triangle
+</span>    <span class=keyword>int</span> coordIndex[3];            <span class=comment>// indicies for the tex coords to texture this face
+</span>};
+
+<span class=comment>// This holds the information for a material.  It may be a texture map of a color.
+</span><span class=comment>// Some of these are not used, but I left them because you will want to eventually
+</span><span class=comment>// read in the UV tile ratio and the UV tile offset for some models.
+</span><span class=keyword>struct</span> tMaterialInfo
+{
+    <span class=keyword>char</span>  strName[255];            <span class=comment>// The texture name
+</span>    <span class=keyword>char</span>  strFile[255];            <span class=comment>// The texture file name (If this is set it's a texture map)
+</span>    BYTE  color[3];                <span class=comment>// The color of the object (R, G, B)
+</span>    <span class=keyword>int</span>   texureId;                <span class=comment>// the texture ID
+</span>    <span class=keyword>float</span> uTile;                <span class=comment>// u tiling of texture  (Currently not used)
+</span>    <span class=keyword>float</span> vTile;                <span class=comment>// v tiling of texture    (Currently not used)
+</span>    <span class=keyword>float</span> uOffset;                <span class=comment>// u offset of texture    (Currently not used)
+</span>    <span class=keyword>float</span> vOffset;                <span class=comment>// v offset of texture    (Currently not used)
+</span>} ;
+
+<span class=comment>// This holds all the information for our model/scene. 
+</span><span class=comment>// You should eventually turn into a robust class that 
+</span><span class=comment>// has loading/drawing/querying functions like:
+</span><span class=comment>// LoadModel(...); DrawObject(...); DrawModel(...); DestroyModel(...);
+</span><span class=keyword>struct</span> t3DObject 
+{
+    <span class=keyword>int</span>  numOfVerts;            <span class=comment>// The number of verts in the model
+</span>    <span class=keyword>int</span>  numOfFaces;            <span class=comment>// The number of faces in the model
+</span>    <span class=keyword>int</span>  numTexVertex;            <span class=comment>// The number of texture coordinates
+</span>    <span class=keyword>int</span>  materialID;            <span class=comment>// The texture ID to use, which is the index into our texture array
+</span>    <span class=keyword>bool</span> bHasTexture;            <span class=comment>// This is TRUE if there is a texture map for this object
+</span>    <span class=keyword>char</span> strName[255];            <span class=comment>// The name of the object
+</span>
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>    
+    <span class=keyword>int</span>  positionFrames;        <span class=comment>// The number of key frames for the position
+</span>    <span class=keyword>int</span>  rotationFrames;        <span class=comment>// The number of key frames for the rotations
+</span>    <span class=keyword>int</span>  scaleFrames;            <span class=comment>// The number of key frames for the scaling
+</span>
+    CVector3 vPivot;            <span class=comment>// The object pivot point (The local axis it rotates around)
+</span>
+    vector&lt;CVector3&gt; vPosition;    <span class=comment>// The object's current position list
+</span>    vector&lt;CVector3&gt; vRotation;    <span class=comment>// The object's current rotation list    
+</span>    vector&lt;CVector3&gt; vScale;    <span class=comment>// The object's current scale list
+</span>
+    vector&lt;<span class=keyword>float</span>&gt; vRotDegree;    <span class=comment>// The object's current rotation degree (associated with vRotation)
+</span>
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+    CVector3  *pVerts;            <span class=comment>// The object's vertices
+</span>    CVector3  *pNormals;        <span class=comment>// The object's normals
+</span>    CVector2  *pTexVerts;        <span class=comment>// The texture's UV coordinates
+</span>    tFace *pFaces;                <span class=comment>// The faces information of the object
+</span>};
+
+<span class=comment>// This holds our model information.  This should also turn into a robust class.
+</span><span class=comment>// We use STL's (Standard Template Library) vector class to ease our link list burdens. :)
+</span><span class=keyword>struct</span> t3DModel 
+{
+    <span class=keyword>int</span> numOfObjects;            <span class=comment>// The number of objects in the model
+</span>    <span class=keyword>int</span> numOfMaterials;            <span class=comment>// The number of materials for the model
+</span>
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+    <span class=keyword>int</span> numberOfFrames;            <span class=comment>// The number of frames of animation this model (at least 1)
+</span>    <span class=keyword>int</span> currentFrame;            <span class=comment>// The current frame of animation that the model is in
+</span>
+<span class=comment>//////////// *** NEW *** ////////// *** NEW *** ///////////// *** NEW *** ////////////////////
+</span>
+    vector&lt;tMaterialInfo&gt; pMaterials;    <span class=comment>// The list of material information (Textures and colors)
+</span>    vector&lt;t3DObject&gt; pObject;            <span class=comment>// The object list for our model
+</span>};
+
+<span class=comment>// This holds the chunk info
+</span><span class=keyword>struct</span> tChunk
+{
+    <span class=keyword>unsigned</span> <span class=keyword>short</span> <span class=keyword>int</span> ID;                    <span class=comment>// The chunk's ID        
+</span>    <span class=keyword>unsigned</span> <span class=keyword>int</span> length;                    <span class=comment>// The length of the chunk
+</span>    <span class=keyword>unsigned</span> <span class=keyword>int</span> bytesRead;                    <span class=comment>// The amount of bytes read within that chunk
+</span>};
+
+<span class=comment>// This class handles all of the loading code
+</span><span class=keyword>class</span> CLoad3DS
+{
+<span class=keyword>public</span>:
+    CLoad3DS();                                <span class=comment>// This inits the data members
+</span>
+    <span class=comment>// This is the function that you call to load the 3DS
+</span>    <span class=keyword>bool</span> Import3DS(t3DModel *pModel, <span class=keyword>char</span> *strFileName);
+
+<span class=keyword>private</span>:
+    <span class=comment>// This reads in a string and saves it in the char array passed in
+</span>    <span class=keyword>int</span> GetString(<span class=keyword>char</span> *);
+
+    <span class=comment>// This reads the next chunk
+</span>    <span class=keyword>void</span> ReadChunk(tChunk *);
+
+    <span class=comment>// This reads the next large chunk
+</span>    <span class=keyword>void</span> ProcessNextChunk(t3DModel *pModel, tChunk *);
+
+    <span class=comment>// This reads the object chunks
+</span>    <span class=keyword>void</span> ProcessNextObjectChunk(t3DModel *pModel, t3DObject *pObject, tChunk *);
+
+    <span class=comment>// This reads the material chunks
+</span>    <span class=keyword>void</span> ProcessNextMaterialChunk(t3DModel *pModel, tChunk *);
+
+    <span class=comment>// This reads the keyframe chunks (animation data)
+</span>    <span class=keyword>void</span> ProcessNextKeyFrameChunk(t3DModel *pModel, tChunk *);
+
+    <span class=comment>// This reads the RGB value for the object's color
+</span>    <span class=keyword>void</span> ReadColorChunk(tMaterialInfo *pMaterial, tChunk *pChunk);
+
+    <span class=comment>// This reads the objects vertices
+</span>    <span class=keyword>void</span> ReadVertices(t3DObject *pObject, tChunk *);
+
+    <span class=comment>// This reads the objects face information
+</span>    <span class=keyword>void</span> ReadVertexIndices(t3DObject *pObject, tChunk *);
+
+    <span class=comment>// This reads the texture coodinates of the object
+</span>    <span class=keyword>void</span> ReadUVCoordinates(t3DObject *pObject, tChunk *);
+
+    <span class=comment>// This reads in the material name assigned to the object and sets the materialID
+</span>    <span class=keyword>void</span> ReadObjectMaterial(t3DModel *pModel, t3DObject *pObject, tChunk *pPreviousChunk);
+
+    <span class=comment>// This reads in the positions of each frame in the animation
+</span>    <span class=keyword>void</span> ReadKeyFramePositions(t3DModel *pModel, tChunk *pPreviousChunk);
+
+    <span class=comment>// This reads in the rotation key frames
+</span>    <span class=keyword>void</span> ReadKeyFrameRotations(t3DModel *pModel, tChunk *pPreviousChunk);
+
+    <span class=comment>// This reads in the scale key frames
+</span>    <span class=keyword>void</span> ReadKeyFrameScales(t3DModel *pModel, tChunk *pPreviousChunk);
+
+    <span class=comment>// This sets the current model that animation is being read in for by it's name
+</span>    <span class=keyword>void</span> SetCurrentObject(t3DModel *pModel, <span class=keyword>char</span> *strObjectName);
+
+    <span class=comment>// This computes the vertex normals for the object (used for lighting)
+</span>    <span class=keyword>void</span> ComputeNormals(t3DModel *pModel);
+
+    <span class=comment>// This frees memory and closes the file
+</span>    <span class=keyword>void</span> CleanUp();
+    
+    <span class=comment>// The file pointer
+</span>    FILE *m_FilePointer, *mFileConsoleLog;
+    <span class=keyword>char</span> logText[255];
+    
+    <span class=comment>// These are used through the loading process to hold the chunk information
+</span>    tChunk *m_CurrentChunk;
+    tChunk *m_TempChunk;
+
+    <span class=comment>// This will hold the object that the animation data is being read in for
+</span>    t3DObject *m_CurrentObject;
+};
+
+
+<span class=pp>#endif</span>
+
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>// 
+</span><span class=comment>// This file is created in the hopes that you can just plug it into your code
+</span><span class=comment>// easily.  You will probably want to query more chunks though for animation, etc..
+</span><span class=comment>//
+</span><span class=comment>// 
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span></pre></body>
+</html>

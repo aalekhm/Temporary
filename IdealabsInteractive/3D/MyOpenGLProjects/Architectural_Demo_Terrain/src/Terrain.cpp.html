@@ -1,0 +1,443 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>//
+</span><span class=comment>// Building off of the detail texturing tutorial, we add some awesome volumetric
+</span><span class=comment>// fog using the OpenGL extension: glFogCoordfEXT().
+</span><span class=comment>// 
+</span><span class=comment>// This allows us to do volumetric fog without extra passes, and we are able
+</span><span class=comment>// to effect the fog dynamically, as you will see in the application by the +/- keys.
+</span><span class=comment>// The effect brings an incredible amount of realism to a scene and is a must
+</span><span class=comment>// have in any engine. 
+</span><span class=comment>//
+</span><span class=comment>// We add a new function to this file:  SetFogCoord(), which takes a depth
+</span><span class=comment>// for the fog, and the current y value of the vertex having fog applied to it.
+</span><span class=comment>// The volumetric fog is not actually a volume fog, but is a trick that changes
+</span><span class=comment>// the color of the polygons to give the appearance of fog.
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// This stores the desired depth that we want to fog
+</span><span class=keyword>extern</span> <span class=keyword>float</span> g_FogDepth;
+
+<span class=comment>// This is our fog extension function pointer to set a vertice's depth
+</span><span class=keyword>extern</span> PFNGLFOGCOORDFEXTPROC glFogCoordfEXT;
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+
+<span class=comment>// This tells us if we want detail texturing turned on or off
+</span><span class=keyword>extern</span> <span class=keyword>bool</span> bDetail;
+
+<span class=comment>// This holds the current tile scale value for our detail texture
+</span><span class=keyword>extern</span> <span class=keyword>int</span> iDetailScale;
+
+<span class=keyword>extern</span> <span class=keyword>int</span> TILING_MODE;
+
+<span class=comment>// This loads a .raw file into an array of bytes.  Each value is a height value.
+</span><span class=keyword>void</span> loadRawHeightMap(LPSTR strName, <span class=keyword>int</span> nSize, BYTE* pHeightMap) {
+    
+    FILE* pFile = NULL;
+
+    <span class=comment>// Let's open the file in Read/Binary mode.
+</span>    pFile = fopen(strName, &quot;rb&quot;);
+
+    <span class=comment>// Check to see if we found the file and could open it
+</span>    <span class=keyword>if</span>(pFile == NULL) {
+        
+        <span class=comment>// Display our error message and stop the function
+</span>        MessageBox(NULL, &quot;Can't find Height Map!&quot;, &quot;Error&quot;, MB_OK);
+        <span class=keyword>return</span>;
+    }
+
+    <span class=comment>// Here we load the .raw file into our pHeightMap data array.
+</span>    <span class=comment>// We are only reading in '1', and the size is the (width * height)
+</span>    fread(pHeightMap, 1, nSize, pFile);
+
+    <span class=comment>// After we read the data, it's a good idea to check if everything read fine.
+</span>    <span class=keyword>int</span> hasError = ferror(pFile);
+
+    <span class=comment>// Check if we received an error.
+</span>    <span class=keyword>if</span>(hasError) {
+        MessageBox(NULL, &quot;Can't get Data!&quot;, &quot;Error&quot;, MB_OK);
+    }
+    
+    <span class=comment>// Close the file.
+</span>    fclose(pFile);
+}
+
+<span class=comment>// This returns the height (0 to 255) from a heightmap given an X and Y
+</span><span class=keyword>int</span> getHeight(BYTE* pHeightMap, <span class=keyword>int</span> X, <span class=keyword>int</span> Y) {
+    
+    <span class=comment>// This is used to index into our height map array.
+</span>    <span class=comment>// When ever we are dealing with arrays, we want to make sure
+</span>    <span class=comment>// that we don't go outside of them, so we make sure that doesn't
+</span>    <span class=comment>// happen with a %.  This way x and y will cap out at (MAX_SIZE - 1)
+</span>
+    <span class=keyword>int</span> x = X % MAP_SIZE;        <span class=comment>// Error check our x value
+</span>    <span class=keyword>int</span> y = Y % MAP_SIZE;        <span class=comment>// Error check our y value
+</span>
+    <span class=keyword>if</span>(!pHeightMap)                <span class=comment>// Make sure our data is valid
+</span>        <span class=keyword>return</span> 0;
+
+    <span class=comment>// Below, we need to treat the single array like a 2D array.
+</span>    <span class=comment>// We can use the equation: index = (x + (y * arrayWidth) ).
+</span>    <span class=comment>// This is assuming we are using this assumption array[x][y]
+</span>    <span class=comment>// otherwise it's the opposite.  Now that we have the correct index,
+</span>    <span class=comment>// we will return the height in that index.
+</span>
+    <span class=keyword>return</span> pHeightMap[x + (y*MAP_SIZE)];    <span class=comment>// Index into our height array and return the height
+</span>}
+
+<span class=comment>// This sets the color value for a particular index, depending on the height index
+</span><span class=keyword>void</span> setVertexColour(BYTE* pHeightMap, <span class=keyword>int</span> X, <span class=keyword>int</span> Y) {
+    
+    <span class=keyword>if</span>(!pHeightMap)                    <span class=comment>// Make sure our height data is valid
+</span>        <span class=keyword>return</span>;
+
+    <span class=comment>// Here we set the color for a vertex based on the height index.
+</span>    <span class=comment>// To make it darker, I start with -0.15f.  We also get a ratio
+</span>    <span class=comment>// of the color from 0 to 1.0 by dividing the height by 256.0f;
+</span>    <span class=keyword>float</span> fColour = -0.15f + (getHeight(pHeightMap, X, Y) / 256.0f);
+
+    <span class=comment>// Assign this green shade to the current vertex
+</span>    glColor3f(0, fColour, 0);
+}
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>// This sets the volumetric fog for the current vertex with the desired depth
+</span><span class=keyword>void</span> setFogCoord(<span class=keyword>float</span> depth, <span class=keyword>float</span> height) {
+
+    <span class=comment>// This function takes the depth of the fog, as well as the height
+</span>    <span class=comment>// of the current vertex.  If the height is greater than the depth, there
+</span>    <span class=comment>// is no fog applied to it (0), but if it's below the depth, then we
+</span>    <span class=comment>// calculate the fog value that should be applied to it.  Since the higher
+</span>    <span class=comment>// the number passed into glFogCoordfEXT() produces more fog, we need to
+</span>    <span class=comment>// subtract the depth from the height, then negate that value to switch
+</span>    <span class=comment>// the ratio from 0 to the depth around.  Otherwise it would have more
+</span>    <span class=comment>// fog on the top of the fog volume than the bottom of it.
+</span>
+    <span class=keyword>float</span> fogY = 0;
+
+    <span class=comment>// Check if the height of this vertex is greater than the depth (needs no fog)
+</span>    <span class=keyword>if</span>(height &gt; depth)
+        fogY = 0;
+    <span class=comment>// Otherwise, calculate the fog depth for the current vertex
+</span>    <span class=keyword>else</span>
+        fogY = -(height - depth);
+
+    <span class=comment>// Assign the fog coordinate for this vertex using our extension function pointer
+</span>    glFogCoordfEXT(fogY);
+}
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>// This sets the current texture coordinate of the terrain, based on the X and Z
+</span><span class=keyword>void</span> setTextureCoordinates(<span class=keyword>float</span> x, <span class=keyword>float</span> z) {
+
+    <span class=comment>// We want to calculate the texture coordinate for the current vertex.
+</span>    <span class=comment>// To do this, we just take the current x and y and divide them by the
+</span>    <span class=comment>// MAP_SIZE of our terrain.  This is of course assuming the height map
+</span>    <span class=comment>// has the same width and height.  Notice that we negate the v value (IE, (u, v)).
+</span>    <span class=comment>// This is because we need to flip the texture upside down so it lines up correctly.
+</span>    <span class=comment>// This simple math we use to find the texture coordinate can be explained easily.
+</span>    <span class=comment>// We know that our terrain is made up of a grid, and that if we want to stretch
+</span>    <span class=comment>// the entire texture over top of that grid, we just divide the current section
+</span>    <span class=comment>// of the grid by the total section of the grid, which gives us a ratio from 0
+</span>    <span class=comment>// to 1.  This works great because the (u, v) coordinates for a texture map go
+</span>    <span class=comment>// from (0, 0) in the top left corner to (1, 1) in the bottom right corner.
+</span>
+    <span class=comment>// Find the (u, v) coordinate for the current vertex
+</span>    <span class=keyword>float</span> u = (<span class=keyword>float</span>) x  / (<span class=keyword>float</span>) MAP_SIZE;
+    <span class=keyword>float</span> v = -(<span class=keyword>float</span>) z / (<span class=keyword>float</span>) MAP_SIZE;
+    
+    <span class=comment>// Instead of using the normal API for assigning the current texture
+</span>    <span class=comment>// coordinate, we want to use the glMultiTexCoord2fARB() function.
+</span>    <span class=comment>// This will allow us to choose the (u, v) coordinate for every texture
+</span>    <span class=comment>// map, since we are using multitexturing.  Due to the fact that we
+</span>    <span class=comment>// are going to be using the texture matrix to set the tiling of our
+</span>    <span class=comment>// detail texture, we just assign the same (u, v) coordinate for both
+</span>    <span class=comment>// textures.  
+</span>
+    <span class=comment>// Give OpenGL the current terrain texture coordinate for our height map
+</span>    glMultiTexCoord2fARB(GL_TEXTURE0_ARB, u, v);
+    
+    <span class=comment>// Give OpenGL the current detail texture coordinate for our height map
+</span>    <span class=keyword>if</span>(TILING_MODE == TILE_MODE_SCALING) {
+
+        <span class=comment>// Use the 'texture' array to scale/tile as per requirement
+</span>        glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u, v);
+    }
+    <span class=keyword>else</span> 
+    <span class=keyword>if</span>(TILING_MODE == TILE_MODE_MANUAL) {
+
+        <span class=comment>// OR
+</span>        <span class=comment>// Manually tile the 'detail' texture as per requirement
+</span>
+        u = (<span class=keyword>float</span>) x  / (<span class=keyword>float</span>) MAP_SIZE * iDetailScale;
+        v = -(<span class=keyword>float</span>) z / (<span class=keyword>float</span>) MAP_SIZE * iDetailScale;
+
+        glMultiTexCoord2fARB(GL_TEXTURE1_ARB, u, v);
+    }
+}
+
+<span class=comment>// This turns heightmap data into primitives and draws them to the screen
+</span><span class=comment>// This renders the height map as QUADS
+</span><span class=keyword>void</span> renderHeightMap(BYTE* pHeightMap) {
+
+    <span class=keyword>int</span> X = 0, Y = 0;                    <span class=comment>// Create some variables to walk the array with.
+</span>    <span class=keyword>int</span> x, y, z;                        <span class=comment>// Create some variables for readability
+</span>    <span class=keyword>bool</span> bSwitchSides = <span class=keyword>false</span>;
+
+    <span class=keyword>if</span>(!pHeightMap)                        <span class=comment>// Make sure our height data is valid
+</span>        <span class=keyword>return</span>;
+    
+    <span class=comment>// Activate the first texture ID and bind the tree background to it
+</span>    glActiveTextureARB(GL_TEXTURE0_ARB);
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, textures[TEX_ID_TERRAIN]);
+
+    <span class=comment>// If we want detail texturing on, let's render the second texture
+</span>    <span class=keyword>if</span>(bDetail) {
+
+        <span class=comment>// Activate the second texture ID and bind the fog texture to it
+</span>        glActiveTextureARB(GL_TEXTURE1_ARB);
+        glEnable(GL_TEXTURE_2D);
+
+        <span class=comment>// Here we turn on the COMBINE properties and increase our RGB
+</span>        <span class=comment>// gamma for the detail texture.  2 seems to work just right.
+</span>        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
+        glTexEnvi(GL_TEXTURE_ENV, GL_RGB_SCALE_ARB, 2);
+
+        <span class=comment>// Bind the detail texture
+</span>        glBindTexture(GL_TEXTURE_2D, textures[TEX_ID_DETAIL]);
+        
+
+        <span class=comment>//////////////////// NEEDED ONLY FOR 'TILE_MODE_SCALING' ////////////////////
+</span>        <span class=comment>// Now we want to enter the texture matrix.  This will allow us
+</span>        <span class=comment>// to change the tiling of the detail texture.
+</span>        glMatrixMode(GL_TEXTURE);
+
+            <span class=comment>// Reset the current matrix and apply our chosen scale value
+</span>            glLoadIdentity();
+            glScalef(    (<span class=keyword>float</span>)(TILING_MODE == TILE_MODE_SCALING)?iDetailScale:1, 
+                        (<span class=keyword>float</span>)(TILING_MODE == TILE_MODE_SCALING)?iDetailScale:1, 
+                        1
+                    );
+
+        <span class=comment>// Leave the texture matrix and set us back in the model view matrix
+</span>        glMatrixMode(GL_MODELVIEW);
+        <span class=comment>////////////////////////////////////////////////////////////////////////////
+</span>
+    }
+
+    <span class=comment>// We want to render triangle strips
+</span>    glBegin(GL_TRIANGLE_STRIP);
+
+        <span class=comment>// Go through all of the rows of the height map
+</span>        <span class=keyword>for</span>(X = 0; X &lt; MAP_SIZE; X += STEP_SIZE) {
+
+            <span class=comment>// Chechk if we need to render the opposite way for this column
+</span>            <span class=keyword>if</span>(bSwitchSides) {
+                <span class=comment>/*                X = 0
+                Y = 0            .
+                                |\
+                                | \
+                                |  \
+                                |___\X + STEP_SIZE 
+                                .
+                                |\
+                                | \
+                                |  \
+                                |___\X + STEP_SIZE
+                                .
+                                .
+                                .
+                                .
+                                .                            /\
+                                .                           /  \
+                                |\                            ||
+                                | \                            ||
+                                |  \                        ||
+                                |___\X + STEP_SIZE
+                Y = MAP_SIZE
+                */</span>
+
+                <span class=comment>// Render a column of the terrain, for this current X.
+</span>                <span class=comment>// We start at MAP_SIZE and render down to 0.
+</span>                <span class=keyword>for</span>(Y = MAP_SIZE; Y &gt;= 0; Y -= STEP_SIZE) {
+
+                    <span class=comment>// Get the (X, Y, Z) value for the top left vertex        
+</span>                    x = X;
+                    y = getHeight(pHeightMap, X, Y );    
+                    z = Y;
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the fog coordinate for this vertex, depending on it's height
+</span>                    <span class=comment>// and the current depth of the fog.
+</span>                    setFogCoord(g_FogDepth, (<span class=keyword>float</span>)y);
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the current texture coordinate and render the vertex
+</span>                    setTextureCoordinates((<span class=keyword>float</span>) x, (<span class=keyword>float</span>) z);
+                    glVertex3i(x, y, z);            <span class=comment>// Send this vertex to OpenGL to be rendered (integer points are faster)
+</span>
+                    <span class=comment>// Get the (X, Y, Z) value for the top right vertex        
+</span>                    x = X + STEP_SIZE; 
+                    y = getHeight(pHeightMap, X + STEP_SIZE, Y ); 
+                    z = Y;
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the fog coordinate for this vertex, depending on it's height
+</span>                    <span class=comment>// and the current depth of the fog.
+</span>                    setFogCoord(g_FogDepth, (<span class=keyword>float</span>)y);
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the current texture coordinate and render the vertex
+</span>                    setTextureCoordinates((<span class=keyword>float</span>) x, (<span class=keyword>float</span>) z);
+                    glVertex3i(x, y, z);            <span class=comment>// Send this vertex to OpenGL to be rendered
+</span>                }
+            }
+            <span class=keyword>else</span> {
+                <span class=comment>/*            X = 0      X + STEP_SIZE 
+                Y = 0             _____
+                                 \    |                        ||
+                                  \   |                        ||
+                                   \  |                        ||
+                                    \ |                       \  /
+                                     \|                     \/
+                                      .X + STEP_SIZE 
+                                 _____
+                                 \    |
+                                  \   |
+                                   \  |
+                                    \ | 
+                                     \|
+                                      .X + STEP_SIZE 
+                                      .
+                                      .
+                                      .
+                                      .
+                                      .
+                                    _____
+                                 \    |
+                                  \   |
+                                   \  |
+                                    \ | 
+                                     \|
+                Y = MAP_SIZE          .X + STEP_SIZE 
+
+                */</span>
+                <span class=comment>// Render a column of the terrain, for this current X.
+</span>                <span class=comment>// We start at 0 and render down up to MAP_SIZE.
+</span>                <span class=keyword>for</span> ( Y = 0; Y &lt;= MAP_SIZE; Y += STEP_SIZE ) {
+
+                    <span class=comment>// Get the (X, Y, Z) value for the bottom right vertex        
+</span>                    x = X + STEP_SIZE; 
+                    y = getHeight(pHeightMap, X + STEP_SIZE, Y ); 
+                    z = Y;
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the fog coordinate for this vertex, depending on it's height
+</span>                    <span class=comment>// and the current depth of the fog.
+</span>                    setFogCoord(g_FogDepth, (<span class=keyword>float</span>)y);
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the current texture coordinate and render the vertex
+</span>                    setTextureCoordinates( (<span class=keyword>float</span>)x, (<span class=keyword>float</span>)z );
+                    glVertex3i(x, y, z);
+
+
+
+                    <span class=comment>// Get the (X, Y, Z) value for the bottom left vertex        
+</span>                    x = X;                            
+                    y = getHeight(pHeightMap, X, Y );    
+                    z = Y;
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the fog coordinate for this vertex, depending on it's height
+</span>                    <span class=comment>// and the current depth of the fog.
+</span>                    setFogCoord(g_FogDepth, (<span class=keyword>float</span>)y);
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>                    <span class=comment>// Set the current texture coordinate and render the vertex
+</span>                    setTextureCoordinates( (<span class=keyword>float</span>)x, (<span class=keyword>float</span>)z );
+                    glVertex3i(x, y, z);        
+                }
+            }
+
+            <span class=comment>// Switch the direction the column renders to allow the fluid tri strips
+</span>            bSwitchSides = !bSwitchSides;
+        }
+    glEnd();
+
+    <span class=comment>// Now let's clean up our multitexturing so it doesn't effect anything else
+</span>
+    <span class=comment>// Turn the second multitexture pass off
+</span>    glActiveTextureARB(GL_TEXTURE1_ARB);
+    glDisable(GL_TEXTURE_2D);
+
+    <span class=comment>// Turn the first multitexture pass off
+</span>    glActiveTextureARB(GL_TEXTURE0_ARB);
+    glDisable(GL_TEXTURE_2D);
+}
+
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// Though being one of the simplest ways to display terrain from a height map,
+</span><span class=comment>// it's a good start.  The next step we would take would be to make a quad tree
+</span><span class=comment>// that only displayed the vertices that we could see from our view frustum.
+</span><span class=comment>// This would allow us to display large terrains, but not have to push so many polygons.
+</span><span class=comment>// This is a form of space partitioning.  There isn't as many good places to learn
+</span><span class=comment>// about space partitioning as I would like, but the best place is www.GameInstitute.com.
+</span><span class=comment>// They have an excellent terrain rendering course that deals with all of these problems,
+</span><span class=comment>// including line of sight, terrain rendering techniques, adaptable meshes, geomorphing, etc..
+</span><span class=comment>// 
+</span><span class=comment>// Let's go over the steps that we accomplished during this tutorial
+</span><span class=comment>//
+</span><span class=comment>// 1) First, we need to read the height map from the .raw file.  This is simple because
+</span><span class=comment>//    there is no header to a .raw file, it is just the image bits.  This file format
+</span><span class=comment>//    isn't what you generally want to use because you have to either know what the
+</span><span class=comment>//    size and type are, or guess, but I thought it fitting for this tutorial.
+</span><span class=comment>// 
+</span><span class=comment>// 2) After we read our height map data, we then needed to display it.  This was
+</span><span class=comment>//    also a simple function because we are just making QUADS with a set size.
+</span><span class=comment>//    I chose to do 16 by 16 quads, but you can change this to what ever you want.
+</span><span class=comment>//    With our height map array, we treated it as a 2D array and did 2 for loops
+</span><span class=comment>//    to draw each quad for each row and column.  Instead of doing lighting, I
+</span><span class=comment>//    just gave each vertex a green intensity. depending on it's height.  This makes
+</span><span class=comment>//    the terrain look like there is lighting applied.  This also makes it easier to
+</span><span class=comment>//    see the definition in the terrain until lighting and texture maps are applied.
+</span><span class=comment>//    
+</span><span class=comment>// 
+</span><span class=comment>// That's pretty much it.  As for doing texturing, this would be a good way to do
+</span><span class=comment>// texture tiling.  You can go into a paint program and create a blank
+</span><span class=comment>// file the size of your height map.  This will allow you to set up your textures
+</span><span class=comment>// to see how you want it to look.  Then, make a 2D array that stores an index
+</span><span class=comment>// into your texture array, then just bind that texture to the current quad that matches. 
+</span><span class=comment>// it's X and Y position.  Maybe we will write a tutorial on this. 
+</span><span class=comment>// 
+</span><span class=comment>// The other option is to let OpenGL find the texture coordinates for you, or you can
+</span><span class=comment>// find them yourself by stretching a texture over the whole thing (which isn't always desirable),
+</span><span class=comment>// or wrap it.  Remember, (0, 0) is the top left corner and (1,1) is the bottom right corner.
+</span><span class=comment>// You will have to find the ratio you want to wrap it with.  Here is an example:
+</span><span class=comment>// 
+</span><span class=comment>// glTexCoord2f(   (float)x / (float)MAP_SIZE,    
+</span><span class=comment>//                 - (float)z / (float)MAP_SIZE    );
+</span><span class=comment>//
+</span><span class=comment>// Make sure you cast integers to floats when necessary otherwise it will truncate it.
+</span><span class=comment>// The z is actually the Y value of the height map, but the z value in world coordinates.
+</span><span class=comment>// Check out the next height map tutorial to see texturing a height map in action,
+</span><span class=comment>// along with rendering the terrain using triangle strips.
+</span><span class=comment>//
+</span><span class=comment>// Good luck!
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span></pre></body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+
+
+<title>N Tutorials</title>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="description" content="We've decided to release tutorials and some source code to help explain how we did some things in N.  We want to give back to the community.">
+<meta name="keywords" content="design,source,game programming,art,tutorials,graphics,mare,raigan,flash game design,collision detection,N,citydefender,harveycartel,ninja,AI,physics,modular,code,interface">
+<link rel="shortcut icon" href="http://www.harveycartel.org/metanet/n/metanet4.ico">
+<style>
+
+A:link {COLOR: #bbbbbb; TEXT-DECORATION: none}
+
+A:visited {COLOR: #bbbbbb; TEXT-DECORATION: none}
+
+A:active {COLOR: #bbbbbb; TEXT-DECORATION: none}
+A:hover {COLOR: #333333; TEXT-DECORATION: none}
+
+
+
+A.dark:link {COLOR: #990000; TEXT-DECORATION: none}
+A.dark:visited {COLOR: #990000; TEXT-DECORATION: none}
+A.dark:active {COLOR: #990000; TEXT-DECORATION: none}
+A.dark:hover {COLOR: #333333; TEXT-DECORATION: none}
+
+
+
+
+.news, .news TD
+{
+	background-color:#eeeeee;
+	color:#333333;
+	border: 1px solid #666666;
+}
+
+</style>
+<link rel="shortcut icon" href="http://www.harveycartel.org/metanet/n/metanet4.ico">
+</head><body bgcolor="#ffffff" text="#333333">
+<font color="#333333" size="1" face="Verdana, Arial, Helvetica, sans-serif">
+</font><div align="center"><font color="#333333" size="1" face="Verdana, Arial, Helvetica, sans-serif"><a href="http://www.harveycartel.org/metanet/index.html"><img src="tutorials_files/metanet_600_s.gif" border="0"></a>
+  <table border="0" cellpadding="0" cellspacing="0" width="650" height="15">
+    <tbody><tr>
+      <td align="left" valign="top" width="85"><font size="1"><a href="http://www.harveycartel.org/metanet/news.html">[ news ]</a></font></td>
+      <td align="left" width="55"><font size="1"><a href="http://www.harveycartel.org/metanet/n.html">[ N ]</a></font></td>
+      <td align="left" width="95"><font size="1"><a href="http://www.harveycartel.org/metanet/downloads.html">[ downloads ]</a></font></td>
+      <td align="center" width="105"><font size="1"><a href="http://www.harveycartel.org/metanet/tutorials.html">[ tutorials ]</a></font></td>
+      <td align="center" width="105"><font size="1"><a href="http://www.harveycartel.org/metanet/corporate.html">[ corporate ]</a></font></td>
+	  <td align="center" width="105"><font size="1"><a href="http://www.harveycartel.org/metanet/donations.html">[ donations ]</a></font></td>
+      <td align="right" width="105"><font size="1"><a href="http://www.harveycartel.org/metanet/merch.html">[ merchandise ]</a></font></td>
+      <td align="right" width="85"><font size="1"><a href="http://metanet.forumer.com/" target="_blank">[ forum ]</a></font></td>
+      <td align="right" width="85"><font size="1"><a href="http://www.harveycartel.org/metanet/about.html">[ about ]</a></font></td>
+    </tr>
+  </tbody></table>
+
+  <br>
+  <br>
+  <br>
+  <table class="news" align="center" border="0" cellpadding="5" cellspacing="30" width="100%">
+    <tbody><tr>
+      <td align="left"><div align="left"><font size="1"> <br>
+          Welcome to Metanet Software's tutorial section. <br>
+          <br>
+These tutorials are intended to give insight into how we programmed N,
+and as well to hopefully inspire other programmers to start projects.
+Enjoy!<br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr><td><div align="left"><font size="1">tutorial A - <a class="dark" href="http://www.harveycartel.org/metanet/tutorials/tutorialA.html">[ Basic Collision Detection and Response ]</a></font></div></td>
+    </tr>
+    <tr><td><div align="left"><font size="1">tutorial B - <a class="dark" href="http://www.harveycartel.org/metanet/tutorials/tutorialB.html">[ Grid-Based Collision Detection and Raycasting ]</a></font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1">Beyond HitTest(): Collision Detection in Flash &nbsp;<a class="dark" href="http://www.harveycartel.org/metanet/tutorials/fitc05.zip">[ download slides ]</a></font></div></td>
+    </tr>
+    <tr><td><div align="left"><font size="1"><br>
+These tutorials are aimed at anyone interested in implementing 2D
+collision detection and response for games, or anyone interested in how
+we implemented various parts of N. <br>
+          <br>
+We'll try to explain everything from the bottom up, so there might be
+some sections you can skip; we'll also try to include enough
+information so that even relatively experienced game programmers will
+hopefully find a few ideas they haven't seen before. <br>
+          <br>
+Some of the material covered in the tutorials isn't part of the
+released version in N, but was developed for N and then not used. This
+material will probably pop up in games we release in the future. <br>
+          <br>
+The purpose of these tutorials is to explain some of the things we
+learned while programming N; we had a lot of help from various online
+resources and would like to help the community in return by
+contributing to it. <br>
+          <br>
+Our ulterior motive is that we're sick of crappy flash "games", and
+want more people to realize that actionscript is a viable platform for
+developing fun, exciting games which are not simply "flash games", but
+video games in their own right. <br>
+          <br>
+Flash is especially attractive for small developers since it allows
+extremely rapid development, albeit at the cost of execution speed.
+Perhaps once everyone expects the quality of games made with Flash to
+equal that of games written in other languages, we'll see more actual <i>games</i>
+made in flash, and fewer ads-posing-as-video-games (which really suck
+when compared to proper video games, and which shouldn't be considered
+video games at all). <br>
+          <br> Each tutorial will be
+accompanied by polished source from our engine; we'll be releasing the
+full, unpolished source (minus the online/networking code, for
+highscore-security reasons) whenever we finish our next game -- which
+should hopefully not be too long from now! <br>
+          <br>
+          The source code is written in <strong>actionscript</strong>, but should be easily understandable (and might seem somewhat pseudocode-like) to c or java programmers. <br>
+          <br>
+One warning about the source is that our coding approach is perhaps
+slightly too unstructured; in actionscript, function calls incur a
+significant overhead cost, thus we decided that for often-used and
+"basic" properties (which are unlikely to change in implementation) we
+would abandon the OOP approach of using an interface of get/set
+routines: <br>
+          <br>
+          GetPos(),SetPos(p),GetRadius(),SetRadius(r), etc. <br>
+          <br>
+          and instead would directly access the properties of the objects: <br>
+          <br>
+          .pos .r <br>
+          <br>
+          <strong>However</strong>,
+this method wasn't used recklessly, and was always considered an
+"interface". For example, if an object supported the interface "dynamic
+shape", it was required to have the following properties, which should
+always contain up-to-date data: <br>
+          <br>
+          .pos .r .xw .yw <br>
+          <br>
+In retrospect, the renderer of the flashplayer is so slow that it's
+unlikely that any runtime calculation will become the major bottleneck
+in a game -- unless you're doing something that shouldn't be done at
+runtime, such as using an O(n^2) algorithm or performing a large number
+of calculations on a long list. At the very least, you could implement <strong>Get/Set</strong> routines, and then replace them during optimisation with direct property accessing if you need every bit of speed. <br>
+          <br>
+          </font></div></td>
+    </tr>
+  </tbody></table>
+</font></div>
+<font color="#333333" size="1" face="Verdana, Arial, Helvetica, sans-serif"><br>
+<br>
+<br>
+<br>
+<br>
+</font><div align="right"><font color="#333333" size="1" face="Verdana, Arial, Helvetica, sans-serif"> <a href="http://www.harveycartel.org/metanet/index.html"><img src="tutorials_files/logo.gif" border="0"></a> <br>
+  (c) Metanet Software Inc. 2007 <br>
+  <a href="http://www.harveycartel.org/raigan" target="_blank">Raigan Burns</a> and <a href="http://www.harveycartel.org/mare" target="_blank">Mare Sheppard</a> </font></div>
+<font color="#333333" size="1" face="Verdana, Arial, Helvetica, sans-serif"></font>
+</body></html>

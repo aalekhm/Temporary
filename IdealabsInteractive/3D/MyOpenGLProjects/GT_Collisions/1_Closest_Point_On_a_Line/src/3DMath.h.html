@@ -1,0 +1,99 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=pp>#ifndef</span> _3DMATH_H
+<span class=pp>#define</span> _3DMATH_H
+
+<span class=pp>#define</span> PI 3.1415926535897932                    <span class=comment>// This is our famous PI
+</span>
+
+<span class=comment>// This is our 3D point and vector class which has the +, -, and * operators overloaded
+</span><span class=keyword>struct</span> CVector3
+{
+<span class=keyword>public</span>:
+    
+    <span class=comment>// A default constructor
+</span>    CVector3() {}
+
+    <span class=comment>// This is our constructor that allows us to initialize our data upon creating an instance
+</span>    CVector3(<span class=keyword>float</span> X, <span class=keyword>float</span> Y, <span class=keyword>float</span> Z) 
+    { 
+        x = X; y = Y; z = Z;
+    }
+
+    <span class=comment>// Here we overload the + operator so we can add vectors together 
+</span>    CVector3 <span class=keyword>operator</span>+(CVector3 vVector)
+    {
+        <span class=comment>// Return the added vectors result.
+</span>        <span class=keyword>return</span> CVector3(vVector.x + x, vVector.y + y, vVector.z + z);
+    }
+
+    <span class=comment>// Here we overload the - operator so we can subtract vectors 
+</span>    CVector3 <span class=keyword>operator</span>-(CVector3 vVector)
+    {
+        <span class=comment>// Return the subtracted vectors result
+</span>        <span class=keyword>return</span> CVector3(x - vVector.x, y - vVector.y, z - vVector.z);
+    }
+    
+    <span class=comment>// Here we overload the - operator so we can subtract vectors 
+</span>    CVector3 <span class=keyword>operator</span>*(<span class=keyword>float</span> num)
+    {
+        <span class=comment>// Return the subtracted vectors result
+</span>        <span class=keyword>return</span> CVector3(x * num, y * num, z * num);
+    }
+
+    <span class=keyword>float</span> x, y, z;                        
+};
+
+
+<span class=comment>//    This returns the magnitude of a normal (or any other vector)
+</span><span class=keyword>float</span> Magnitude(CVector3 vNormal);
+
+<span class=comment>//    This returns a normalize vector (A vector exactly of length 1)
+</span>CVector3 Normalize(CVector3 vNormal);
+
+<span class=comment>// This returns the dot product between 2 vectors
+</span><span class=keyword>float</span> Dot(CVector3 vVector1, CVector3 vVector2);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>// This returns the distance between 2 3D points
+</span><span class=keyword>float</span> Distance(CVector3 vPoint1, CVector3 vPoint2);
+
+<span class=comment>// This returns the point on the line segment vA_vB that is closest to point vPoint
+</span>CVector3 ClosestPointOnLine(CVector3 vA, CVector3 vB, CVector3 vPoint);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+
+<span class=pp>#endif</span> 
+
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// We added to new functions to our math library (and took some out to cut out
+</span><span class=comment>// uneeded code for this tutorial).  We can now find the distance from 2 3D points,
+</span><span class=comment>// along with finding the point on a line segment that is closest to another point.
+</span><span class=comment>// This comes into play when doing sphere polygon collision.  Check out our tutorial
+</span><span class=comment>// on line at www.GameTutorials.com for the implementation of this technique.
+</span><span class=comment>//
+</span><span class=comment>// Check out 3DMath.cpp for the explanations of how these new functions work.
+</span><span class=comment>//
+</span><span class=comment>//
+</span><span class=comment>// Ben Humphrey (DigiBen)
+</span><span class=comment>// Game Programmer
+</span><span class=comment>// DigiBen@GameTutorials.com
+</span><span class=comment>// Co-Web Host of www.GameTutorials.com
+</span><span class=comment>//
+</span><span class=comment>//
+</span>
+
+</pre></body>
+</html>

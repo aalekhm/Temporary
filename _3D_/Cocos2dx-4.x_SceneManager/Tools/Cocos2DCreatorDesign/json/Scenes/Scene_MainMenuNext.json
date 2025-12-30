@@ -1,0 +1,456 @@
+{
+	"version": "0.4.0",
+	"root": {
+		"object": {
+			"node": {
+				"contentSize": {
+					"w": 0,
+					"h": 0
+				},
+				"enabled": true,
+				"anchorPoint": {
+					"x": 0,
+					"y": 0
+				},
+				"cascadeOpacityEnabled": true,
+				"color": {
+					"r": 255,
+					"g": 255,
+					"b": 255
+				},
+				"globalZOrder": 0,
+				"localZOrder": 0,
+				"opacity": 255,
+				"opacityModifyRGB": false,
+				"tag": -1,
+				"groupIndex": 0,
+				"colliders": []
+			}
+		},
+		"object_type": "Scene",
+		"children": [
+			{
+				"object": {
+					"contentSize": {
+						"w": 640,
+						"h": 960
+					},
+					"enabled": true,
+					"name": "SceneMainMenuNext",
+					"anchorPoint": {
+						"x": 0.5,
+						"y": 0.5
+					},
+					"cascadeOpacityEnabled": true,
+					"color": {
+						"r": 255,
+						"g": 255,
+						"b": 255
+					},
+					"globalZOrder": 0,
+					"localZOrder": 0,
+					"opacity": 255,
+					"opacityModifyRGB": false,
+					"position": {
+						"x": 320,
+						"y": 480
+					},
+					"rotationSkewX": 0,
+					"rotationSkewY": 0,
+					"scaleX": 1,
+					"scaleY": 1,
+					"skewX": 0,
+					"skewY": 0,
+					"tag": -1,
+					"groupIndex": 0,
+					"anim": {
+						"playOnLoad": false,
+						"clips": [
+							{
+								"name": "animationIn_SceneMainMenuNext",
+								"duration": 1,
+								"sample": 60,
+								"speed": 1,
+								"wrapMode": 1,
+								"curveData": [
+									{
+										"path": "RootNode/ActivityIcon_Activity",
+										"props": {
+											"position": [
+												{
+													"frame": 0,
+													"value": {
+														"x": -243,
+														"y": 813
+													}
+												},
+												{
+													"frame": 1,
+													"value": {
+														"x": 320,
+														"y": 813
+													}
+												}
+											]
+										}
+									},
+									{
+										"path": "RootNode/Button_Prev",
+										"props": {
+											"position": [
+												{
+													"frame": 0,
+													"value": {
+														"x": 1001,
+														"y": 102
+													}
+												},
+												{
+													"frame": 1,
+													"value": {
+														"x": 320,
+														"y": 102
+													}
+												}
+											]
+										}
+									}
+								]
+							},
+							{
+								"name": "animationOut_SceneMainMenuNext",
+								"duration": 1,
+								"sample": 60,
+								"speed": 1,
+								"wrapMode": 1,
+								"curveData": [
+									{
+										"path": "RootNode/ActivityIcon_Activity",
+										"props": {
+											"position": [
+												{
+													"frame": 0,
+													"value": {
+														"x": 320,
+														"y": 813
+													}
+												},
+												{
+													"frame": 1,
+													"value": {
+														"x": 993,
+														"y": 813
+													}
+												}
+											]
+										}
+									},
+									{
+										"path": "RootNode/Button_Prev",
+										"props": {
+											"position": [
+												{
+													"frame": 0,
+													"value": {
+														"x": 320,
+														"y": 102
+													}
+												},
+												{
+													"frame": 1,
+													"value": {
+														"x": -405,
+														"y": 102
+													}
+												}
+											]
+										}
+									}
+								]
+							}
+						],
+						"defaultClip": "animationIn_SceneMainMenuNext"
+					},
+					"colliders": []
+				},
+				"object_type": "Node",
+				"children": [
+					{
+						"object": {
+							"contentSize": {
+								"w": 0,
+								"h": 0
+							},
+							"enabled": true,
+							"name": "RootNode",
+							"anchorPoint": {
+								"x": 0.5,
+								"y": 0.5
+							},
+							"cascadeOpacityEnabled": true,
+							"color": {
+								"r": 255,
+								"g": 255,
+								"b": 255
+							},
+							"globalZOrder": 0,
+							"localZOrder": 0,
+							"opacity": 255,
+							"opacityModifyRGB": false,
+							"position": {
+								"x": -320,
+								"y": -480
+							},
+							"rotationSkewX": 0,
+							"rotationSkewY": 0,
+							"scaleX": 1,
+							"scaleY": 1,
+							"skewX": 0,
+							"skewY": 0,
+							"tag": -1,
+							"groupIndex": 0,
+							"colliders": []
+						},
+						"object_type": "Node",
+						"children": [
+							{
+								"object": {
+									"node": {
+										"contentSize": {
+											"w": 108,
+											"h": 108
+										},
+										"enabled": true,
+										"name": "ActivityIcon_Activity",
+										"anchorPoint": {
+											"x": 0.5,
+											"y": 0.5
+										},
+										"cascadeOpacityEnabled": true,
+										"color": {
+											"r": 255,
+											"g": 255,
+											"b": 255
+										},
+										"globalZOrder": 0,
+										"localZOrder": 0,
+										"opacity": 255,
+										"opacityModifyRGB": false,
+										"position": {
+											"x": 54,
+											"y": -54
+										},
+										"rotationSkewX": 0,
+										"rotationSkewY": 0,
+										"scaleX": 1,
+										"scaleY": 1,
+										"skewX": 0,
+										"skewY": 0,
+										"tag": -1,
+										"groupIndex": 0,
+										"colliders": []
+									},
+									"spriteFrameName": "Common/ActivityIcon_DC.png",
+									"spriteType": "Simple",
+									"srcBlend": 770,
+									"dstBlend": 771,
+									"trimEnabled": true,
+									"sizeMode": "Trimmed"
+								},
+								"object_type": "Sprite",
+								"children": []
+							},
+							{
+								"object": {
+									"node": {
+										"contentSize": {
+											"w": 150,
+											"h": 53
+										},
+										"enabled": true,
+										"name": "Button_Prev",
+										"anchorPoint": {
+											"x": 0.5,
+											"y": 0.5
+										},
+										"cascadeOpacityEnabled": true,
+										"color": {
+											"r": 255,
+											"g": 255,
+											"b": 255
+										},
+										"globalZOrder": 0,
+										"localZOrder": 0,
+										"opacity": 255,
+										"opacityModifyRGB": false,
+										"position": {
+											"x": 75,
+											"y": -26.5
+										},
+										"rotationSkewX": 0,
+										"rotationSkewY": 0,
+										"scaleX": 1,
+										"scaleY": 1,
+										"skewX": 0,
+										"skewY": 0,
+										"tag": -1,
+										"groupIndex": 0,
+										"colliders": []
+									},
+									"ignoreContentAdaptWithSize": false,
+									"spriteFrameName": "Common/Button_Blue_Small.png",
+									"transition": 2,
+									"pressedSpriteFrameName": "Common/Button_GreySmall.png",
+									"disabledSpriteFrameName": "Common/Button_GreySmall.png"
+								},
+								"object_type": "Button",
+								"children": [
+									{
+										"object": {
+											"node": {
+												"contentSize": {
+													"w": 100,
+													"h": 40
+												},
+												"enabled": true,
+												"name": "Label",
+												"anchorPoint": {
+													"x": 0.5,
+													"y": 0.5
+												},
+												"cascadeOpacityEnabled": true,
+												"color": {
+													"r": 0,
+													"g": 0,
+													"b": 0
+												},
+												"globalZOrder": 0,
+												"localZOrder": 0,
+												"opacity": 255,
+												"opacityModifyRGB": false,
+												"position": {
+													"x": 0,
+													"y": 0
+												},
+												"rotationSkewX": 0,
+												"rotationSkewY": 0,
+												"scaleX": 1,
+												"scaleY": 1,
+												"skewX": 0,
+												"skewY": 0,
+												"tag": -1,
+												"groupIndex": 0,
+												"colliders": []
+											},
+											"fontSize": 20,
+											"labelText": "Prev",
+											"horizontalAlignment": "Center",
+											"verticalAlignment": "Center",
+											"overflowType": "Clamp",
+											"enableWrap": false,
+											"fontName": "creator/4e930fae-cdf0-4779-b131-69845fcf1c66/TradeGothicNextLTPro-Rg.ttf",
+											"fontType": "TTF",
+											"lineHeight": 40
+										},
+										"object_type": "Label",
+										"children": []
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	},
+	"designResolution": {
+		"w": 640,
+		"h": 960
+	},
+	"resolutionFitWidth": true,
+	"resolutionFitHeight": true,
+	"spriteFrames": [
+		{
+			"name": "Common/ActivityIcon_DC.png",
+			"texturePath": "creator/Common/ActivityIcon_DC.png",
+			"rect": {
+				"x": 1,
+				"y": 1,
+				"w": 108,
+				"h": 108
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 110,
+				"h": 110
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 108,
+				"h": 108
+			}
+		},
+		{
+			"name": "Common/Button_Blue_Small.png",
+			"texturePath": "creator/Common/Button_Blue_Small.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 53,
+				"h": 53
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 53,
+				"h": 53
+			},
+			"centerRect": {
+				"x": 11,
+				"y": 10,
+				"w": 31,
+				"h": 31
+			}
+		},
+		{
+			"name": "Common/Button_GreySmall.png",
+			"texturePath": "creator/Common/Button_GreySmall.png",
+			"rect": {
+				"x": 0,
+				"y": 0,
+				"w": 53,
+				"h": 53
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"rotated": false,
+			"originalSize": {
+				"w": 53,
+				"h": 53
+			},
+			"centerRect": {
+				"x": 0,
+				"y": 0,
+				"w": 53,
+				"h": 53
+			}
+		}
+	],
+	"collisionMatrix": [
+		{
+			"value": [
+				true
+			]
+		}
+	]
+}

@@ -1,0 +1,1034 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+
+
+<title>N Tutorials - Collision Detection and Response</title>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="description" content="We've decided to release tutorials and some source code to help explain how we did some things in N.  We want to give back to the community.">
+<meta name="keywords" content="design,source,game programming,art,tutorials,graphics,mare,raigan,flash game design,collision detection,N,citydefender,harveycartel,ninja,AI,physics,modular,code,interface">
+<link rel="shortcut icon" href="http://www.harveycartel.org/metanet/n/metanet4.ico">
+<style>
+
+
+
+
+
+
+
+
+A:link {COLOR: #bbbbbb; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+A:visited {COLOR: #bbbbbb; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+A:active {COLOR: #bbbbbb; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+A:hover {COLOR: #333333; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+A.dark:link {COLOR: #990000; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+A.dark:visited {COLOR: #990000; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+A.dark:active {COLOR: #990000; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+A.dark:hover {COLOR: #333333; TEXT-DECORATION: none}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.news, .news TD
+
+
+
+
+
+
+
+
+{
+
+
+
+
+
+
+
+
+	background-color:#eeeeee;
+
+
+
+
+
+
+
+
+	color:#333333;
+
+
+
+
+
+
+
+
+	border: 1px solid #666666;
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.inner, .inner TD
+
+
+
+
+
+
+
+
+{
+
+
+
+
+
+
+
+
+	background-color:#ffffff;
+
+
+
+
+
+
+
+
+	color:#333333;
+
+
+
+
+
+
+
+
+	border: 1px solid #666666;
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</style>
+<link rel="shortcut icon" href="http://www.harveycartel.org/metanet/n/metanet4.ico">
+</head><body bgcolor="#ffffff" text="#000000">
+<font color="#000000" size="1" face="Verdana, Arial, Helvetica, sans-serif">
+</font><div align="center"><font color="#000000" size="1" face="Verdana, Arial, Helvetica, sans-serif"><a href="http://www.harveycartel.org/metanet/index.html"><img src="tutorialA_files/metanet_600_s.gif" border="0"></a>
+  <table border="0" cellpadding="0" cellspacing="0" width="600" height="15">
+    <tbody><tr>
+      <td align="left" width="85"><font size="1"><a href="http://www.harveycartel.org/metanet/news.html">[ news ]</a></font></td>
+      <td align="left" width="55"><font size="1"><a href="http://www.harveycartel.org/metanet/n.html">[ N ]</a></font></td>
+      <td align="left" width="95"><font size="1"><a href="http://www.harveycartel.org/metanet/downloads.html">[ downloads ]</a></font></td>
+      <td align="center" width="95"><font size="1"><a href="http://www.harveycartel.org/metanet/tutorials.html">[ tutorials ]</a></font></td>
+      <td align="center" width="95"><font size="1"><a href="http://www.harveycartel.org/metanet/corporate.html">[ corporate ]</a></font></td>
+      <td align="right" width="95"><font size="1"><a href="http://www.harveycartel.org/metanet/merch.html">[ merchandise ]</a></font></td>
+      <td align="right" width="85"><font size="1"><a href="http://metanet.forumer.com/" target="_blank">[ forum ]</a></font></td>
+      <td align="right" width="85"><font size="1"><a href="http://www.harveycartel.org/metanet/about.html">[ about ]</a></font></td>
+    </tr>
+  </tbody></table>
+  <br>
+  <br>
+  <br>
+  <table class="news" align="center" border="0" cellpadding="5" cellspacing="30" width="100%">
+    <tbody><tr>
+      <td align="center"><div align="left"><font size="1"><br>
+          <a class="dark" name="toc"> table of contents</a> <br>
+          <br>
+          <a class="dark" href="#section0">SECTION &nbsp; 0</a>: General Introduction<br>
+          <a class="dark" href="#section1">SECTION &nbsp; 1</a>: Separating Axis Theorem<br>
+          <a class="dark" href="#section2">SECTION &nbsp; 2</a>: Separating Axis Theorem for AABBs<br>
+          <a class="dark" href="#section3">SECTION &nbsp; 3</a>: Separating Axis Theorem for Circles<br>
+          <a class="dark" href="#section4">SECTION &nbsp; 4</a>: Separating Axis Theorem for Points<br>
+          <a class="dark" href="#section5">SECTION &nbsp; 5</a>: Fast-Moving Objects<br>
+          <a class="dark" href="#section6">SECTION &nbsp; 6</a>: Conclusion / Source Code<br>
+          <a class="dark" href="#footnotes">FOOTNOTES &nbsp;</a><br>
+          <a class="dark" href="#appendixA">APPENDIX &nbsp; A</a>: Basic Geometry<br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td bgcolor="#ffffff"><div align="left"><font size="1"> <br>
+          <br>
+          <a name="section0" class="dark">SECTION 0</a>: General Introduction <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= Collision Detection in Games =-- </strong> <br>
+          <br>
+          Typically, collision detection in games is carried out into two steps: <br>
+          </font><ul>
+<font size="1">            (1) determine which pairs of shapes need to be tested for collision (broad phase)<br>
+            (2) determine collision results for each pair identified in step (1) (narrow phase)
+          </font></ul>
+<font size="1"> In N, step (1) is implemented using a uniform "loose"
+grid of square cells; each shape is stored in the cell which contains
+its center, and each shape is collided against any shapes in its
+current cell, or the 8 cells touching the current cell. <br>
+          <br>
+Later tutorials will explain this system in greater detail; this
+tutorial will explain how step (2) was implemented in N. <br>
+          <br>
+The algorithms we used to handle this step are of use to any game which
+requires fast collision detection that provides more than a simple
+boolean result. <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= Collision Response via Projection =--</strong> <br>
+          <br>
+Before thinking about how to detect collisions, we should first think
+about what should happen to two objects which collide. <br>
+          <br>
+          Given only the fact that objects <strong>a</strong> and <strong>b</strong>
+overlap each other, a simple response would be to destroy one or both
+objects, or move one or both back to their previous positions. <br>
+          <br>
+While this might be sufficient for some types of objects, we'd also
+like physically simulated objects which behave in a more realistic
+manner. In order to support this feature, we'll need more information
+than simply "<strong>a</strong> and <strong>b</strong> are overlapping". Specifically, information about the <strong>nature</strong> of the overlap is needed. <br>
+          <br>
+          Projection <a class="dark" href="#jakobsen">[Jakobsen]</a>
+is one physically-plausible method for dealing with overlapping
+("penetrating") objects. The basic idea is to move the objects out of
+penetration using the smallest possible displacement. Solving the
+collision then becomes equivalent to finding the vector <strong>v</strong> which moves the two objects out of penetration by the shortest distance possible. <br>
+          <br>
+          Some other ways to deal with collision are using <a class="dark" href="#penalty"><strong>penalty-force</strong></a> or <a class="dark" href="#impulse"><strong>impulse-based</strong></a> methods. Penalty methods use spring forces to <strong>pull</strong> objects out of collision. Impulse-based methods use instantaneous <strong>impulses</strong> (changes in velocity) to prevent objects from interpenetrating. <br>
+          <br>
+Another way to look at the different collision-response methods is in
+terms of the object's position. Projection modifies the position of
+objects <strong>directly</strong>; impulse-based methods modify the <strong>first derivative</strong> of the positions (i.e velocities), and penalty-methods modify the <strong>second derivative</strong>
+of the positions (i.e accelerations, cause from spring forces) -- all
+three methods are trying to move the objects to some target position. <br>
+          <br>
+In this case, we want to move the objects so that they're not
+penetrating each other. All three collision response methods can be
+used with the collision detection methods we implemented; we chose to
+use projection because it was the simplest method, and it seemed to
+work well in test cases. <br>
+          <br>
+          So, not only do we need a boolean result from our collision detection routines, we also need a <strong>projection vector</strong>. Note that this projection vector can be described as a (unit) direction vector and a (scalar) penetration depth. <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= Bounce and Friction =--</strong> <br>
+          <br>
+Once we've projected our two objects so that they no longer collide,
+we'd also like to change their velocities to model physical phenomena
+such as "bounciness" and friction. <br>
+          <br>
+While the model used in N is quite simple and not realistic, we also
+developed a more realistic model for bouncy objects with friction -- we
+then discovered that this realistic model wasn't as fun-feeling as the
+simple model. <br>
+          <br>
+          Our collision response method was:<br>
+          <br>
+          </font><ul>
+<font size="1">            . project out of collision <br>
+            . split velocity vector into two components: one parallel and one perpendicular to the collision surface<br>
+            . calculate bounce using the perpendicular component<br>
+            . calculate friction using the parallel component <br>
+          </font></ul>
+<font size="1">          <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A-1_particle_collision.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A-1_particle_collision.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A-1_particle_collision.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          </font><div align="right"><font size="1"> <br>
+            <br>
+            <strong>instructions:</strong><br>
+            <br>
+            drag the <font color="#882222">red</font> and <font color="#222288">blue</font> sliders to change the coefficients of <font color="#882222">friction</font> and <font color="#222288">bounce</font> . <br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            the resulting velocity of the particle is determined by scaling the <font color="#882222">parallel</font> and <font color="#222288">perpendicular</font> components of the incoming velocity by the coefficients of <font color="#882222">friction</font> and <font color="#222288">bounce</font> , respectively. </font></div>
+<font size="1">          <br clear="all">
+          Figure 0. The Path of a Particle as it Collides with a Horizontal Surface <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= NOTE =--</strong> <br>
+          <br>
+          <br>
+          For a brief review of a few concepts of <strong>2D geometry</strong> you'll need to know in order to understand the source code, see <a href="#appendixA" class="dark">Appendix A</a>.<br>
+          <br>
+We're assuming you know what a vector is, how to scale and add vectors,
+and what a dot product is; that's pretty much all you'll need to know. <br>
+          <br>
+          <br>
+          <a class="dark" href="#toc">[ back to table of contents ]</a> <br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1"> <br>
+          <br>
+          <a name="section1" class="dark">SECTION 1</a>: Separating Axis Theorem <strong>(SAT)</strong> <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= summary of SAT =--</strong> <br>
+          <br>
+The separating axis theorem tells us that, given two convex shapes, if
+we can find an axis along which the projection of the two shapes does <strong>not</strong> overlap, then the shapes don't overlap. See <a href="#eberly" class="dark">[Eberly]</a> for an in-depth examination of the theorem.<br>
+          <br>
+          In 2D, each of these potential separating axes is perpendicular to one of the faces (edges) of each shape. <br>
+          <br>
+          <img src="tutorialA_files/sepaxes.gif"> <br>
+          <br clear="all">
+          Figure 1. A <font color="#222288">convex polygon</font> and its <font color="#882222">potential separating axes</font> <br>
+          <br>
+          <br>
+          <br>
+So in general, we're solving our 2D overlap query using a series of 1D
+queries; each query tests if the two shapes overlap along a given axis.
+If we find an axis along which the objects <strong>don't</strong> overlap, we don't have to continue testing the rest of the axes: thanks to the SAT we know that the objects don't overlap. <br>
+          <br>
+          This is the major strength of an SAT-type approach: in most games it's more likely for two objects to <strong>not</strong> overlap than to overlap, so this "early-out" capability speeds things up nicely. <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/Ax_aabb_projection.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/Ax_aabb_projection.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/Ax_aabb_projection.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          <div align="right"> <strong>instructions:</strong><br>
+            <br>
+            click and drag <font color="#882222">the red point</font> to change the direction of the axis. <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            <font color="#222288">the thick blue line</font> represents the size of the box when measured along the axis defined by <font color="#882222">the red line</font>.<br>
+            <br>
+            <font color="#228822">the thick green line</font> is the sum of the projections of the box's halfwidth vectors onto the same axis.<br>
+            (a box's halfwidth vector is similar to a circle's radius, but has a direction as well as a size) <br>
+            <br>
+            Note that the length of <font color="#222288">the thick blue line</font> is always twice the length of <font color="#228822">the thick green line</font>; since the length of <font color="#228822">the thick green line</font> is far easier to calculate than that of <font color="#222288">the thick blue line</font>, this allows us to quickly calculate the size of the box along any axis. </div>
+          <br clear="all">
+          Figure 2. Projection of a Box onto an Arbitrary Axis <br>
+          <br>
+          <strong>--= calculating the projection vector =--</strong> <br>
+          <br>
+          If the objects overlap along <strong>all</strong>
+of the possible separating axes, then they are definitely overlapping
+each other; we've found a collision, and this means we need to
+determine the projection vector, which will push the two objects apart.
+<br>
+          <br> At this point, we've already done most of the
+work: each axis is a potential direction along which we can project the
+objects. So, all we need to do is find the axis with the smallest
+amount of overlap between the two objects, and we're done -- the <strong>direction</strong> of the projection vector is the same as the axis direction, and the <strong>length</strong> of the projection vector is equal to the <strong>size</strong> of the overlap along that axis. <br>
+          <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A1_aabb-aabb_sepaxis.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A1_aabb-aabb_sepaxis.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A1_aabb-aabb_sepaxis.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          <div align="right"> <strong>instructions:</strong><br>
+            <br>
+            drag the boxes around and observe the results.<br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            the overlap of the boxes along each axis is drawn as <font color="#999999">a gray arrow</font> if it exists. if the boxes overlap along both axes, they are colliding and the projection vector is drawn as <font color="#882288">a purple arrow</font>. <br>
+            <br>
+            for each axis, the <font color="#882222">red</font> and <font color="#222288">blue</font> lines indicate the halfwidths of the boxes along the axis, and the <font color="#228822">green</font> line indicates the distance between the centres of the boxes along the axis.<br>
+            <br>
+            note that, for each axis, the length of the overlap line is equal to the combined lengths of the <font color="#882222">red</font> and <font color="#222288">blue</font> lines minus the length of the <font color="#228822">green</font> line. </div>
+          <br clear="all">
+          <a name="aabb-aabb" class="dark">Figure 3.</a> Using the Separating Axis Theorem with Two Boxes<br>
+          <br>
+          <br>
+          <br>
+So, we now have our general approach to collision detection: for a pair
+of objects, test each potential separating axis, stopping if we find
+separation. If none of the axes are separating, use the axis of
+smallest overlap to generate a projection vector. <br>
+          <br>
+          <br>
+          <br>
+          <a class="dark" href="#toc">[ back to table of contents ]</a> <br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1"> <br>
+          <br>
+          <a name="section2" class="dark">SECTION 2</a>: Separating Axis Theorem for AABBs <br>
+          <br>
+          A common shape used in 2D games to represent moving objects is an axis-aligned bounding box, or <strong>AABB</strong>. An AABB is defined by a position <strong>p</strong>, and a pair of half width vectors <strong>xw</strong> and <strong>yw</strong>, which define the box's size along the world axes. <br>
+          <br>
+          A <strong>halfwidth</strong> is similar in concept to a radius, except it's defined along a specific direction instead of along all directions. <br>
+          <br>
+          <img src="tutorialA_files/AABB.gif"> <br>
+          <br clear="all">
+          Figure 4. An AABB and its halfwidth vectors. <br>
+          <br>
+          <br>
+          <br>
+Now, to perform collision detection between this AABB and another
+shape, we simply need to use our SAT-type method and test along <strong>x</strong> and <strong>y</strong> (the two potential separating axes of the AABB), as well as any other potential separating axes of the other shape. <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= triangles =--</strong> <br>
+          <br>
+          We've already seen above how to use this method with two AABBs; what about non-axis-aligned shapes? <br>
+          <br>
+The (right) triangular tiles used in N have two edges parallel to the
+world axes; this means that to test an AABB vs. a triangular tile, we
+only need to test along one other axis -- the axis <strong>perpendicular</strong> to the triangle's hypotenuse. <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A2_aabb-tri_sepaxis.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A2_aabb-tri_sepaxis.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A2_aabb-tri_sepaxis.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          </font><div align="right"><font size="1"><br>
+            <br>
+            <strong>instructions:</strong><br>
+            <br>
+            drag the box around and observe the results.<br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            the overlap of the shapes along each axis is drawn as <font color="#999999">a gray arrow</font> if it exists. if the shapes overlap along all axes, they are colliding and the projection vector is drawn as <font color="#882288">a purple arrow</font>. <br>
+            <br>
+            for each axis, the <font color="#882222">red</font> and <font color="#222288">blue</font> lines indicate the size of the shapes as measured along the axis.<br>
+            <br>
+          </font></div>
+<font size="1">          <br clear="all">
+          Figure 5. Using the Separating Axis Theorem with an AABB and a Right Triangle<br>
+          <br>
+          <br>
+          <br>
+Note that the hypotenuse's normal (i.e. unit direction vector
+perpendicular to the hypoteneuse) can be precalculated and stored for
+triangles which don't rotate or change shape. <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= round shapes =--</strong> <br>
+          <br>
+          We can now handle AABBs vs. convex polyhedral shapes, but what if we want circular shapes? <br>
+          <br>
+          Circles aren't directly handled by the SAT because, essentially, they have an infinite number of separating axes -- <strong>any</strong> direction is perpendicular to their surface. <br>
+          <br>
+In order to apply our method, we need to determine which axes to test
+(in addition to the world axes generated from the AABB) in order to
+represent such circular shapes properly. Fortunately, the answer is
+straightforward: if you consider a point <strong>p</strong> which is the center of a circle, and a point <strong>b</strong> which is the center of the AABB, then the additional potential separating axis is the axis parallel to the vector from <strong>p</strong> to <strong>b</strong>. <br>
+          <br>
+          In N's collision system, tiles made of "empty" circular sections are called <strong>concave</strong> tiles, and those made by "solid" circular sections are called <strong>convex</strong>. <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A2_aabb-convex_sepaxis.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A2_aabb-convex_sepaxis.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A2_aabb-convex_sepaxis.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          </font><div align="right"><font size="1"><br>
+            <br>
+            <strong>instructions:</strong><br>
+            <br>
+            drag the box around and observe the results.<br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            the overlap of the shapes along each axis is drawn as <font color="#999999">a gray arrow</font> if it exists. if the shapes overlap along all axes, they are colliding and the projection vector is drawn as <font color="#882288">a purple arrow</font>. <br>
+            <br>
+            for each axis, the <font color="#882222">red</font> and <font color="#222288">blue</font> lines indicate the size of the shapes as measured along the axis.<br>
+            <br>
+          </font></div>
+<font size="1">          <br clear="all">
+          Figure 6. Using the Separating Axis Theorem with an AABB and a Convex Circular Shape <br>
+          <br>
+          <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A2_aabb-concave_sepaxis.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A2_aabb-concave_sepaxis.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A2_aabb-concave_sepaxis.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          </font><div align="right"><font size="1"><br>
+            <br>
+            <strong>instructions:</strong><br>
+            <br>
+            drag the box around and observe the results.<br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            the overlap of the shapes along each axis is drawn as <font color="#999999">a gray arrow</font> if it exists. if the shapes overlap along all axes, they are colliding and the projection vector is drawn as <font color="#882288">a purple arrow</font>. <br>
+            <br>
+            for each axis, the <font color="#882222">red</font> and <font color="#222288">blue</font> lines indicate the size of the shapes as measured along the axis.<br>
+            <br>
+          </font></div>
+<font size="1">          <br clear="all">
+          Figure 7. Using the Separating Axis Theorem with an AABB and a Concave Circular Shape <br>
+          <br>
+          <br>
+Note that the above is a slight oversimplification: specifically, the
+above would be correct if we wanted to collide an AABB against a full
+circle, but since we're interested in 1/4-circle sections, we only
+consider the circular axis if the box is contained in the same quadrant
+as the circular section we're interested in. If it's not, then we
+shouldn't consider this axis as a possible candidate for projection;
+this can be seen in the above diagrams. <br>
+          <br>
+          <br>
+          <br>
+          <br>
+          <a class="dark" href="#toc">[ back to table of contents ]</a> <br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1"> <br>
+          <br>
+          <a name="section3" class="dark">SECTION 3</a>: Separating Axis Theorem for Circles <br>
+          <br>
+          Another common collision shape for moving 2D objects is the circle. <br>
+          <br>
+In the previous section we saw that round shapes require special
+treatment in order to be compatible with our SAT-like method; in this
+section we'll see how to extend those ideas in order to handle
+collision between a circle and various other shapes. <br>
+          <br>
+For AABBs, the direction of minimum projection will always be
+perpendicular to one of the edges of the AABB (i.e. with one of the
+world axes); with circles, we have to consider not only the shape's
+edges, but also its vertices; for example, the set of potential
+separating axes for a circle and a box is the two axes <strong>perpendicular</strong> to the box's edges, and the four axes <strong>parallel</strong> to the circle--&gt;boxvertex vectors. <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A3_circleAABB_naive_sepaxis.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A3_circleAABB_naive_sepaxis.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A3_circleAABB_naive_sepaxis.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          <div align="right"><br>
+            <br>
+            <strong>instructions:</strong><br>
+            <br>
+            drag the circle around and observe the results.<br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            for each axis, the <font color="#882222">red</font> and <font color="#222288">blue</font> lines indicate the size of the shapes as measured along the axis. <br>
+            <br>
+note that even when the shapes overlap along the x and y axes, one or
+more of the circle-&gt;vertex axes can be a separating axis. </div>
+          <br clear="all">
+          Figure 8. Naively Using the Separating Axis Theorem with a Circle <br>
+          <br>
+          <br>
+          Having to consider all the vertices in a shape will add a <strong>lot</strong>
+of extra calculations; however, it's also clear that, in the above
+example, while in general each of the circle--&gt;vertex axes <u>can</u> be a separating axis, for any specific position of the circle there is only a single vertex which can <u>reasonably</u> be considered a potential separating axis: the vertex which is <strong>closest</strong> to the circle's center. <br>
+          <br>
+But, how can we determine which vertex is closest? Naively testing the
+distance to each vertex would undermine the whole point of finding the
+closest vertex, which is to be able to reject the other vertices
+trivially, without expensive distance calculations. The very useful
+concept of <strong>voronoi regions</strong> can be used.<br>
+          <br>
+          <br>
+          <br>
+          <strong>--= voronoi regions =--</strong> <br>
+          <br>
+          The voronoi regions <strong>(VR)</strong>
+of a polygon are simply the regions in the space around the polygon
+which contain all of the points closest to a feature of the polygon. <br>
+          <br>
+          a <strong>feature</strong> of a polygon is an edge or vertex of the polygon. <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A3_polygonVR.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A3_polygonVR.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A3_polygonVR.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          <div align="right"> <br>
+            <br>
+            <strong>instructions:</strong><br>
+            <br>
+            drag <font color="#222288">the blue point</font> around and observe the results.<br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong><br>
+            <br>
+            the voronoi region containing <font color="#222288">the blue point</font> is highlighted in <font color="#228822">green</font>.<br>
+            all the points contained within each <font color="#228822">green</font> region are closer to the triangle vertex/edge contained in the region than to any other vertex/edge.<br>
+            <br>
+            note that the point on the surface of the triangle which is closest to <font color="#222288">the blue point</font> is contained in the same voronoi region as <font color="#222288">the blue point</font>.
+            <p></p>
+          </div>
+          <br clear="all">
+          Figure 9. The Voronoi Regions of a Triangle <br>
+          <br>
+          <br>
+          <br>
+Thus, if we know which VR contains the circle's center, we know which
+feature is closest to the circle, and thus we know not only <strong>if</strong> we have to test the circle vs. a vertex, but <strong>which</strong> vertex to test against. <br>
+          <br>
+The beauty of VRs is that, by looking at the results of the tests along
+the world axes, we can infer which VR of the AABB contains the circle
+in without having to perform any further tests! This idea was first
+presented in <a href="#arvo" class="dark">[Arvo]</a>. <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A3_circleAABB_VR_sepaxis.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A3_circleAABB_VR_sepaxis.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A3_circleAABB_VR_sepaxis.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          <div align="right"> <br>
+            <strong>instructions:</strong><br>
+            <br>
+            drag the circle around and observe the results. <br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong> <br>
+            <br>
+            the overlap of the shapes along each axis is drawn as <font color="#999999">a gray arrow</font> if it exists. if the shapes overlap along all axes, they are colliding and the projection vector is drawn as <font color="#882288">a purple arrow</font>. <br>
+            <br>
+            for each axis, the <font color="#882222">red</font> and <font color="#222288">blue</font> lines indicate the size of the shapes as measured along the axis. <br>
+            <br>
+note that we only consider a thrid axis when the circle is contained in
+the voronoi region of one of the AABB's vertices. </div>
+          <br clear="all">
+          Figure 10. Using the Separating Axis Theorem and Voronoi Regions with a Circle <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= other shapes =--</strong><br>
+          <br>
+Colliding a circle vs. other shapes, such as right triangles and
+convex/concave circular sections, can be accomplished in the same way
+as with an AABB, except that (as in the above diagram) an additional
+axis must be considered if the circle is inside one of the voronoi
+regions of the other shape. <br>
+          <br>
+          <br>
+          <a class="dark" href="#toc">[ back to table of contents ]</a> <br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1"> <br>
+          <br>
+          <a name="section4" class="dark">SECTION 4</a>: Separating Axis Theorem for Points <br>
+          <br>
+While we can apply the above ideas for testing a point vs. various tile
+shapes, the results will usually not be satisfactory. This is not due
+to our collision detection routines, but instead due to our decision to
+handle collisions via projection. <br>
+          <br>
+The problem with always projecting along the shortest possible vector
+is that it's not always the "right" vector. Specifically, it might not
+be the vector which looks or behaves the way you would expect. <br>
+          <br>
+          For instance, consider the <a href="#aabb-aabb" class="dark">AABB-vs-AABB</a>
+case; note that the projection vector sometimes "jumps" from one axis
+to the other suddenly. This means that while you might see an AABB move
+down into another, it will be pushed out to the left or right (instead
+of upward) because, due to how far down it moved in one frame, the
+left/right direction produces a smaller projection vector. <br>
+          <br>
+          This problem is an <strong>unavoidable</strong>
+part of the projection method of collision response, and happens if
+objects in the world move too far in one frame. The smaller an object
+is, and the faster it is moving, the more likely it is that this
+problem will occur. <br>
+          <br> However, keep in mind that
+even though the projection info returned by a point-vs-tile query might
+not be what you want, the actual boolean result will always be correct
+-- and so our SAT-like method can be used for very fast point-vs-tile
+boolean queries, by simply using the AABB-vs-tile code, but setting the
+<strong>xw</strong> and <strong>yw</strong> to 0 (or simply removing them), and <strong>skipping</strong> the projection-vector calculations. <br>
+          <br>
+In N, the homing-rocket vs. tilemap collision is implemented using
+point-vs-tilemap queries; we also use point-vs-tilemap queries to
+quickly determine if the ninja is close to a wall in order to
+allow/disallow wall interaction, such as jumping or sliding. <br>
+          <br>
+          <br>
+          <br>
+          <a class="dark" href="#toc">[ back to table of contents ]</a> <br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1"> <br>
+          <br>
+          <a name="section5" class="dark">SECTION 5</a>: Fast-Moving Objects <br>
+          <br>
+As mentioned above, small and/or fast-moving objects can produce
+problems when using a static collision test. There are several
+approaches that can be taken to handle such objects -- the simplest is
+to <strong>constrain</strong> your <strong>game design</strong> so that such objects aren't needed. <br>
+          <br>
+          If you absolutely must have them, there are two common methods to deal with small and/or fast-moving objects: <br>
+          <strong>swept-collision</strong> tests, and <strong>multisampling</strong>. <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= sweep tests =--</strong> <br>
+          <br>
+          Instead of testing for intersection between two static shapes, we can instead create new shapes by <strong>sweeping</strong> the original shapes along their trajectory, and testing for overlap between these swept shapes. <br>
+          <br>
+          The basic idea is described in <a href="#gomez" class="dark">[Gomez]</a>, for circle-circle and AABB-AABB sweep tests.<br>
+          <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= multisampling =--</strong> <br>
+          <br>
+          A much simpler alternative to swept tests is to <strong>multisample</strong>;
+instead of performing a single static test at the object's new
+position, perform several tests at several positions located between
+the object's previous and new position. This technique was used to
+collide the ragdoll in N. <br>
+          <br> If you make sure that
+the samples are always spaced at distances less than the object's
+radius, this will produce excellent results. In our implementation, we
+limit the maximum number of samples, so very high speeds will sometimes
+result in problems; this is something that can be tweaked based on your
+specific application. <br>
+          <br>
+          <br>
+          <br>
+          <a class="dark" href="#toc">[ back to table of contents ]</a> <br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left">
+          <p><font size="1"> <br>
+            <br>
+            <a class="dark" name="section6">SECTION 6</a>: Conclusion / Source Code<br>
+            <br>
+            Hopefully this has given you some ideas about how to implement collision detection and response in 2D.<br>
+We're sure that our method isn't the fastest or most elegant solution,
+but it's the one we used and it ended up working fairly well. <br>
+            <br>
+Certainly, the above approach to collision can be extended in various
+ways -- for instance, different shapes, such as arbitrary triangles,
+can be implemented as <strong>tile shapes</strong>, or as <strong>dynamic shapes</strong>.
+Really, any of the tile shapes should be implementable as dynamic
+object shapes -- if you want to use any given shape with the above
+approach, all you need to be able to do is determine the shape's
+halfwidth when projected onto a given axis. If speed is really
+important (as it is in actionscript), then the trick is to only use
+shapes for which these halfwidths can be either precomputed or easily
+computed. <br>
+            <br>
+            <br>
+            <br>
+            <strong>--= source code =--</strong><br>
+            <br>
+            Here is a demo application containing the N source code relating to this tutorial:<br>
+            <br>
+            <a class="dark" href="http://www.harveycartel.org/metanet/tutorials/diagrams/tutA_demo.html">view</a> &nbsp; | &nbsp; <a class="dark" href="http://www.harveycartel.org/metanet/tutorials/diagrams/N_tutorialAsrc.zip">download</a> <br>
+            <br>
+You are free to use this code however you'd like, provided you notify
+us if it's for commercial use; a link to our site would also be
+appreciated. <br>
+            <br>
+            <br>
+            <br>
+            <strong>--= contacting us =--</strong><br>
+            <br>
+            Please let us know if you have any corrections, comments, or suggestions about this tutorial. <br>
+            <a href="mailto:tutorials@harveycartel.org" class="dark">tutorials@harveycartel.org</a> -- be sure to reference the tutorial you're writing about. <br>
+            <br>
+            <strong>PLEASE</strong> don't contact us with questions about the source, you'll just have to figure it out on your own. <br>
+            <br>
+            There is a section on our <a href="http://metanet.forumer.com/" target="_blank" class="dark">forum</a> where you can post questions. <br>
+            <br>
+Our next tutorial will explain the broad-phase grid-based collision
+detection system, which uses the above collision routines to collide
+objects vs. a tilemap and vs. each other. It will also explain a method
+to optimize collision vs. tilemaps, and code for intersecting a ray
+with tiles and objects. <br>
+            <br>
+            <br>
+            <br>
+            <a class="dark" href="#toc">[ back to table of contents ]</a> </font> 
+        </p></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1"> <br>
+          <br>
+          <a name="footnotes" class="dark">FOOTNOTES</a> <br>
+          <br>
+          <br>
+          <br>
+          Arvo, James. <a name="arvo" class="dark" href="http://www.acm.org/pubs/tog/GraphicsGems/gems/BoxSphere.c" target="_blank">A Simple Method for Box-Sphere Intersection Testing</a>.<br>
+          <br>
+          Baltman, Rick. <a name="penalty" class="dark" href="http://www.gdconf.com/archives/2004/baltman_rick.pdf" target="_blank">Using Verlet Integration and Constraints in a Six Degree of Freedom Rigid Body Physics Simulation</a>.<br>
+          <br>
+          Eberly, David. <a name="eberly" class="dark" href="http://www.magic-software.com/Documentation/MethodOfSeparatingAxes.pdf" target="_blank">Intersection of Convex Objects: The Method of Separating Axes</a>.<br>
+          <br>
+          Gomez, Miguel. <a name="gomez" class="dark" href="http://www.gamasutra.com/features/19991018/Gomez_1.htm" target="_blank">Simple Intersection Tests for Games</a>.<br>
+          <br>
+          Jakobsen, Thomas. <a name="jakobsen" class="dark" href="http://www.ioi.dk/Homepages/thomasj/publications/gdc2001.htm" target="_blank">Advanced Character Physics</a><br>
+          <br>
+          Mirtich, Brian and Kanny, John. <a name="impulse" class="dark" href="http://citeseer.ist.psu.edu/article/mirtich95impulsebased.html" target="_blank">Impulse-Based Simulation of Rigid Bodies</a>.<br>
+          <br>
+          </font></div></td>
+    </tr>
+    <tr>
+      <td><div align="left"><font size="1"> <br>
+          <br>
+          <a name="appendixA" class="dark">APPENDIX A</a>: Basic Geometry <br>
+          <br>
+          <br>
+          <strong>--= normalization =--</strong> <br>
+          <br>
+          Normalizing a vector is simply scaling it so that its length is 1.<br>
+          <strong>Unit-length</strong> vectors are useful for many things, such as representing directions.<br>
+          <br>
+          To normalize the vector <strong>v</strong>, we simply divide each of its components by the length of <strong>v</strong>: <br>
+          <br>
+          <font face="Courier New, Courier, mono">len_v = Math.sqrt(v.x*v.x + v.y*v.y);<br>
+          v.x /= len_v;<br>
+          v.y /= len_v; </font><br>
+          <br>
+          Note that unless you can <strong>guarantee</strong> that <strong>v</strong> isn't a null (0-length) vector, you might want to add tests which detect this case, or the dreaded <strong>division-by-0</strong> will occur. <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= dot product =--</strong> <br>
+          <br>
+          the dot product of two vectors <strong>a</strong> and <strong>b</strong> is given by: <br>
+          <br>
+          <font face="Courier New, Courier, mono">dp = a.x*b.x + a.y*b.y;</font> <br>
+          <br>
+          Note that the result is a scalar value (a single number). <br>
+          You can think of it as describing the relative orientation of <strong>a</strong> and <strong>b</strong>; a negative dot product means that <strong>a</strong> and <strong>b</strong> point away from each other; a positive dot product means they point in the same direction. <br>
+          <br>
+          However, since the magnitude of the dot product is determined by the lengths of <strong>a</strong> and <strong>b</strong>, only the <strong>sign</strong> (positive/negative) of the dot product is directly useful without further manipulation. <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= projection =--</strong> <br>
+          <br>
+          The formula for projecting vector <strong>a</strong> onto vector <strong>b</strong> is: <br>
+          <font face="Courier New, Courier, mono"><br>
+          proj.x = ( dp / (b.x*b.x + b.y*b.y) ) * b.x;<br>
+          proj.y = ( dp / (b.x*b.x + b.y*b.y) ) * b.y;</font><br>
+          <br>
+          where dp is the dotprod of <strong>a</strong> and <strong>b</strong>: <font face="Courier New, Courier, mono">dp = (a.x*b.x + a.y*b.y)</font><br>
+          <br>
+          Note that the result is a vector; also, <font face="Courier New, Courier, mono">(b.x*b.x + b.y*b.y)</font> is simply the length of <strong>b</strong> squared. <br>
+          <br>
+          If <strong>b</strong> is a unit vector, <font face="Courier New, Courier, mono">(b.x*b.x + b.y*b.y) = 1</font>, and thus <strong>a</strong> projected onto <strong>b</strong> reduces to: <br>
+          <br>
+          <font face="Courier New, Courier, mono"> proj.x = dp*b.x;<br>
+          proj.y = dp*b.y;</font> <br>
+          <br>
+          <br>
+          <a style="left: 256px ! important; top: 0px ! important;" title="Click here to block this object with Adblock Plus" class="abp-objtab-09149712813155021 visible ontop" href="http://www.harveycartel.org/metanet/tutorials/diagrams/A0_vector_projection.swf"></a><object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" align="left" width="256" height="256">
+            <param name="movie" value="diagrams/A0_vector_projection.swf">
+            <param name="quality" value="high">
+            <embed src="tutorialA_files/A0_vector_projection.swf" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash" align="left" width="256" height="256">
+          </object>
+          <div align="right"> <br>
+            <br>
+            <strong>instructions:</strong> <br>
+            <br>
+            drag points p0, p1, and p2 around and observe the results.<br>
+            <br>
+            <br>
+            <br>
+            <strong>comments:</strong> <br>
+            <br>
+            <font color="#228822">the green vector</font> is the result of the projection of <font color="#222288">the vector p1-&gt;p0</font> onto <font color="#882222">the line containing p1 and p2</font>. </div>
+          <br clear="all">
+          Figure 11. Vector Projection <br>
+          <br>
+          <br>
+          <br>
+          <strong>--= perproduct =--</strong> <br>
+          <br>
+          Another useful concept in 2D geometry is the "normal"...not to be confused with normalization! <br>
+          <br>
+          Basically, the normal of a line is simply the direction which is <strong>perpendicular</strong> to it. <br>
+          <br>
+          Every 2D vector has two such normals: the <strong>right hand</strong> and <strong>left hand</strong> normal. As you might expect, the right hand normal points to the <strong>right</strong> of the vector, and the left hand normal points to the <strong>left</strong>. <br>
+          <br>
+          Given a vector <strong>a</strong>, the right hand normal of <strong>a</strong> is simply: <br>
+          <br>
+          <font face="Courier New, Courier, mono">rn.x = -a.y;<br>
+          rn.y = a.x;</font> <br>
+          <br>
+          and the left hand normal is: <br>
+          <br>
+          <font face="Courier New, Courier, mono">ln.x = a.y;<br>
+          ln.y = -a.x; </font><br>
+          <br>
+          Note that <strong>ln</strong> = -<strong>rn</strong>. <br>
+          <br>
+          The perproduct of two vectors <strong>a</strong> and <strong>b</strong> is simply the dot product of <strong>a</strong> and the right hand normal of <strong>b</strong>. <br>
+          <br>
+          <img src="tutorialA_files/normal.gif"> <br>
+          <br clear="all">
+          Figure 12. A <font color="#228822">vector</font> and its <font color="#882222">right hand</font> and <font color="#222288">left hand</font> normals. <br>
+          <br>
+          <br>
+          <a class="dark" href="#toc">[ back to table of contents ]</a> <br>
+          <br>
+          </font></div></td>
+    </tr>
+  </tbody></table>
+</font></div>
+<font color="#000000" size="1" face="Verdana, Arial, Helvetica, sans-serif"><br>
+<br>
+<br>
+<br>
+<br>
+</font><div align="right"><font color="#000000" size="1" face="Verdana, Arial, Helvetica, sans-serif"> <a href="http://www.harveycartel.org/metanet/index.html"><img src="tutorialA_files/logo.gif" border="0"></a> <br>
+  (c) Metanet Software Inc. 2004 <br>
+  <a href="http://www.harveycartel.org/raigan" target="_blank">Raigan Burns</a> and <a href="http://www.harveycartel.org/mare" target="_blank">Mare Sheppard</a> </font></div>
+<font color="#000000" size="1" face="Verdana, Arial, Helvetica, sans-serif"></font>
+</body></html>

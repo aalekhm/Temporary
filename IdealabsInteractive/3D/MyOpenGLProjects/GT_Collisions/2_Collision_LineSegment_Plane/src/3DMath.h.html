@@ -1,0 +1,61 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _3DMATH_H_
+<span class=pp>#define</span> _3DMATH_H_
+
+<span class=comment>// This file will be added upon heavily in the future tutorials, especially for collision.
+</span><span class=comment>// Math is a intricate part of game programming, especially in 3D game programming.
+</span><span class=comment>// If you are not comfortable with the concepts explain, make it a huge goal to practice
+</span><span class=comment>// and strive to understand them.  You can not be an effective 3D programmer without
+</span><span class=comment>// these basics.  Don't get too proud if you do, there is still much more after we cover
+</span><span class=comment>// all the basics :)  The Dot Product and Plain Equation are our next topics.
+</span>
+<span class=comment>// This is used to hold 3D points and vectors. This class is also used in our camera
+</span><span class=comment>// tutorials.  Please refer back to those for more information.  Basically, we just
+</span><span class=comment>// want a class that holds 3 floats for our x, y, and z values.  This will be added upon later. 
+</span>
+<span class=keyword>struct</span> CVector2 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y;
+};
+
+<span class=keyword>struct</span> CVector3 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y, z;
+};
+
+<span class=comment>//    This returns a perpendicular vector from 2 given vectors by taking the cross product.
+</span>CVector3 cross(CVector3 vVector1, CVector3 vVector2);
+
+<span class=comment>//    This returns a vector between 2 points
+</span>CVector3 makeVector(CVector3 vPoint1, CVector3 vPoint2);
+
+<span class=comment>//    This returns the magnitude of a normal (or any other vector)
+</span><span class=keyword>float</span> magnitude(CVector3 vVector);
+
+<span class=comment>//    This returns a normalize vector (A vector exactly of length 1)
+</span>CVector3 normalize(CVector3 vVector);
+
+<span class=comment>//    This returns the normal of a polygon (The direction the polygon is facing)
+</span>CVector3 normal(CVector3 vTriangle[]);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=comment>// This returns the distance the plane is from the origin (0, 0, 0)
+</span><span class=comment>// It takes the normal to the plane, along with ANY point that lies on the plane (any corner)
+</span><span class=keyword>float</span> planeDistance(CVector3 vNormal, CVector3 vPoint);
+
+<span class=comment>// This takes a triangle (plane) and line and returns true if they intersected
+</span><span class=keyword>bool</span> intersectedPlane(CVector3 vTriangle[], CVector3 vLine[]);
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=pp>#endif</span>
+
+</pre></body>
+</html>

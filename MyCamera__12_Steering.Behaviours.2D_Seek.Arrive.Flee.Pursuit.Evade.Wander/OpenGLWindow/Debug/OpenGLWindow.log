@@ -1,0 +1,5 @@
+﻿  LINK : D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\MyCamera__12_Steering.Behaviours.2D_Seek.Arrive.Flee.Pursuit.Evade.Wander\Debug\OpenGLWindow.exe not found or not built by the last incremental link; performing full link
+GameWorld.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/SAFESEH' specification
+     Creating library D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\MyCamera__12_Steering.Behaviours.2D_Seek.Arrive.Flee.Pursuit.Evade.Wander\Debug\OpenGLWindow.lib and object D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\MyCamera__12_Steering.Behaviours.2D_Seek.Arrive.Flee.Pursuit.Evade.Wander\Debug\OpenGLWindow.exp
+  OpenGLWindow.vcxproj -> D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\MyCamera__12_Steering.Behaviours.2D_Seek.Arrive.Flee.Pursuit.Evade.Wander\Debug\OpenGLWindow.exe
+  OpenGLWindow.vcxproj -> D:\Aalekh\Laboratory\MyPerforce\_3D\_Dream.3D\MyCamera__12_Steering.Behaviours.2D_Seek.Arrive.Flee.Pursuit.Evade.Wander\Debug\OpenGLWindow.pdb (Full PDB)

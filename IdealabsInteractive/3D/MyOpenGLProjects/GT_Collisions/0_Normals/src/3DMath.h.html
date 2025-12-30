@@ -1,0 +1,83 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _3DMATH_H_
+<span class=pp>#define</span> _3DMATH_H_
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span>
+<span class=comment>// This file will be added upon heavily in the future tutorials, especially for collision.
+</span><span class=comment>// Math is a intricate part of game programming, especially in 3D game programming.
+</span><span class=comment>// If you are not comfortable with the concepts explain, make it a huge goal to practice
+</span><span class=comment>// and strive to understand them.  You can not be an effective 3D programmer without
+</span><span class=comment>// these basics.  Don't get too proud if you do, there is still much more after we cover
+</span><span class=comment>// all the basics :)  The Dot Product and Plain Equation are our next topics.
+</span>
+<span class=comment>// This is used to hold 3D points and vectors. This class is also used in our camera
+</span><span class=comment>// tutorials.  Please refer back to those for more information.  Basically, we just
+</span><span class=comment>// want a class that holds 3 floats for our x, y, and z values.  This will be added upon later. 
+</span>
+<span class=keyword>struct</span> CVector2 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y;
+};
+
+<span class=keyword>struct</span> CVector3 {
+    <span class=keyword>public</span>:
+        <span class=keyword>float</span> x, y, z;
+};
+
+<span class=comment>//    This returns a perpendicular vector from 2 given vectors by taking the cross product.
+</span>CVector3 cross(CVector3 vVector1, CVector3 vVector2);
+
+<span class=comment>//    This returns a vector between 2 points
+</span>CVector3 makeVector(CVector3 vPoint1, CVector3 vPoint2);
+
+<span class=comment>//    This returns the magnitude of a normal (or any other vector)
+</span><span class=keyword>float</span> magnitude(CVector3 vVector);
+
+<span class=comment>//    This returns a normalize vector (A vector exactly of length 1)
+</span>CVector3 normalize(CVector3 vVector);
+
+<span class=comment>//    This returns the normal of a polygon (The direction the polygon is facing)
+</span>CVector3 normal(CVector3 vTriangle[]);
+
+<span class=comment>/////// * /////////// * /////////// * NEW * /////// * /////////// * /////////// *
+</span><span class=pp>#endif</span>
+
+<span class=comment>/////////////////////////////////////////////////////////////////////////////////
+</span><span class=comment>//
+</span><span class=comment>// * QUICK NOTES * 
+</span><span class=comment>//
+</span><span class=comment>// We can now use our 3DMath.cpp and 3DMath.h in any project now by simple
+</span><span class=comment>// including it.  We will want at least ALL of these functions from now on
+</span><span class=comment>// when ever we do any 3D programming (except for basic OpenGL concepts).
+</span><span class=comment>// It is important to know how to use these, even if you don't know how to
+</span><span class=comment>// code them if you had to.  As long as you know WHAT they do and what they are
+</span><span class=comment>// for, that's a start.  To be a decent 3D programmer though, you have to have 
+</span><span class=comment>// this stuff down pretty well where you want have to think about instances when you
+</span><span class=comment>// would use them.  If you need a perpendicular vector for something, like to strafe
+</span><span class=comment>// the camera left and right, you should immediately think CROSS PRODUCT.
+</span><span class=comment>// If this is really confusing for you, don't worry about it.  I wasn't a math
+</span><span class=comment>// man until I started actually putting what I learned in school to use.  Even though
+</span><span class=comment>// I had taken high calculus classes, I still had to relearn all this stuff when I went
+</span><span class=comment>// to 3D programming.  It's one thing to do something on paper, and it's another to actually
+</span><span class=comment>// put it to a practical use.  I think math is taught horribly in most schools.  It doesn't
+</span><span class=comment>// leave the average person with skills as much as it should.  Of course it is always
+</span><span class=comment>// up to the student to learn, but I think it could be taught it a way where you actually
+</span><span class=comment>// understand what you are learning and for what reasons and applications it holds.
+</span><span class=comment>//
+</span><span class=comment>// DigiBen
+</span><span class=comment>// www.GameTutorials.com
+</span><span class=comment>//
+</span><span class=comment>//
+</span>
+
+</pre></body>
+</html>

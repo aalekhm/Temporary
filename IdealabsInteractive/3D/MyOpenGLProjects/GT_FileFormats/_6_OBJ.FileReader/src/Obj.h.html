@@ -1,0 +1,85 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _OBJ_H_
+<span class=pp>#define</span> _OBJ_H_
+
+<span class=pp>#include</span> &quot;main.h&quot;
+
+<span class=comment>// This class can be used to load a .Obj file.  You will need the grab the
+</span><span class=comment>// structures in main.h as well if you want to use this, or create your own.
+</span><span class=comment>// I added a couple functions at the end of this class to help with the material
+</span><span class=comment>// problem that a .obj file has.  Obj files do not save material information, like
+</span><span class=comment>// the color, material name or the texture map file assigned to it.  Though the .obj
+</span><span class=comment>// file format isn't the best used for games, I thought I would help out a little.
+</span><span class=comment>// To be honest, it would be better to just add the information to the .obj and
+</span><span class=comment>// modify my code to read it in.  For instance, put a : c 255 0 255   for the color.
+</span>
+<span class=comment>// This is our class for loading .obj files
+</span><span class=keyword>class</span> CObjLoader {
+    <span class=keyword>public</span>:
+        <span class=comment>// This inits the data members
+</span>        CObjLoader();
+        ~CObjLoader();
+        
+        <span class=comment>// This will be the only function that needs to be called by you.
+</span>        <span class=comment>// Just pass in your model that will hold the information and the file name.
+</span>        <span class=keyword>bool</span> importObj(t3DModel *pModel, <span class=keyword>char</span> *strFileName);
+
+        <span class=comment>// This is the main loading loop that gets called in ImportObj()
+</span>        <span class=keyword>void</span> readObjFile(t3DModel *pModel);
+        
+        <span class=comment>// This is called in ReadObjFile() if we find a line starting with 'v'
+</span>        <span class=keyword>void</span> readVertexInfo();
+
+        <span class=comment>// This is called in ReadObjFile() if we find a line starting with 'f'
+</span>        <span class=keyword>void</span> readFaceInfo();
+
+        <span class=comment>// This is called when we are finished loading in the face information
+</span>        <span class=keyword>void</span> fillInObjectInfo(t3DModel *pModel);
+
+        <span class=comment>// This isn't necessary for the loader, but it's nice to have vertex normals for lighting
+</span>        <span class=keyword>void</span> computeNormals(t3DModel *pModel);
+
+        <span class=comment>// Since .obj files don't have texture/material names, we create a function to set them manually.
+</span>        <span class=comment>// The materialID is the index into the pMaterial array for our model.
+</span>        <span class=keyword>void</span> setObjectMaterial(t3DModel *pModel, <span class=keyword>int</span> whichObject, <span class=keyword>int</span> materialID);
+
+        <span class=comment>// To make it easier to assign a material to a .obj object we create a funtion to do so.
+</span>        <span class=comment>// We can pass in the model, the material name, the texture file name and the RGB colors.
+</span>        <span class=comment>// If we just want a color, pass in NULL for strFile.
+</span>        <span class=keyword>void</span> addMaterial(t3DModel *pModel, <span class=keyword>char</span> *strMaterialName, <span class=keyword>char</span> *strMaterialFileName, <span class=keyword>int</span> r = 255, <span class=keyword>int</span> g = 255, <span class=keyword>int</span> b = 255);
+        
+    <span class=keyword>private</span>:
+        <span class=comment>// The file pointer
+</span>        FILE *mFilePointer;
+
+        <span class=comment>// This is an STL (Standard Template Library) vector that holds a list of vertices
+</span>        vector&lt;CVector3&gt; m_pVertices;
+
+        <span class=comment>// This is an STL (Standard Template Library) vector that holds a list of faces
+</span>        vector&lt;tFace&gt; m_pFaces;
+
+        <span class=comment>// This is an STL (Standard Template Library) vector that holds a list of UV Coordinates
+</span>        vector&lt;CVector2&gt; m_pTextureCoords;
+
+        <span class=comment>// This tells us if the current object has texture coordinates
+</span>        <span class=keyword>bool</span> m_bObjectHasUV;
+
+        <span class=comment>// This tells us if the current object has texture coordinates
+</span>        <span class=keyword>bool</span> m_bObjectHasNormals;
+
+        <span class=comment>// This tells us if we just read in face data so we can keep track of multiple objects
+</span>        <span class=keyword>bool</span> m_bJustReadAFace;
+
+
+};
+
+<span class=pp>#endif</span></pre></body>
+</html>

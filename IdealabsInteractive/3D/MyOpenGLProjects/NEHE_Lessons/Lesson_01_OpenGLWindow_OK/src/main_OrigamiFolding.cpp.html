@@ -1,0 +1,412 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt"><span class=comment>/* Copyright (c) Mark J. Kilgard, 1994. */</span>
+
+<span class=comment>/* This program is freely distributable without licensing fees 
+   and is provided without guarantee or warrantee expressed or 
+   implied. This program is -not- in the public domain. */</span>
+
+<span class=pp>#include</span> &lt;stdlib.h&gt;
+<span class=pp>#include</span> &lt;stdio.h&gt;
+<span class=pp>#include</span> &lt;GL/glut.h&gt;
+
+<span class=comment>/* Uses EXT_polygon_offset extension if available to better
+   render the fold outlines. */</span>
+
+<span class=pp>#if</span> GL_EXT_polygon_offset
+<span class=keyword>int</span> polygon_offset;
+<span class=pp>#endif</span>
+
+<span class=keyword>enum</span> {
+  FLAT,                 <span class=comment>/* completely flat sheet of paper */</span>
+  FLAP1,                <span class=comment>/* left flap being folded in */</span>
+  FLAP2,                <span class=comment>/* right flap being folded int */</span>
+  CENTER2,              <span class=comment>/* right side folded up at center */</span>
+  WING2,                <span class=comment>/* right wing folded down */</span>
+  CENTER1,              <span class=comment>/* left side folded up at center */</span>
+  WING1,                <span class=comment>/* left wing folded down */</span>
+  FOLDED                <span class=comment>/* fully folded paper airplane */</span>
+} States;
+
+<span class=keyword>int</span> motion = 1;
+<span class=keyword>int</span> spinning = 1;
+<span class=keyword>int</span> state = FLAT;
+<span class=keyword>int</span> click = 0;
+<span class=keyword>int</span> delay = 0;
+<span class=keyword>int</span> direction;
+<span class=keyword>float</span> flap1_angle = 0;
+<span class=keyword>float</span> flap2_angle = 0;
+<span class=keyword>float</span> center1_angle = 0;
+<span class=keyword>float</span> center2_angle = 0;
+<span class=keyword>float</span> wing1_angle = 0;
+<span class=keyword>float</span> wing2_angle = 0;
+
+<span class=comment>/**
+
+These correspond to the polygons for the paper sections:
+
+  +----------+----------+
+  |         /|\         |
+  |  2     / | \    3   |
+  |       /  |  \       |
+  +------/   |   \------+
+  |     /|   |   |\     |
+  | 1  / |   |   | \ 4  |
+  |   /  |   |   |  \   |
+  |  /   |   |   |   \  |
+  | /    | 5 | 6 |    \ |
+  |/     |   |   |     \|
+  +      |   |   |      +
+  |  7   |   |   |  8   |
+  |      |   |   |      |
+  |      |   |   |      |
+  |      |   |   |      |
+  |      |   |   |      |
+  |      |   |   |      |
+  |      |   |   |      |
+  +------+---+---+------+
+
+*/</span>
+
+<span class=keyword>typedef</span> GL<span class=keyword>float</span> Point[2];
+
+Point poly1[] =
+{
+  {-1, 0},
+  {-1 / 3.0, 2 / 3.0},
+  {-1, 2 / 3.0}
+};
+
+Point poly2[] =
+{
+  {-1, 1},
+  {-1, 2 / 3.0},
+  {-1 / 3.0, 2 / 3.0},
+  {0, 1}
+};
+
+Point poly3[] =
+{
+  {0, 1},
+  {1, 1},
+  {1, 2 / 3.0},
+  {1 / 3.0, 2 / 3.0}
+};
+
+Point poly4[] =
+{
+  {1 / 3.0, 2 / 3.0},
+  {1, 2 / 3.0},
+  {1, 0}
+};
+
+Point poly5[] =
+{
+  {-1 / 3.0, 2 / 3.0},
+  {0, 1},
+  {0, -1.5},
+  {-1 / 3.0, -1.5}
+};
+
+Point poly6[] =
+{
+  {0, 1},
+  {1 / 3.0, 2 / 3.0},
+  {1 / 3.0, -1.5},
+  {0, -1.5}
+};
+
+Point poly7[] =
+{
+  {-1, 0},
+  {-1 / 3.0, 2 / 3.0},
+  {-1 / 3.0, -1.5},
+  {-1, -1.5}
+};
+
+Point poly8[] =
+{
+  {1, 0},
+  {1 / 3.0, 2 / 3.0},
+  {1 / 3.0, -1.5},
+  {1, -1.5}
+};
+
+<span class=keyword>void</span>
+polydlist(<span class=keyword>int</span> dlist, <span class=keyword>int</span> num, Point points[])
+{
+  <span class=keyword>int</span> i;
+
+  glNewList(dlist, GL_COMPILE);
+  glBegin(GL_POLYGON);
+  <span class=keyword>for</span> (i = 0; i &lt; num; i++) {
+    glVertex2fv(&amp;points[i][0]);
+  }
+  glEnd();
+  glEndList();
+}
+
+<span class=keyword>void</span>
+idle(<span class=keyword>void</span>)
+{
+  <span class=keyword>if</span> (spinning)
+    click++;
+  <span class=keyword>switch</span> (state) {
+  <span class=keyword>case</span> FLAT:
+    delay++;
+    <span class=keyword>if</span> (delay &gt;= 80) {
+      delay = 0;
+      state = FLAP1;
+      glutSetWindowTitle(&quot;origami (folding)&quot;);
+      direction = 1;
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> FLAP1:
+    flap1_angle += 2 * direction;
+    <span class=keyword>if</span> (flap1_angle &gt;= 180) {
+      state = FLAP2;
+    } <span class=keyword>else</span> <span class=keyword>if</span> (flap1_angle &lt;= 0) {
+      state = FLAT;
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> FLAP2:
+    flap2_angle += 2 * direction;
+    <span class=keyword>if</span> (flap2_angle &gt;= 180) {
+      state = CENTER2;
+    } <span class=keyword>else</span> <span class=keyword>if</span> (flap2_angle &lt;= 0) {
+      state = FLAP1;
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> CENTER2:
+    center2_angle += 2 * direction;
+    <span class=keyword>if</span> (center2_angle &gt;= 84) {
+      state = WING2;
+    } <span class=keyword>else</span> <span class=keyword>if</span> (center2_angle &lt;= 0) {
+      state = FLAP2;
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> WING2:
+    wing2_angle += 2 * direction;
+    <span class=keyword>if</span> (wing2_angle &gt;= 84) {
+      state = CENTER1;
+    } <span class=keyword>else</span> <span class=keyword>if</span> (wing2_angle &lt;= 0) {
+      state = CENTER2;
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> CENTER1:
+    center1_angle += 2 * direction;
+    <span class=keyword>if</span> (center1_angle &gt;= 84) {
+      state = WING1;
+    } <span class=keyword>else</span> <span class=keyword>if</span> (center1_angle &lt;= 0) {
+      state = WING2;
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> WING1:
+    wing1_angle += 2 * direction;
+    <span class=keyword>if</span> (wing1_angle &gt;= 84) {
+      state = FOLDED;
+    } <span class=keyword>else</span> <span class=keyword>if</span> (wing1_angle &lt;= 0) {
+      state = CENTER1;
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> FOLDED:
+    delay++;
+    <span class=keyword>if</span> (delay &gt;= 80) {
+      delay = 0;
+      glutSetWindowTitle(&quot;origami (unfolding)&quot;);
+      direction = -1;
+      state = WING1;
+    }
+    <span class=keyword>break</span>;
+  }
+  glutPostRedisplay();
+}
+
+<span class=keyword>void</span>
+draw_folded_plane(<span class=keyword>void</span>)
+{
+  <span class=comment>/* *INDENT-OFF* */</span>
+  glPushMatrix();
+    glRotatef(click, 0, 0, 1);
+    glRotatef(click / 5.0, 0, 1, 0);
+    glTranslatef(0, .25, 0);
+    glPushMatrix();
+      glRotatef(center1_angle, 0, 1, 0);
+      glPushMatrix();
+        glTranslatef(-.5, .5, 0);
+        glRotatef(flap1_angle, 1, 1, 0);
+        glTranslatef(.5, -.5, 0);
+        glCallList(2);
+      glPopMatrix();
+      glCallList(5);
+
+      glPushMatrix();
+        glTranslatef(-1 / 3.0, 0, 0);
+        glRotatef(-wing1_angle, 0, 1, 0);
+        glTranslatef(1 / 3.0, 0, 0);
+
+        glCallList(7);
+        glPushMatrix();
+          glTranslatef(-.5, .5, 0);
+          glRotatef(flap1_angle, 1, 1, 0);
+          glTranslatef(.5, -.5, 0);
+          glCallList(1);
+        glPopMatrix();
+      glPopMatrix();
+    glPopMatrix();
+
+    glPushMatrix();
+      glRotatef(-center2_angle, 0, 1, 0);
+      glPushMatrix();
+        glTranslatef(.5, .5, 0);
+        glRotatef(-flap2_angle, -1, 1, 0);
+        glTranslatef(-.5, -.5, 0);
+        glCallList(3);
+      glPopMatrix();
+      glCallList(6);
+
+      glPushMatrix();
+        glTranslatef(1 / 3.0, 0, 0);
+        glRotatef(wing2_angle, 0, 1, 0);
+        glTranslatef(-1 / 3.0, 0, 0);
+
+        glCallList(8);
+        glPushMatrix();
+          glTranslatef(.5, .5, 0);
+          glRotatef(-flap2_angle, -1, 1, 0);
+          glTranslatef(-.5, -.5, 0);
+          glCallList(4);
+        glPopMatrix();
+      glPopMatrix();
+    glPopMatrix();
+  glPopMatrix();
+  <span class=comment>/* *INDENT-ON* */</span>
+
+}
+
+<span class=keyword>void</span>
+display(<span class=keyword>void</span>)
+{
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+  glColor3ub(67, 205, 128);
+<span class=pp>#if</span> GL_EXT_polygon_offset
+  <span class=keyword>if</span> (polygon_offset) {
+    glPolygonOffsetEXT(0.5, 0.0);
+    glEnable(GL_POLYGON_OFFSET_EXT);
+  }
+<span class=pp>#endif</span>
+  draw_folded_plane();
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glColor3ub(255, 255, 255);
+<span class=pp>#if</span> GL_EXT_polygon_offset
+  <span class=keyword>if</span> (polygon_offset) {
+    glPolygonOffsetEXT(0.0, 0.0);
+    <span class=comment>/* XXX a bug in the unpatched IRIX 5.3 OpenGL posts
+       GL_INVALID_ENUM when GL_POLYGON_OFFSET_EXT is disabled;
+       please ignore it. */</span>
+    glDisable(GL_POLYGON_OFFSET_EXT);
+  } <span class=keyword>else</span> {
+    glPushMatrix();
+    glTranslatef(0, 0, .05);
+  }
+<span class=pp>#else</span>
+  glPushMatrix();
+  glTranslatef(0, 0, .05);
+<span class=pp>#endif</span>
+  draw_folded_plane();
+<span class=pp>#if</span> GL_EXT_polygon_offset
+  <span class=keyword>if</span> (!polygon_offset) {
+    glPopMatrix();
+  }
+<span class=pp>#else</span>
+  glPopMatrix();
+<span class=pp>#endif</span>
+  glutSwapBuffers();
+}
+
+<span class=keyword>void</span>
+visible(<span class=keyword>int</span> state)
+{
+  <span class=keyword>if</span> (state == GLUT_VISIBLE) {
+    <span class=keyword>if</span> (motion)
+      glutIdleFunc(idle);
+  } <span class=keyword>else</span> {
+    glutIdleFunc(NULL);
+  }
+}
+
+<span class=keyword>void</span>
+menu(<span class=keyword>int</span> value)
+{
+  <span class=keyword>switch</span> (value) {
+  <span class=keyword>case</span> 1:
+    direction = -direction;
+    <span class=keyword>if</span> (direction &gt; 0) {
+      glutSetWindowTitle(&quot;origami (folding)&quot;);
+    } <span class=keyword>else</span> {
+      glutSetWindowTitle(&quot;origami (unfolding)&quot;);
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> 2:
+    motion = 1 - motion;
+    <span class=keyword>if</span> (motion) {
+      glutIdleFunc(idle);
+    } <span class=keyword>else</span> {
+      glutIdleFunc(NULL);
+    }
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> 3:
+    spinning = 1 - spinning;
+    <span class=keyword>break</span>;
+  <span class=keyword>case</span> 666:
+    exit(0);
+  }
+}
+
+<span class=keyword>int</span>
+main(<span class=keyword>int</span> argc, <span class=keyword>char</span> **argv)
+{
+  glutInit(&amp;argc, argv);
+  glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
+  glutCreateWindow(&quot;origami&quot;);
+  glutDisplayFunc(display);
+  glutVisibilityFunc(visible);
+  glClearColor(.488, .617, .75, 1.0);
+  glMatrixMode(GL_PROJECTION);
+  gluPerspective(40.0, 1.0, 0.1, 10.0);
+  glMatrixMode(GL_MODELVIEW);
+  gluLookAt(0, 0, 5.5,
+    0, 0, 0,
+    0, 1, 0);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
+  glLineWidth(2.0);
+  polydlist(1, <span class=keyword>sizeof</span>(poly1) / <span class=keyword>sizeof</span>(Point), poly1);
+  polydlist(2, <span class=keyword>sizeof</span>(poly2) / <span class=keyword>sizeof</span>(Point), poly2);
+  polydlist(3, <span class=keyword>sizeof</span>(poly3) / <span class=keyword>sizeof</span>(Point), poly3);
+  polydlist(4, <span class=keyword>sizeof</span>(poly4) / <span class=keyword>sizeof</span>(Point), poly4);
+  polydlist(5, <span class=keyword>sizeof</span>(poly5) / <span class=keyword>sizeof</span>(Point), poly5);
+  polydlist(6, <span class=keyword>sizeof</span>(poly6) / <span class=keyword>sizeof</span>(Point), poly6);
+  polydlist(7, <span class=keyword>sizeof</span>(poly7) / <span class=keyword>sizeof</span>(Point), poly7);
+  polydlist(8, <span class=keyword>sizeof</span>(poly8) / <span class=keyword>sizeof</span>(Point), poly8);
+  glutCreateMenu(menu);
+  glutAddMenuEntry(&quot;Reverse direction&quot;, 1);
+  glutAddMenuEntry(&quot;Toggle motion&quot;, 2);
+  glutAddMenuEntry(&quot;Toggle spinning&quot;, 3);
+  glutAddMenuEntry(&quot;Quit&quot;, 666);
+  glutAttachMenu(GLUT_RIGHT_BUTTON);
+<span class=pp>#if</span> GL_EXT_polygon_offset
+  polygon_offset = glutExtensionSupported(&quot;GL_EXT_polygon_offset&quot;);
+<span class=pp>#endif</span>
+  glutMainLoop();
+  <span class=keyword>return</span> 0;             <span class=comment>/* ANSI C requires main to return int. */</span>
+}
+</pre></body>
+</html>

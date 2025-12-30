@@ -1,0 +1,177 @@
+/****************************************************************************
+Copyright (c) 2010-2012 cocos2d-x.org
+Copyright (c) 2013-2014 Chukong Technologies Inc.
+
+http://www.cocos2d-x.org
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+****************************************************************************/
+
+#include "platform/CCPlatformConfig.h"
+
+#include "platform/CCApplication.h"
+#include "base/CCDirector.h"
+#include "platform/CCFileUtils.h"
+#if defined(EA_PLATFORM_IPHONE)
+#include "platform/eamt/CCFileUtils-ios.h"
+#endif
+#include <vector>
+#include <algorithm>
+/**
+@brief    This function change the PVRFrame show/hide setting in register.
+@param  bEnable If true show the PVRFrame window, otherwise hide.
+*/
+// static void PVRFrameEnableControlWindow(bool bEnable);
+
+NS_CC_BEGIN
+
+// sharedApplication pointer
+Application * Application::sm_pSharedApplication = 0;
+
+Application::Application()
+{
+    CC_ASSERT(! sm_pSharedApplication);
+    sm_pSharedApplication = this;
+}
+
+Application::~Application()
+{
+    CC_ASSERT(this == sm_pSharedApplication);
+    sm_pSharedApplication = nullptr;
+}
+
+int Application::run()
+{
+    // Initialize instance and cocos2d.
+    if (!applicationDidFinishLaunching())
+    {
+        return 1;
+    }
+	
+    return 0;
+}
+
+void Application::setAnimationInterval(float value)
+{
+}
+
+//////////////////////////////////////////////////////////////////////////
+// static member function
+//////////////////////////////////////////////////////////////////////////
+Application* Application::getInstance()
+{
+    CC_ASSERT(sm_pSharedApplication);
+    return sm_pSharedApplication;
+}
+
+// @deprecated Use getInstance() instead
+Application* Application::sharedApplication()
+{
+    return Application::getInstance();
+}
+
+LanguageType Application::getCurrentLanguage()
+{
+	// Slingshot: TODO
+    LanguageType ret = LanguageType::ENGLISH;
+	
+    return ret;
+}
+
+const char * Application::getCurrentLanguageCode()
+{
+	// Slingshot: TODO
+	static char code[3] = "en";
+	
+	return code;
+}
+
+Application::Platform Application::getTargetPlatform()
+{
+    return Platform::OS_WINDOWS;
+}
+
+bool Application::openURL(const std::string &url)
+{
+	return true;
+}
+
+void Application::setResourceRootPath(const std::string& rootResDir)
+{
+    _resourceRootPath = rootResDir;
+    std::replace(_resourceRootPath.begin(), _resourceRootPath.end(), '\\', '/');
+    if (_resourceRootPath[_resourceRootPath.length() - 1] != '/')
+    {
+        _resourceRootPath += '/';
+    }
+    FileUtils* pFileUtils = FileUtils::getInstance();
+    std::vector<std::string> searchPaths = pFileUtils->getSearchPaths();
+    searchPaths.insert(searchPaths.begin(), _resourceRootPath);
+    pFileUtils->setSearchPaths(searchPaths);
+}
+
+const std::string& Application::getResourceRootPath(void)
+{
+    return _resourceRootPath;
+}
+
+void Application::setStartupScriptFilename(const std::string& startupScriptFile)
+{
+    _startupScriptFilename = startupScriptFile;
+    std::replace(_startupScriptFilename.begin(), _startupScriptFilename.end(), '\\', '/');
+}
+
+NS_CC_END
+
+// //////////////////////////////////////////////////////////////////////////
+// // Local function
+// //////////////////////////////////////////////////////////////////////////
+// static void PVRFrameEnableControlWindow(bool bEnable)
+// {
+    // HKEY hKey = 0;
+
+    // // Open PVRFrame control key, if not exist create it.
+    // if(ERROR_SUCCESS != RegCreateKeyExW(HKEY_CURRENT_USER,
+        // L"Software\\Imagination Technologies\\PVRVFRame\\STARTUP\\",
+        // 0,
+        // 0,
+        // REG_OPTION_NON_VOLATILE,
+        // KEY_ALL_ACCESS,
+        // 0,
+        // &hKey,
+        // nullptr))
+    // {
+        // return;
+    // }
+
+    // const WCHAR* wszValue = L"hide_gui";
+    // const WCHAR* wszNewData = (bEnable) ? L"NO" : L"YES";
+    // WCHAR wszOldData[256] = {0};
+    // DWORD   dwSize = sizeof(wszOldData);
+    // LSTATUS status = RegQueryValueExW(hKey, wszValue, 0, nullptr, (LPBYTE)wszOldData, &dwSize);
+    // if (ERROR_FILE_NOT_FOUND == status              // the key not exist
+        // || (ERROR_SUCCESS == status                 // or the hide_gui value is exist
+        // && 0 != wcscmp(wszNewData, wszOldData)))    // but new data and old data not equal
+    // {
+        // dwSize = sizeof(WCHAR) * (wcslen(wszNewData) + 1);
+        // RegSetValueEx(hKey, wszValue, 0, REG_SZ, (const BYTE *)wszNewData, dwSize);
+    // }
+
+    // RegCloseKey(hKey);
+// }

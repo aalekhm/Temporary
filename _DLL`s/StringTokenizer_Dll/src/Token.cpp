@@ -1,0 +1,44 @@
+
+#include "Token.h"
+
+Token::Token() {
+	this->m_Kind = UNKNOWN;
+	this->m_iLine = 0;
+	this->m_iColumn = 0;
+}
+
+Token::Token(TokenKind kind, char* value, int line, int column) {
+	this->m_Kind = kind;
+	this->m_iLine = line;
+	this->m_iColumn = column;
+
+	int len = strlen(value);
+
+	this->m_Value = new char[len+1];
+	memset(this->m_Value, 0, len+1);
+	::strcpy(this->m_Value, value);
+	this->m_Value[len] = '\0';
+}
+
+int Token::getLine() {
+	return this->m_iLine;
+}
+
+int Token::getColumn() {
+	return this->m_iColumn;
+}
+
+const char* Token::getValue() {
+	return m_Value;
+}
+
+TokenKind Token::getKind() {
+	return this->m_Kind;
+}
+
+Token::~Token() {
+	if(m_Value) {
+		delete m_Value;
+		m_Value = NULL;
+	}
+}

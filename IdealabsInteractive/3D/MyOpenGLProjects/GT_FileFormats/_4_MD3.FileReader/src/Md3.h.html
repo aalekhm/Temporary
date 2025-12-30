@@ -1,0 +1,197 @@
+<html>
+<head>
+<style>
+.keyword{color:rgb(0,0,255);}
+.comment{color:rgb(0,128,0);}
+.pp{color:rgb(0,0,255);}
+</style>
+<body>
+<pre style="font-family:courier;font-size:10pt">
+<span class=pp>#ifndef</span> _MD3_H_
+<span class=pp>#define</span> _MD3_H_
+
+<span class=pp>#include</span> &quot;main.h&quot;
+
+
+
+<span class=comment>// This file stores all of our structures and classes (besides the modular model ones in main.h)
+</span><span class=comment>// in order to read in and display a Quake3 character.  The file format is of type
+</span><span class=comment>// .MD3 and comes in many different files for each main body part section.  We convert
+</span><span class=comment>// these Quake3 structures to our own structures in Md3.cpp so that we are not dependant
+</span><span class=comment>// on their model data structures.  You can do what ever you want, but I like mine :P :)
+</span>
+<span class=comment>// This holds the header information that is read in at the beginning of the file
+</span><span class=keyword>struct</span> tMD3Header{
+    <span class=keyword>char</span>    fileID[4];                <span class=comment>// This stores the File ID - Must be 'ID3'
+</span>    <span class=keyword>int</span>        version;                <span class=comment>// This stores the file version - Must be 15
+</span>    <span class=keyword>char</span>    fileName[68];            <span class=comment>// This stores the name of the File
+</span>    <span class=keyword>int</span>        numOfFrames;            <span class=comment>// This stores number of animation frames
+</span>    <span class=keyword>int</span>        numOfTags;                <span class=comment>// This stores the tag Count
+</span>    <span class=keyword>int</span>        numOfMeshes;            <span class=comment>// This stores the number of sub-objects in the Mesh
+</span>    <span class=keyword>int</span>        numMaxSkins;            <span class=comment>// This stores the number of skins for the mesh
+</span>    <span class=keyword>int</span>        headerSize;                <span class=comment>// This stores the mesh header size
+</span>    <span class=keyword>int</span>        tagStart;                <span class=comment>// This stores the offset into the file for tags
+</span>    <span class=keyword>int</span>        tagEnd;                    <span class=comment>// This stores the end offset into the file for tags
+</span>    <span class=keyword>int</span>        fileSize;                <span class=comment>// This stores the file size
+</span>};
+
+<span class=comment>// This structure is used to read in the mesh data for the .md3 models
+</span><span class=keyword>struct</span> tMD3MeshInfo {
+    <span class=keyword>char</span>    meshID[4];                <span class=comment>// This stores the mesh ID (We don't care)
+</span>    <span class=keyword>char</span>    meshName[68];            <span class=comment>// This stores the mesh name (We do care)
+</span>    <span class=keyword>int</span>        numOfMeshFrames;        <span class=comment>// This stores the mesh aniamtion frame count
+</span>    <span class=keyword>int</span>        numOfSkins;                <span class=comment>// This stores the mesh skin count
+</span>    <span class=keyword>int</span>        numOfVertices;            <span class=comment>// This stores the mesh vertex count
+</span>    <span class=keyword>int</span>        numOfTriangles;            <span class=comment>// This stores the mesh face count
+</span>    <span class=keyword>int</span>        offsetTriangleStart;    <span class=comment>// This stores the starting offset for the triangles
+</span>    <span class=keyword>int</span>        headerSize;                <span class=comment>// This stores the header size for the mesh
+</span>    <span class=keyword>int</span>        offsetUVStart;            <span class=comment>// This stores the starting offset for the UV coordinates
+</span>    <span class=keyword>int</span>        offsetVertexStart;        <span class=comment>// This stores the starting offset for the vertex indices
+</span>    <span class=keyword>int</span>        meshSize;                <span class=comment>// This stores the total mesh size
+</span>};
+
+<span class=comment>// This is our tag structure for the .MD3 file format.  These are used link other
+</span><span class=comment>// models to and the rotate and transate the child models of that model.
+</span><span class=keyword>struct</span> tMD3Tag {
+    <span class=keyword>char</span>        tagName[64];            <span class=comment>// This stores the name of the tag (I.E. &quot;tag_torso&quot;)
+</span>    CVector3    vTranslatePosition;        <span class=comment>// This stores the translation that should be performed
+</span>    <span class=keyword>float</span>        rotationMatrix[3][3];    <span class=comment>// This stores the 3x3 rotation matrix for this frame
+</span>};
+
+<span class=comment>// This stores the bone information (useless as far as I can see...)
+</span><span class=keyword>struct</span> tMD3Bone {
+    <span class=keyword>float</span>        mins[3];                <span class=comment>// This is the min (x, y, z) value for the bone
+</span>    <span class=keyword>float</span>        maxs[3];                <span class=comment>// This is the max (x, y, z) value for the bone
+</span>    <span class=keyword>float</span>        position[3];            <span class=comment>// This supposedly stores the bone position???
+</span>    <span class=keyword>float</span>        scale;                    <span class=comment>// This stores the scale of the bone
+</span>    <span class=keyword>char</span>        creator[16];            <span class=comment>// The modeler used to create the model (I.E. &quot;3DS Max&quot;)
+</span>};
+
+<span class=comment>// This stores the normals and vertex indices 
+</span><span class=keyword>struct</span> tMD3Triangle {
+    <span class=keyword>signed</span> <span class=keyword>short</span>    vertex[3];            <span class=comment>// The vertex for this face (scale down by 64.0f)
+</span>    <span class=keyword>unsigned</span> <span class=keyword>char</span>    normal[2];            <span class=comment>// This stores some crazy normal values (not sure...)
+</span>};
+
+<span class=comment>// This stores the indices into the vertex and texture coordinate arrays
+</span><span class=keyword>struct</span> tMD3Face {
+    <span class=keyword>int</span>                vertexIndexes[3];
+};
+
+<span class=comment>// This stores UV coordinates
+</span><span class=keyword>struct</span> tMD3TexCoord {
+    <span class=keyword>float</span>            texCoords[2];
+};
+
+<span class=comment>// This stores a skin name (We don't use this, just the name of the model to get the texture)
+</span><span class=keyword>struct</span> tMD3Skin {
+    <span class=keyword>char</span>            skinName[68];
+};
+
+<span class=comment>// This class handles all of the main loading code
+</span><span class=keyword>class</span> CMD3Loader {
+    <span class=keyword>public</span>:
+        <span class=comment>// This inits the data members
+</span>        CMD3Loader();
+
+        <span class=comment>// This is the function that you call to load the MD3 model
+</span>        <span class=keyword>bool</span>    importMD3(t3DModel *pModel, <span class=keyword>char</span> *strFileName);
+        
+        <span class=comment>// This loads a model's .skin file
+</span>        <span class=keyword>bool</span>    loadSkin(t3DModel *pModel, LPSTR skinFileName);
+
+        <span class=comment>// This loads a weapon's .shader file
+</span>        <span class=keyword>bool</span>    loadShader(t3DModel *pModel, LPSTR shaderFileName);
+
+    <span class=keyword>private</span>:
+        <span class=comment>// This reads in the data from the MD3 file and stores it in the member variables,
+</span>        <span class=comment>// later to be converted to our cool structures so we don't depend on Quake3 stuff.
+</span>        <span class=keyword>void</span> readMD3Data(t3DModel *pModel);
+
+        <span class=comment>// This converts the member variables to our pModel structure, and takes the model
+</span>        <span class=comment>// to be loaded and the mesh header to get the mesh info.
+</span>        <span class=keyword>void</span> convertToDataStructures(t3DModel *pModel, tMD3MeshInfo meshHeader);
+        
+        <span class=comment>// This frees memory and closes the file
+</span>        <span class=keyword>void</span> cleanUp();
+        
+        <span class=keyword>void</span> logBonesInfo(tMD3Bone *pBones, <span class=keyword>int</span> MAX_FRAMES);
+        <span class=keyword>void</span> logTagsInfo(tMD3Tag *pTags, <span class=keyword>int</span> NO_OF_TAGS, <span class=keyword>int</span> MAX_FRAMES);
+        <span class=keyword>void</span> logMeshesInfo(tMD3MeshInfo *meshHeader);
+        <span class=keyword>void</span> logSkinsInfo(tMD3Skin *pSkins, <span class=keyword>int</span> MAX_SKINS);
+        <span class=keyword>void</span> logFacesInfo(tMD3Face *pFaces, <span class=keyword>int</span> MAX_FACES);
+        <span class=keyword>void</span> logTextureCoordsInfo(tMD3TexCoord *pTexCoords, <span class=keyword>int</span> MAX_VERTICES);
+        <span class=keyword>void</span> logVerticesInfo(tMD3Triangle *pTriangles, <span class=keyword>int</span> MAX_FRAMES, <span class=keyword>int</span> MAX_TRIANGLES);
+
+        <span class=comment>// Member Variables        
+</span>
+        <span class=comment>// The file pointer
+</span>        FILE *mFilePointer;
+
+        tMD3Header        mMD3Header;                <span class=comment>// The header data
+</span>        
+        tMD3Skin        *m_pSkins;                <span class=comment>// The skin name data (not used)
+</span>        tMD3TexCoord    *m_pTexCoords;            <span class=comment>// The texture coordinates
+</span>        tMD3Face        *m_pFaces;                <span class=comment>// Face/Triangle data
+</span>        tMD3Triangle    *m_pVertices;            <span class=comment>// Vertex/UV indices
+</span>        tMD3Bone        *m_pBones;                <span class=comment>// This stores the bone data (not used)
+</span>};
+
+<span class=comment>// This is our model class that we use to load and draw and free the Quake3 characters
+</span><span class=keyword>class</span> CMD3Model {
+    <span class=keyword>public</span>:
+        <span class=comment>// These our our init and deinit() C++ functions (Constructor/Deconstructor)
+</span>        CMD3Model();
+        ~CMD3Model();
+        
+        <span class=comment>// This loads the model from a path and name prefix.   It takes the path and
+</span>        <span class=comment>// model name prefix to be added to _upper.md3, _lower.md3 or _head.md3.
+</span>        <span class=keyword>bool</span> loadModel(LPSTR strPath, LPSTR strModel);
+
+        <span class=comment>// This loads the weapon and takes the same path and model name to be added to .md3
+</span>        <span class=keyword>bool</span> loadWeapon(LPSTR strPath, LPSTR strModel);
+
+        <span class=comment>// This links a model to another model (pLink) so that it's the parent of that child.
+</span>        <span class=comment>// The strTagName is the tag, or joint, that they will be linked at (I.E. &quot;tag_torso&quot;).
+</span>        <span class=keyword>void</span> linkModel(t3DModel *pModel, t3DModel *pLink, LPSTR strTagName);
+
+        <span class=comment>// This renders the character to the screen
+</span>        <span class=keyword>void</span> drawModel();
+
+        <span class=comment>// This frees the character's data
+</span>        <span class=keyword>void</span> destroyModel(t3DModel *pModel);
+
+    <span class=keyword>private</span>:
+        <span class=comment>// This loads the models textures with a given path
+</span>        <span class=keyword>void</span> loadModelTextures(t3DModel *pModel, LPSTR strTexturePath);
+
+        <span class=comment>// This recursively draws the character models, starting with the lower.md3 model
+</span>        <span class=keyword>void</span> drawLink(t3DModel *pModel);
+
+        <span class=comment>// This a md3 model to the screen (not the whole character)
+</span>        <span class=keyword>void</span> renderModel(t3DModel *pModel);
+
+        <span class=comment>// Member Variables
+</span>
+        <span class=comment>// This stores the texture array for each of the textures assigned to this model
+</span>        GLuint *mModelTextures;    
+
+        <span class=comment>// This stores a list of all the names of the textures that have been loaded.  
+</span>        <span class=comment>// This was created so that we could check to see if a texture that is assigned
+</span>        <span class=comment>// to a mesh has already been loaded.  If so, then we don't need to load it again
+</span>        <span class=comment>// and we can assign the textureID to the same textureID as the first loaded texture.
+</span>        <span class=comment>// You could get rid of this variable by doing something tricky in the texture loading
+</span>        <span class=comment>// function, but I didn't want to make it too confusing to load the textures.
+</span>        vector&lt;string&gt; vStrTextures;
+
+        <span class=comment>// These are are models for the character's head and upper and lower body parts
+</span>        t3DModel    m_Head;
+        t3DModel    m_Upper;
+        t3DModel    m_Lower;
+
+        <span class=comment>// This store the players weapon model (optional load)
+</span>        t3DModel    m_Weapon;
+};
+
+<span class=pp>#endif</span></pre></body>
+</html>
